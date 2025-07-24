@@ -1,219 +1,188 @@
 
-import { useRef, useState } from "react";
-import { HiUpload } from "react-icons/hi";
-import React from "react";
-import Cookies from "js-cookie";
-import { useNavigate } from "react-router-dom";
- import { toast } from 'react-hot-toast';
+import React, { useEffect, useState } from "react";
+import moment from "moment";
+import { getCallLogs } from "../../hooks/useAuth";
+import { FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 
-function Calling() {
-  const [mobile, setMobile] = useState("");
-  const [script, setScript] = useState("");
-  const [file, setFile] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const fileInputRef = useRef(null);
-  const navigate = useNavigate();
- 
+const Calling = () => {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const logsPerPage = 15;
 
-const handleLogout = () => {
-  setLoading(true);
+  useEffect(() => {
+    getCallLogs()
+      .then((res) => {
+        const extracted = res?.data || res;
+        if (Array.isArray(extracted)) {
+          setLogs(extracted);
+        } else {
+          setLogs([]);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch logs", err);
+        setLogs([]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-  setTimeout(() => {
-    const token = Cookies.get("CallingAgent");
+  const filteredLogs = logs.filter((log) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      log.customer_name?.toLowerCase().includes(term) ||
+      log.customer_email?.toLowerCase().includes(term) ||
+      log.customer_phone?.toLowerCase().includes(term)
+    );
+  });
 
-    if (token) {
-      Cookies.remove("CallingAgent");
-      Cookies.remove("role");
-      toast.success("Logout successful");
-    } else {
-      toast.error("You're already logged out");
+  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+  const currentLogs = filteredLogs.slice(
+    (currentPage - 1) * logsPerPage,
+    currentPage * logsPerPage
+  );
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
     }
-    navigate("/login");
-    setLoading(false);
-  }, 1000);
-};
-
-  const handleFileClick = () => {
-    fileInputRef.current.click();
   };
 
-  const validate = () => {
-    const newErrors = {};
-
-    if (!mobile.trim()) {
-      newErrors.mobile = "Mobile number is required.";
-    } else if (!/^\d{10,}$/.test(mobile.trim())) {
-      newErrors.mobile = "Enter a valid 10+ digit mobile number.";
-    }
-
-    if (!script.trim()) {
-      newErrors.script = "Message script is required.";
-    } else if (script.trim().length < 10) {
-      newErrors.script = "Message must be at least 10 characters.";
-    }
-
-    if (!file) {
-      newErrors.file = "Excel file is required.";
-    } else if (!/\.(xls|xlsx)$/i.test(file.name)) {
-      newErrors.file = "Only .xls or .xlsx files are allowed.";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-
-    setLoading(true);
-
-    setTimeout(() => {
-      console.log("✅ Valid form:");
-      console.log("Mobile:", mobile);
-      console.log("Script:", script);
-      console.log("File:", file.name);
-      setLoading(false);
-    }, 2000);
+  const renderStatus = (value) => {
+    return value === 1 ? (
+      <FaCheckCircle className="text-green-600 text-xl" />
+    ) : (
+      <FaTimesCircle className="text-red-500 text-xl" />
+    );
   };
 
   return (
-    <>
-      {/* Logout Button Fixed Outside */}
-      <button
-        onClick={handleLogout}
-        disabled={loading}
-        className={`fixed top-4 right-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-md z-50 flex items-center justify-center gap-2 ${loading ? "opacity-60 cursor-not-allowed" : ""
-          }`}
-      >
-        {loading && (
-          <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></span>
-        )}
-        {loading ? " " : "Logout"}
-      </button>
-
-      <div className="min-h-screen flex w-full  items-center justify-center p-4 sm:p-6 relative">
-
-        {/* Main Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-5xl"
-        >
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-gray-800 mb-8">
-            Send Call
-          </h2>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-            {/* LEFT */}
-            <div>
-              <div className="mb-5">
-                <label className="block text-base sm:text-lg font-semibold text-gray-700 mb-1">
-                  Mobile Number
-                </label>
-                <input
-                  type="tel"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                  placeholder="Enter mobile number"
-                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.mobile
-                    ? "border-red-500 focus:ring-red-300"
-                    : "focus:ring-blue-500"
-                    }`}
-                />
-                {errors.mobile && (
-                  <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>
-                )}
-              </div>
-
-              <div className="mb-5">
-                <label className="block text-base sm:text-lg font-semibold text-gray-700 mb-1">
-                  Message Script
-                </label>
-                <textarea
-                  value={script}
-                  onChange={(e) => setScript(e.target.value)}
-                  placeholder="Enter your message"
-                  rows="5"
-                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.script
-                    ? "border-red-500 focus:ring-red-300"
-                    : "focus:ring-blue-500"
-                    }`}
-                />
-                {errors.script && (
-                  <p className="text-red-500 text-sm mt-1">{errors.script}</p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition w-full sm:w-auto"
-                disabled={loading}
-              >
-                Make a call
-              </button>
-            </div>
-
-            {/* RIGHT */}
-            <div className="flex flex-col justify-start">
-              <label className="block text-base sm:text-lg font-semibold text-gray-700 mb-2">
-                📂 Upload Excel File (.xlsx)
-              </label>
-
-              <div
-                className={`relative border-2 border-dashed p-6 rounded-xl text-center transition ${errors.file
-                  ? "border-red-400 hover:border-red-500"
-                  : "border-gray-300 hover:border-blue-400"
-                  }`}
-              >
-                <HiUpload className="text-4xl mx-auto text-blue-500 mb-2" />
-                <p className="text-sm text-gray-500">
-                  {file ? file.name : "No file selected"}
-                </p>
-              </div>
-
-              <input
-                type="file"
-                accept=".xls,.xlsx"
-                ref={fileInputRef}
-                onChange={(e) => {
-                  setFile(e.target.files[0]);
-                  setErrors((prev) => ({ ...prev, file: "" }));
-                }}
-                className="hidden"
-              />
-
-              <div className="flex gap-4 mt-4 flex-col sm:flex-row items-center w-full flex-wrap">
-                <button
-                  type="button"
-                  onClick={handleFileClick}
-                  className="bg-gray-700 hover:bg-gray-900 text-white py-2 px-4 rounded-xl transition w-full sm:w-auto"
-                >
-                  Select File
-                </button>
-
-                {file && (
-                  <a
-                    href={URL.createObjectURL(file)}
-                    download={file.name}
-                    className="bg-green-600 hover:bg-green-700 text-white text-center py-2 px-4 rounded-xl transition w-full sm:w-auto"
-                  >
-                    Download Selected File
-                  </a>
-                )}
-              </div>
-
-              {errors.file && (
-                <p className="text-red-500 text-sm mt-2">{errors.file}</p>
-              )}
-            </div>
-          </div>
-        </form>
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-3">
+        <h2 className="text-2xl font-bold text-gray-700 text-nowrap">
+          Call Logs
+        </h2>
+        <input
+          type="text"
+          placeholder="Search by name, email or phone"
+          className="border border-gray-300 rounded px-4 py-2 w-full md:w-80"
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+        />
       </div>
-    </>
+
+      <div className="overflow-x-auto bg-white rounded-xl shadow">
+        <table className="min-w-full">
+          <thead className="bg-gray-100 text-md text-gray-700 text-left text-nowrap">
+            <tr>
+              <th className="px-4 py-2">Sr No.</th>
+              <th className="px-4 py-2">Name</th>
+              <th className="px-4 py-2">Email</th>
+              <th className="px-4 py-2">Phone</th>
+              <th className="px-4 py-2">Brand</th>
+              <th className="px-4 py-2">Status</th>
+                 <th className="px-4 py-2">Call Day</th>
+              <th className="px-4 py-2">Call Status</th>
+              <th className="px-4 py-2">WhatsApp Status</th>
+              <th className="px-4 py-2">Email Status</th>
+              <th className="px-4 py-2">Duration (s)</th>
+              <th className="px-4 py-2">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan="10" className="text-center py-6 text-nowrap">
+                  Loading...
+                </td>
+              </tr>
+            ) : currentLogs.length === 0 ? (
+              <tr>
+                <td colSpan="10" className="text-center py-6 text-nowrap">
+                  No logs found
+                </td>
+              </tr>
+            ) : (
+              currentLogs.map((log, index) => (
+                <tr
+                  key={log.id}
+                  className="border-b border-gray-300 text-gray-600 hover:bg-gray-50 text-nowrap"
+                >
+                  <td className="px-4 py-2">
+                    {(currentPage - 1) * logsPerPage + index + 1}
+                  </td>
+                  <td className="px-4 py-2">
+                    <span>{log.customer_name || "-"}</span>{" "}
+                    <span className="text-xs italic text-gray-400">
+                      ({log.lead_id ? "Automatically" : "Manually"})
+                    </span>
+                  </td>
+                  <td className="px-4 py-2">{log.customer_email || "-"}</td>
+                  <td className="px-4 py-2">{log.customer_phone || "-"}</td>
+                  <td className="px-4 py-2">{log.brand || "-"}</td>
+                        <td className="px-4 py-2">{log.status || "-"}</td>
+                              <td className="px-4 py-2">{log.call_day || "-"}</td>
+                  <td className="px-4 py-2">{renderStatus(log.call_status)}</td>
+                  <td className="px-4 py-2">{renderStatus(log.wp_status)}</td>
+                  <td className="px-4 py-2">{renderStatus(log.email_status)}</td>
+                  <td className="px-4 py-2">{log.duration || "-"}</td>
+                  <td className="px-4 py-2">
+                    {log.lead?.date
+                      ? moment(log.lead.date).format("DD/MM/YYYY")
+                      : "-"}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
+          <div className="text-sm text-nowrap">
+            Showing {(currentPage - 1) * logsPerPage + 1} to{" "}
+            {Math.min(currentPage * logsPerPage, filteredLogs.length)} of{" "}
+            {filteredLogs.length} results
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50 text-nowrap"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            {[...Array(totalPages)].map((_, idx) => (
+              <button
+                key={idx}
+                className={`px-3 py-1 border rounded text-nowrap ${
+                  currentPage === idx + 1
+                    ? "bg-blue-500 text-white"
+                    : "bg-white"
+                }`}
+                onClick={() => goToPage(idx + 1)}
+              >
+                {idx + 1}
+              </button>
+            ))}
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50 text-nowrap"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
-}
+};
 
 export default Calling;
-
-

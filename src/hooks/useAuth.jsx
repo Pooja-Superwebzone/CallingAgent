@@ -32,3 +32,30 @@ export function login(formData) {
       throw new Error(errorMessage);
     });
 }
+
+
+export function getWhatsappLogs() {
+  return service
+    .get("twillio-wplogs")
+    .then((res) => res.data)
+    .catch((error) => {
+      let errorMessage = "Failed to fetch WhatsApp logs";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+export function getCallLogs() {
+  return service
+    .get("twillio-leads")
+    .then((res) => res.data)
+    .catch((error) => {
+      let errorMessage = "Failed to fetch Call Logs";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
