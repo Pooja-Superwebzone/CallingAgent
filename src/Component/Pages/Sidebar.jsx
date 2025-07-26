@@ -1,4 +1,3 @@
-
 import React from "react";
 import {
     Phone,
@@ -7,6 +6,7 @@ import {
     LogOut,
     Menu,
     X,
+    Smartphone,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
@@ -14,8 +14,9 @@ import { toast } from "react-hot-toast";
 
 const navItems = [
     { id: "/calling", label: "Calls Log", icon: <Phone size={18} /> },
-    { id: "/whatsapp", label: "WhatsApp Logs", icon: <MessageSquareText size={18} /> },
+    { id: "/whatsapp-logs", label: "WhatsApp Logs", icon: <MessageSquareText size={18} /> },
     { id: "/sendcall", label: "Send Call", icon: <PhoneForwarded size={18} /> },
+    { id: "/whats-app", label: "WhatsApp", icon: <Smartphone size={18} /> }, // use distinct icon
 ];
 
 const Sidebar = () => {
@@ -81,18 +82,23 @@ const Sidebar = () => {
         </div>
     );
 
+    // 👇 this controls hiding of sidebar + topbar
+    const isWhatsAppFull = location.pathname === "/whats-app";
+
     return (
         <div className="flex min-h-screen flex-col bg-gray-100 text-gray-900 relative">
             {/* Mobile Top Bar */}
-            <div className="w-full bg-[#101826] text-white px-4 py-3 flex items-center justify-between md:hidden">
-                <button onClick={() => setMobileOpen(true)}>
-                    <Menu size={24} />
-                </button>
-            </div>
+            {!isWhatsAppFull && (
+                <div className="w-full bg-[#101826] text-white px-4 py-3 flex items-center justify-between md:hidden">
+                    <button onClick={() => setMobileOpen(true)}>
+                        <Menu size={24} />
+                    </button>
+                </div>
+            )}
 
             <div className="flex flex-1">
                 {/* Mobile overlay */}
-                {mobileOpen && (
+                {!isWhatsAppFull && mobileOpen && (
                     <div
                         className="fixed inset-0 bg-black/50 z-40"
                         onClick={() => setMobileOpen(false)}
@@ -100,25 +106,29 @@ const Sidebar = () => {
                 )}
 
                 {/* Mobile Sidebar */}
-                <aside
-                    className={`fixed z-50 top-0 left-0 w-64 h-full bg-[#101826] text-white shadow-lg transform transition-transform duration-300 md:hidden overflow-y-auto flex flex-col ${mobileOpen ? "translate-x-0" : "-translate-x-full"
-                        }`}
-                >
-                    <div className="flex justify-end px-4 py-4">
-                        <button onClick={() => setMobileOpen(false)}>
-                            <X size={24} />
-                        </button>
-                    </div>
-                    <SidebarContent />
-                </aside>
+                {!isWhatsAppFull && (
+                    <aside
+                        className={`fixed z-50 top-0 left-0 w-64 h-full bg-[#101826] text-white shadow-lg transform transition-transform duration-300 md:hidden overflow-y-auto flex flex-col ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+                            }`}
+                    >
+                        <div className="flex justify-end px-4 py-4">
+                            <button onClick={() => setMobileOpen(false)}>
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <SidebarContent />
+                    </aside>
+                )}
 
                 {/* Desktop Sidebar */}
-                <aside className="hidden md:flex w-64 bg-[#101826] text-white">
-                    <SidebarContent />
-                </aside>
+                {!isWhatsAppFull && (
+                    <aside className="hidden md:flex w-64 bg-[#101826] text-white">
+                        <SidebarContent />
+                    </aside>
+                )}
 
                 {/* Main Content */}
-                <main className="flex-1 p-4 md:p-6 overflow-auto">
+                <main className={`flex-1 overflow-auto ${isWhatsAppFull ? "p-0" : "p-4 md:p-6"}`}>
                     <Outlet />
                 </main>
             </div>

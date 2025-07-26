@@ -59,3 +59,17 @@ export function getCallLogs() {
       throw new Error(errorMessage);
     });
 }
+
+export function sendManualCall(payload) {
+  return service
+    .post("twillio-send-manual-call", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Call API failed:", error);
+      let errorMessage = "Failed to send manual call.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
