@@ -2,6 +2,8 @@ import React, { useState, useRef } from "react";
 import { HiUpload } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 import { sendManualCall } from "../../hooks/useAuth";
+import toast from "react-hot-toast";
+
 
 function Sendcall() {
   const [name, setName] = useState("");
@@ -57,6 +59,7 @@ function Sendcall() {
         brand,
       };
       const response = await sendManualCall(payload);
+           toast.success("Call triggered successfully");
       console.log("✅ Call triggered successfully", response);
     } catch (error) {
       alert(error.message);

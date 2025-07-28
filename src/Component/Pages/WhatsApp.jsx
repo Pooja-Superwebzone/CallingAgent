@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Paperclip, Smile, Send, RefreshCw } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
@@ -17,6 +18,7 @@ const WhatsApp = () => {
   const [showEmoji, setShowEmoji] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fileRef = useRef();
   const messageEndRef = useRef();
@@ -26,7 +28,6 @@ const WhatsApp = () => {
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const selectedPhone = query.get("chat");
 
-  // Load chat list
   useEffect(() => {
     async function fetchChats() {
       try {
@@ -62,7 +63,6 @@ const WhatsApp = () => {
     fetchChats();
   }, []);
 
-  // Load full messages for chat from query param only after chats are set
   useEffect(() => {
     if (!selectedPhone || chats.length === 0) return;
     const found = chats.find(c => c.phone === selectedPhone);
@@ -73,8 +73,6 @@ const WhatsApp = () => {
 
   const handleChatSelect = async (chat) => {
     navigate(`?chat=${chat.phone}`);
-
-    // ✅ If already loaded, just select it
     if (chat.loaded) {
       setSelectedChatId(chat.id);
       return;
@@ -100,7 +98,7 @@ const WhatsApp = () => {
           : c
       );
       setChats(updatedChats);
-      setSelectedChatId(chat.id); // ✅ Set after update
+      setSelectedChatId(chat.id);
     } catch (error) {
       console.error("❌ Failed to load messages:", error.message);
     }
@@ -108,34 +106,14 @@ const WhatsApp = () => {
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() && !selectedFile) return;
-
     const selected = chats.find(chat => chat.id === selectedChatId);
-    if (!selected || !selected.phone) {
-      alert("No phone number selected.");
-      return;
-    }
+    if (!selected || !selected.phone) return;
 
     let rawPhone = selected.phone.replace(/\s+/g, '').trim();
-    if (!rawPhone.startsWith("+")) {
-      rawPhone = "+" + rawPhone;
-    }
+    if (!rawPhone.startsWith("+")) rawPhone = "+" + rawPhone;
+    if (!/^\+\d{10,15}$/.test(rawPhone)) return;
 
-    if (!/^\+\d{10,15}$/.test(rawPhone)) {
-      alert("Invalid phone number format.");
-      return;
-    }
-
-    const tempMsg = {
-      from: "user",
-      text: inputMessage,
-      file: selectedFile ? URL.createObjectURL(selectedFile) : null,
-      fileName: selectedFile?.name || null,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-      }),
-      pending: true
-    };
+ 
 
     setChats(prev =>
       prev.map(chat =>
@@ -149,13 +127,9 @@ const WhatsApp = () => {
     setSelectedFile(null);
 
     try {
-      await sendWhatsappTextMessage({
-        to: rawPhone,
-        message: tempMsg.text
-      });
+      await sendWhatsappTextMessage({ to: rawPhone, message: tempMsg.text });
     } catch (error) {
       alert("Error sending message: " + (error.response?.data?.message || error.message));
-      return;
     }
 
     setIsTyping(true);
@@ -179,25 +153,12 @@ const WhatsApp = () => {
     }, 2000);
   };
 
-  const handleRefresh = () => {
-    const chat = chats.find(c => c.id === selectedChatId);
-    if (!chat) return;
-    setChats(prev =>
-      prev.map(c =>
-        c.id === chat.id ? { ...c, loaded: false } : c
-      )
-    );
-    handleChatSelect(chat);
-  };
-
   const handleEmojiClick = (e) => {
     setInputMessage(prev => prev + e.emoji);
     setShowEmoji(false);
   };
 
-  const selectedChat = useMemo(() => {
-    return chats.find(c => c.id === selectedChatId);
-  }, [chats, selectedChatId]);
+  const selectedChat = useMemo(() => chats.find(c => c.id === selectedChatId), [chats, selectedChatId]);
 
   useEffect(() => {
     if (messageEndRef.current) {
@@ -206,10 +167,25 @@ const WhatsApp = () => {
   }, [chats, selectedChatId]);
 
   return (
-    <div className="h-screen flex bg-white overflow-hidden">
+    <div className="relative flex flex-col md:flex-row h-screen">
+      {/* Mobile Header with Hamburger */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white shadow z-50">
+        <h2 className="font-bold text-lg text-gray-800">WhatsApp</h2>
+        <button onClick={() => setSidebarOpen(!sidebarOpen)}>
+          <svg className="h-6 w-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
       {/* Sidebar */}
-      <aside className="w-[300px] border-r border-[#cdd1d6] bg-gray-50 hidden md:flex flex-col">
-        <div className="p-4 border-b border-[#cdd1d6]">
+      <aside className={`fixed md:static top-0 left-0 h-full bg-gray-50 z-40 border-r border-gray-200 w-72 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
+        <div className="p-4 border-b border-gray-300 md:hidden flex justify-between items-center bg-white">
+          <h2 className="font-semibold text-gray-700">Chats</h2>
+          <button onClick={() => setSidebarOpen(false)} className="text-gray-600">✕</button>
+        </div>
+
+        <div className="p-4 border-b border-[#cdd1d6] hidden md:block">
           <input
             type="text"
             placeholder="Search chats..."
@@ -218,27 +194,29 @@ const WhatsApp = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        {chats
-          .filter(chat => chat.name.toLowerCase().includes(searchTerm.toLowerCase()))
-          .map(chat => (
-            <div
-              key={chat.id}
-              className={`flex items-center gap-3 p-4 cursor-pointer border-b border-[#cdd1d6] hover:bg-gray-100 ${selectedChatId === chat.id ? "bg-gray-100" : ""}`}
-              onClick={() => handleChatSelect(chat)}
-            >
-              <img
-                src={chat.avatar || "/avatar.png"}
-                className="w-10 h-10 rounded-full object-cover"
-                alt="avatar"
-              />
-              <div>
-                <div className="font-semibold">{chat.name}</div>
-                <div className="text-xs text-gray-500 truncate w-[200px]">
-                  {chat.messages[chat.messages.length - 1]?.text}
+
+        <div className="overflow-y-auto h-[calc(100vh-64px)] md:h-[calc(100vh-64px)]">
+          {chats
+            .filter(chat => chat.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map(chat => (
+              <div
+                key={chat.id}
+                className={`flex items-center gap-3 p-4 cursor-pointer border-b border-[#cdd1d6] hover:bg-gray-100 ${selectedChatId === chat.id ? "bg-gray-100" : ""}`}
+                onClick={() => {
+                  handleChatSelect(chat);
+                  setSidebarOpen(false);
+                }}
+              >
+                <img src={chat.avatar || "/avatar.png"} className="w-10 h-10 rounded-full object-cover" alt="avatar" />
+                <div>
+                  <div className="font-semibold">{chat.name}</div>
+                  <div className="text-xs text-gray-500 truncate w-[200px]">
+                    {chat.messages[chat.messages.length - 1]?.text}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+        </div>
       </aside>
 
       {/* Chat Panel */}
@@ -247,13 +225,10 @@ const WhatsApp = () => {
           <>
             <div className="flex items-center justify-between p-4 border-b border-[#cdd1d6] bg-white">
               <div className="flex items-center gap-3">
-                <img
-                  src={selectedChat.avatar || "/avatar.png"}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
+                <img src={selectedChat.avatar || "/avatar.png"} className="w-10 h-10 rounded-full object-cover" />
                 <div className="font-semibold text-gray-800">{selectedChat.name}</div>
               </div>
-              <button onClick={handleRefresh} className="text-gray-500 hover:text-black">
+              <button onClick={() => handleChatSelect(selectedChat)} className="text-gray-500 hover:text-black">
                 <RefreshCw size={18} />
               </button>
             </div>
@@ -264,11 +239,7 @@ const WhatsApp = () => {
                   <div className={`p-3 rounded-lg shadow max-w-sm text-sm ${msg.from === "user" ? "bg-blue-500 text-white" : "bg-white text-black"}`}>
                     {msg.text && <p>{msg.text}</p>}
                     {msg.file && (
-                      <a
-                        href={msg.file}
-                        download={msg.fileName}
-                        className="underline text-xs block mt-2"
-                      >
+                      <a href={msg.file} download={msg.fileName} className="underline text-xs block mt-2">
                         📎 {msg.fileName}
                       </a>
                     )}
@@ -319,10 +290,7 @@ const WhatsApp = () => {
                     </div>
                   )}
                 </div>
-                <button
-                  className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full"
-                  onClick={handleSendMessage}
-                >
+                <button className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full" onClick={handleSendMessage}>
                   <Send size={20} />
                 </button>
               </div>
@@ -361,4 +329,3 @@ const WhatsApp = () => {
 };
 
 export default WhatsApp;
-
