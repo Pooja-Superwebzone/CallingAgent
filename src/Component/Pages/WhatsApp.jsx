@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Paperclip, Smile, Send, RefreshCw } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
@@ -16,16 +17,17 @@ const WhatsApp = () => {
   const [showEmoji, setShowEmoji] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const selectedChat = chats.find(c => c.id === selectedChatId);
+
   const fileRef = useRef();
+  const messageEndRef = useRef();
   const navigate = useNavigate();
   const location = useLocation();
 
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const selectedPhone = query.get("chat");
 
+  // Load chat list
   useEffect(() => {
-    let isMounted = true;
     async function fetchChats() {
       try {
         const res = await getWhatsappChats();
@@ -46,147 +48,162 @@ const WhatsApp = () => {
                 })
               }
             ],
+            loaded: false,
             raw: item
           };
         }) || [];
 
-        if (isMounted) {
-          setChats(dataWithIds);
-
-          if (selectedPhone) {
-            const found = dataWithIds.find(c => c.phone === selectedPhone);
-            if (found) {
-              handleChatSelect(found, dataWithIds);
-            }
-          }
-        }
+        setChats(dataWithIds);
       } catch (err) {
         console.error("Failed to fetch chats:", err.message);
       }
     }
 
     fetchChats();
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedPhone]);
+  }, []);
 
-  const handleChatSelect = async (chat, allChats = chats) => {
-    try {
+  // Load full messages for chat from query param only after chats are set
+  useEffect(() => {
+    if (!selectedPhone || chats.length === 0) return;
+    const found = chats.find(c => c.phone === selectedPhone);
+    if (found) {
+      handleChatSelect(found);
+    }
+  }, [chats, selectedPhone]);
+
+  const handleChatSelect = async (chat) => {
+    navigate(`?chat=${chat.phone}`);
+
+    // ✅ If already loaded, just select it
+    if (chat.loaded) {
       setSelectedChatId(chat.id);
-      navigate(`?chat=${chat.phone}`);
+      return;
+    }
+
+    try {
       const res = await getWhatsappChatByNumber(chat.phone);
       const timestamps = res?.data?.timestamps || [];
-      const fullMessages = timestamps.map((msg) => ({
-        from: msg.status === "received" ? "bot" : "user",
-        text: msg.message,
-        time: new Date(msg.at).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit"
-        })
-      }));
-      const updatedChats = allChats.map((c) =>
-        c.id === chat.id ? { ...c, messages: fullMessages } : c
+      const fullMessages = timestamps
+        .sort((a, b) => new Date(a.at) - new Date(b.at))
+        .map((msg) => ({
+          from: msg.status === "received" ? "bot" : "user",
+          text: msg.message,
+          time: new Date(msg.at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+          })
+        }));
+
+      const updatedChats = chats.map((c) =>
+        c.id === chat.id
+          ? { ...c, messages: fullMessages, loaded: true }
+          : c
       );
       setChats(updatedChats);
+      setSelectedChatId(chat.id); // ✅ Set after update
     } catch (error) {
       console.error("❌ Failed to load messages:", error.message);
     }
   };
 
- const handleSendMessage = async () => {
-  if (!inputMessage.trim() && !selectedFile) return;
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() && !selectedFile) return;
 
-  const selected = chats.find(chat => chat.id === selectedChatId);
-  if (!selected || !selected.phone) {
-    alert("No phone number selected.");
-    return;
-  }
+    const selected = chats.find(chat => chat.id === selectedChatId);
+    if (!selected || !selected.phone) {
+      alert("No phone number selected.");
+      return;
+    }
 
-  // Sanitize phone number
-  let rawPhone = selected.phone.replace(/\s+/g, '').trim();
-  if (!rawPhone.startsWith("+")) {
-    rawPhone = "+" + rawPhone;
-  }
+    let rawPhone = selected.phone.replace(/\s+/g, '').trim();
+    if (!rawPhone.startsWith("+")) {
+      rawPhone = "+" + rawPhone;
+    }
 
-  if (!/^\+\d{10,15}$/.test(rawPhone)) {
-    console.error("❌ Invalid phone number format:", rawPhone);
-    alert("Invalid phone number format.");
-    return;
-  }
+    if (!/^\+\d{10,15}$/.test(rawPhone)) {
+      alert("Invalid phone number format.");
+      return;
+    }
 
-  const tempMsg = {
-    from: "user",
-    text: inputMessage,
-    file: selectedFile ? URL.createObjectURL(selectedFile) : null,
-    fileName: selectedFile?.name || null,
-    time: new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit"
-    }),
-    pending: true
-  };
-
-  // Add message immediately to UI
-  setChats(prev =>
-    prev.map(chat =>
-      chat.id === selectedChatId
-        ? { ...chat, messages: [...chat.messages, tempMsg] }
-        : chat
-    )
-  );
-
-  setInputMessage("");
-  setSelectedFile(null);
-
-  try {
-    await sendWhatsappTextMessage({
-      to: rawPhone, // ✅ Corrected key
-      message: tempMsg.text
-    });
-  } catch (error) {
-    console.error("❌ Failed to send WhatsApp message:", error);
-    alert("Error sending message: " + (error.response?.data?.message || error.message));
-    return;
-  }
-
-  // Simulate reply
-  setIsTyping(true);
-  setTimeout(() => {
-    const botReply = {
-      from: "bot",
-      text: "Thanks for your message! We'll help you shortly.",
+    const tempMsg = {
+      from: "user",
+      text: inputMessage,
+      file: selectedFile ? URL.createObjectURL(selectedFile) : null,
+      fileName: selectedFile?.name || null,
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit"
-      })
+      }),
+      pending: true
     };
+
     setChats(prev =>
       prev.map(chat =>
         chat.id === selectedChatId
-          ? { ...chat, messages: [...chat.messages, botReply] }
+          ? { ...chat, messages: [...chat.messages, tempMsg] }
           : chat
       )
     );
-    setIsTyping(false);
-  }, 2000);
-};
 
+    setInputMessage("");
+    setSelectedFile(null);
+
+    try {
+      await sendWhatsappTextMessage({
+        to: rawPhone,
+        message: tempMsg.text
+      });
+    } catch (error) {
+      alert("Error sending message: " + (error.response?.data?.message || error.message));
+      return;
+    }
+
+    setIsTyping(true);
+    setTimeout(() => {
+      const botReply = {
+        from: "bot",
+        text: "Thanks for your message! We'll help you shortly.",
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        })
+      };
+      setChats(prev =>
+        prev.map(chat =>
+          chat.id === selectedChatId
+            ? { ...chat, messages: [...chat.messages, botReply] }
+            : chat
+        )
+      );
+      setIsTyping(false);
+    }, 2000);
+  };
 
   const handleRefresh = () => {
-    if (!selectedChatId) return;
-    const refreshed = chats.map(chat =>
-      chat.id === selectedChatId
-        ? { ...chat, messages: [...chat.messages] }
-        : chat
+    const chat = chats.find(c => c.id === selectedChatId);
+    if (!chat) return;
+    setChats(prev =>
+      prev.map(c =>
+        c.id === chat.id ? { ...c, loaded: false } : c
+      )
     );
-    setChats(refreshed);
+    handleChatSelect(chat);
   };
 
   const handleEmojiClick = (e) => {
     setInputMessage(prev => prev + e.emoji);
     setShowEmoji(false);
   };
+
+  const selectedChat = useMemo(() => {
+    return chats.find(c => c.id === selectedChatId);
+  }, [chats, selectedChatId]);
+
+  useEffect(() => {
+    if (messageEndRef.current) {
+      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chats, selectedChatId]);
 
   return (
     <div className="h-screen flex bg-white overflow-hidden">
@@ -243,11 +260,7 @@ const WhatsApp = () => {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
               {selectedChat.messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.from === "user" ? "justify-end" : "items-start gap-2"}`}
-                >
-                 
+                <div key={i} className={`flex ${msg.from === "user" ? "justify-end" : "items-start gap-2"}`}>
                   <div className={`p-3 rounded-lg shadow max-w-sm text-sm ${msg.from === "user" ? "bg-blue-500 text-white" : "bg-white text-black"}`}>
                     {msg.text && <p>{msg.text}</p>}
                     {msg.file && (
@@ -263,6 +276,7 @@ const WhatsApp = () => {
                   <span className="text-xs text-gray-400 self-end ml-1">{msg.time}</span>
                 </div>
               ))}
+              <div ref={messageEndRef} />
               {isTyping && (
                 <div className="flex items-start gap-2">
                   <img src="/avatar.png" className="w-10 h-10 rounded-full" />
@@ -347,3 +361,4 @@ const WhatsApp = () => {
 };
 
 export default WhatsApp;
+
