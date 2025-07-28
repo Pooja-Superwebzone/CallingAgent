@@ -73,3 +73,46 @@ export function sendManualCall(payload) {
       throw new Error(errorMessage);
     });
 }
+
+export function getWhatsappChats() {
+  return service
+    .get("whatsapp/chats")
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Failed to fetch WhatsApp chats:", error);
+      let errorMessage = "Failed to fetch WhatsApp chats.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+
+export function getWhatsappChatByNumber(phone) {
+  return service
+    .get(`whatsapp/chats/${phone}`)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error(`❌ Failed to fetch chat for ${phone}:`, error);
+      let errorMessage = "Failed to fetch chat history.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+export function sendWhatsappTextMessage(payload) {
+  return service
+    .post("twilio/send-message-text", payload)
+    .then(res => res.data)
+    .catch(error => {
+      console.error("❌ Failed to send WhatsApp message:", error);
+      let errorMessage = "Failed to send message.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
