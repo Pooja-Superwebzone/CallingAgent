@@ -35,12 +35,6 @@ function Sendcall() {
       newErrors.brand = "Please select a brand.";
     }
 
-    if (!file) {
-      newErrors.file = "Excel file is required.";
-    } else if (!/\.(xls|xlsx)$/i.test(file.name)) {
-      newErrors.file = "Only .xls or .xlsx files are allowed.";
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
