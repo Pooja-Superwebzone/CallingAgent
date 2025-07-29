@@ -1,6 +1,4 @@
 
-
-
 import React, { useEffect, useState } from "react";
 import moment from "moment";
 import { getWhatsappLogs } from "../../hooks/useAuth";

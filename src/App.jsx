@@ -1,6 +1,4 @@
 
-
-
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './Component/Pages/Sidebar';
@@ -14,6 +12,7 @@ import WhatsappLogs from './Component/Pages/WhatsappLogs';
 import CallLogs from './Component/Pages/Calling';
 import WhatsApp from './Component/Pages/Whatsapp';
 import Sendcall from './Component/Pages/Sendcall';
+import SubAdmin from './Component/Pages/SubAdmin';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -43,6 +42,7 @@ function App() {
             <Route path="/whatsapp-logs" element={<WhatsappLogs />} />
             <Route path="/sendcall" element={<Sendcall />} />
             <Route path="/whats-app" element={<WhatsApp />} />
+             <Route path="/sub-admin" element={<SubAdmin />} />
             {/* Add more sidebar-routed pages here */}
           </Route>
         )}

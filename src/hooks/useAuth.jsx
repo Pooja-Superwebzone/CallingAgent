@@ -1,20 +1,27 @@
-
 import Cookies from "js-cookie";
 import service from "../api/axios";
-
 
 export function login(formData) {
   return service
     .post(`login`, formData)
     .then((res) => {
       const data = res.data;
+
       if (data) {
         Cookies.set("CallingAgent", data?.token, {
           expires: 365,
           secure: true,
           sameSite: "Strict",
         });
+
         Cookies.set("role", data?.data?.role, {
+          expires: 365,
+          secure: true,
+          sameSite: "Strict",
+        });
+
+        // ✅ Set twilio_user cookie properly
+        Cookies.set("twilio_user", String(data?.data?.twilio_user || "0"), {
           expires: 365,
           secure: true,
           sameSite: "Strict",
@@ -32,6 +39,7 @@ export function login(formData) {
       throw new Error(errorMessage);
     });
 }
+
 
 
 export function getWhatsappLogs() {
@@ -110,6 +118,60 @@ export function sendWhatsappTextMessage(payload) {
     .catch(error => {
       console.error("❌ Failed to send WhatsApp message:", error);
       let errorMessage = "Failed to send message.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+
+export function createTwillioUser(payload) {
+  return service
+    .post("twillio-create-user", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Failed to create Twillio user:", error);
+      let errorMessage = "Failed to create Twillio user.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+export function getAllTwillioUsers() {
+  return service
+    .get("twillio-create-readall")
+    .then(res => res.data)
+    .catch((error) => {
+      let errorMessage = "Failed to fetch Twillio users";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+
+export const updateTwillioUser = async (id, data) => {
+  try {
+    const res = await service.post(`twillio-create-update/${id}`, data);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Failed to update Twillio user:", error);
+    throw error;
+  }
+};
+
+
+export function getUserProfile() {
+  return service
+    .get("Profile")
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Failed to fetch profile:", error);
+      let errorMessage = "Failed to fetch profile.";
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }

@@ -8,6 +8,7 @@ import {
   Menu,
   X,
   Smartphone,
+  User,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
@@ -19,13 +20,22 @@ const Sidebar = () => {
   const [loading, setLoading] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
-  // 👇 get user role from cookie
-  const role = Cookies.get("role");
+  const [role, setRole] = React.useState("");
+  const [twilioUser, setTwilioUser] = React.useState(0);
+
+  React.useEffect(() => {
+    const roleFromCookie = Cookies.get("role") || "";
+    const twilioFromCookie = Cookies.get("twilio_user") || "0";
+    setRole(roleFromCookie);
+    setTwilioUser(Number(twilioFromCookie));
+  }, []);
+
   const handleLogout = () => {
     setLoading(true);
     setTimeout(() => {
       Cookies.remove("CallingAgent");
       Cookies.remove("role");
+      Cookies.remove("twilio_user");
       toast.success("Logged out successfully");
       navigate("/login");
       setLoading(false);
@@ -40,7 +50,7 @@ const Sidebar = () => {
         </div>
 
         <ul className="mt-6 space-y-2 px-4">
-          {/* Always visible menu items */}
+          {/* ✅ Always show Call Log */}
           <li>
             <button
               onClick={() => {
@@ -58,25 +68,50 @@ const Sidebar = () => {
             </button>
           </li>
 
-          <li>
-            <button
-              onClick={() => {
-                navigate("/whatsapp-logs");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/whatsapp-logs"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <MessageSquareText size={18} />
-              WhatsApp Logs
-            </button>
-          </li>
+          {/* ✅ Admin + twilioUser === 0 → Show All Menus */}
+          {/* ✅ Non-admin + twilioUser === 0 → Only WhatsApp Logs */}
+          {(twilioUser === 0 && (role === "admin" || role !== "admin")) && (
+            <>
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/whatsapp-logs");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/whatsapp-logs"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <MessageSquareText size={18} />
+                  WhatsApp Logs
+                </button>
+              </li>
 
-          {/* Conditionally render Send Call only if admin */}
-          {role === "admin" && (
+              {role === "admin" && (
+                <li>
+                  <button
+                    onClick={() => {
+                      navigate("/whats-app");
+                      setMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                      location.pathname === "/whats-app"
+                        ? "bg-gray-700 text-gray-300"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <Smartphone size={18} />
+                    WhatsApp
+                  </button>
+                </li>
+              )}
+            </>
+          )}
+
+          {/* ✅ Admin or twilioUser === 1 → Send Call */}
+          {(role === "admin" || twilioUser === 1) && (
             <li>
               <button
                 onClick={() => {
@@ -95,22 +130,25 @@ const Sidebar = () => {
             </li>
           )}
 
-          <li>
-            <button
-              onClick={() => {
-                navigate("/whats-app");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/whats-app"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <Smartphone size={18} />
-              WhatsApp
-            </button>
-          </li>
+          {/* ✅ Admin + twilioUser === 0 → Sub Admin */}
+          {role === "admin" && twilioUser === 0 && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/sub-admin");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/sub-admin"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <User size={18} />
+                Sub Admin
+              </button>
+            </li>
+          )}
         </ul>
       </div>
 
@@ -187,3 +225,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+

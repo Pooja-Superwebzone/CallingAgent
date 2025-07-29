@@ -1,7 +1,10 @@
+
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { login } from "../../hooks/useAuth"; // make sure this file exists
+import { login } from "../../hooks/useAuth";
+import Cookies from "js-cookie";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -12,84 +15,89 @@ function Login() {
 
   const validate = () => {
     const newErrors = {};
-    if (!email) {
-      newErrors.email = "Email is required";
-    }
-    if (!password) {
-      newErrors.password = "Password is required";
-    }
+    if (!email) newErrors.email = "Email is required";
+    if (!password) newErrors.password = "Password is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validate()) return;
+
     setLoading(true);
     try {
-      const res = await login({ email, password }); // API call
-      toast.success("Login successful");
+      const res = await login({ email, password });
 
-      navigate("/"); // change route after login
+      const token = res?.token;
+      const user = res?.data;
+
+      if (token && user) {
+        // ✅ Store all needed cookies
+        Cookies.set("CallingAgent", token, { expires: 365, secure: true, sameSite: "Strict" });
+        Cookies.set("role", user?.role || "user", { expires: 365, secure: true, sameSite: "Strict" });
+        Cookies.set("twilio_user", String(user?.twilio_user || "0"), { expires: 365, secure: true, sameSite: "Strict" });
+
+        console.log("Login cookies set:", {
+          token,
+          role: user.role,
+          twilio_user: user.twilio_user,
+        });
+
+        toast.success("Login successful");
+        navigate("/");
+      } else {
+        toast.error("Invalid login response");
+      }
     } catch (error) {
       toast.error(error.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
+
   return (
-    <div className="min-h-screen  flex items-center justify-center p-6">
+    <div className="min-h-screen flex items-center justify-center p-6">
       <form
         onSubmit={handleSubmit}
         className="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-md"
       >
-        <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-8">
-          Login
-        </h2>
+        <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-8">Login</h2>
 
         <div className="mb-5">
-          <label className="block text-lg text-left font-semibold text-gray-700 mb-1">
-            Email
-          </label>
+          <label className="block text-lg font-semibold text-gray-700 mb-1">Email</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="example@email.com"
-            className={`w-full px-4 py-3 border rounded-xl focus:outline-none  focus:ring-2 ${errors.email
-              ? "border-red-500 focus:ring-red-300"
-              : "focus:ring-blue-500"
-              }`}
+            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
+              errors.email ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+            }`}
           />
-          {errors.email && (
-            <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-          )}
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
         </div>
 
         <div className="mb-5">
-          <label className="block text-left text-lg font-semibold text-gray-700 mb-1">
-            Password
-          </label>
+          <label className="block text-lg font-semibold text-gray-700 mb-1">Password</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter password"
-            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.password
-              ? "border-red-500 focus:ring-red-300"
-              : "focus:ring-blue-500"
-              }`}
+            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
+              errors.password ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+            }`}
           />
-          {errors.password && (
-            <p className="text-red-500 text-sm mt-1">{errors.password}</p>
-          )}
+          {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
         </div>
+
         <button
           type="submit"
           disabled={loading}
-          className={`bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition w-full h-12 flex items-center justify-center ${loading ? "opacity-60 cursor-not-allowed" : ""
-            }`}
+          className={`bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl w-full h-12 flex items-center justify-center ${
+            loading ? "opacity-60 cursor-not-allowed" : ""
+          }`}
         >
           {loading ? (
             <div className="animate-spin rounded-full h-7 w-7 border-4 border-white border-t-transparent"></div>
