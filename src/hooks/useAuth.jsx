@@ -178,3 +178,39 @@ export function getUserProfile() {
       throw new Error(errorMessage);
     });
 }
+
+
+export function translateTextAPI(text, targetLang) {
+  return fetch("https://libretranslate.de/translate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      q: text,
+      source: "en",
+      target: targetLang,
+      format: "text",
+    }),
+  })
+    .then((res) => res.json())
+    .then((data) => data.translatedText)
+    .catch((error) => {
+      console.error("❌ Translation API failed:", error);
+      throw new Error("Translation failed");
+    });
+}
+
+
+export function signupTwillioUser(payload) {
+  return service
+    .post("twillio-create-user-signup", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      let errorMessage = "Signup failed.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}

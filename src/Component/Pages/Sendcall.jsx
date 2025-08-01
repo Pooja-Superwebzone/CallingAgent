@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { HiUpload } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
@@ -13,11 +12,22 @@ function Sendcall() {
   const [mobile, setMobile] = useState("");
   const [file, setFile] = useState(null);
   const [brand, setBrand] = useState("");
+  const [script, setScript] = useState("");
+  const [selectedLang, setSelectedLang] = useState("en");
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [minute, setMinute] = useState(0);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+
+  const languageMap = {
+    en: "en",
+    hi: "hi", // Hindi
+    gu: "gu", // Gujarati
+    mr: "mr", // Marathi
+  };
 
   useEffect(() => {
     async function fetchProfile() {
@@ -27,8 +37,12 @@ function Sendcall() {
             Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
           },
         });
+
         const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
+        const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
+
         setMinute(Number(userMinute));
+        setIsAdmin(adminFlag); // ✅ Set isAdmin
       } catch (error) {
         console.error("❌ Failed to fetch profile:", error);
         toast.error("Failed to load user profile");
@@ -38,6 +52,7 @@ function Sendcall() {
     fetchProfile();
   }, []);
 
+
   const validate = () => {
     const newErrors = {};
     if (!name.trim()) newErrors.name = "Name is required.";
@@ -46,7 +61,8 @@ function Sendcall() {
     if (!mobile.trim()) newErrors.mobile = "Mobile number is required.";
     else if (!/^\d{10,}$/.test(mobile.trim()))
       newErrors.mobile = "Enter a valid 10+ digit mobile number.";
-    if (!brand) newErrors.brand = "Please select a brand.";
+    if (!isAdmin && !brand) newErrors.brand = "Please select a brand.";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -60,7 +76,6 @@ function Sendcall() {
     if (!validate()) return;
 
     setLoading(true);
-
     try {
       const payload = {
         customer_name: name.trim(),
@@ -72,7 +87,6 @@ function Sendcall() {
       await sendManualCall(payload);
       toast.success("Call triggered successfully");
 
-      // Refresh minute from API
       const res = await service.get("Profile", {
         headers: {
           Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
@@ -92,25 +106,69 @@ function Sendcall() {
     }
   };
 
+  // 🧠 Google Translate Script Logic
+  useEffect(() => {
+    const googleTranslateElementInit = () => {
+      new window.google.translate.TranslateElement(
+        {
+          pageLanguage: "en",
+          includedLanguages: "en,hi,gu,mr",
+          autoDisplay: false,
+        },
+        "google_translate_element"
+      );
+    };
+
+    const script = document.createElement("script");
+    script.src =
+      "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+    script.async = true;
+    document.body.appendChild(script);
+    window.googleTranslateElementInit = googleTranslateElementInit;
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  // 🧠 Apply Google Translate Programmatically (textarea)
+  useEffect(() => {
+    const translateText = async () => {
+      if (selectedLang === "en") return;
+
+      const response = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${selectedLang}&dt=t&q=${encodeURIComponent(script)}`
+      );
+      const result = await response.json();
+      const translatedText = result[0].map((item) => item[0]).join(" ");
+      setScript(translatedText);
+    };
+
+    if (script.trim()) {
+      translateText();
+    }
+  }, [selectedLang]);
+
   return (
     <div className="flex items-center justify-center w-full min-h-[calc(100vh-80px)] px-4 sm:px-6 lg:px-8">
       <form
         onSubmit={handleSubmit}
         className="bg-white shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-5xl relative"
       >
-        {/* Minutes Counter */}
-        <div className="absolute top-4 right-6 text-sm font-semibold text-blue-600">
-          Remaining Minutes: {minute}
+        {/* Top Right Counter */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">
+            Send Call
+          </h2>
+          <div className="text-sm font-semibold text-blue-600">
+            Remaining Minutes: {minute}
+          </div>
         </div>
 
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-gray-800 mb-8">
-          Send Call
-        </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* LEFT FORM */}
           <div>
-            {/* Name */}
             <div className="mb-5">
               <label className="block font-semibold text-gray-700 mb-1">Full Name</label>
               <input
@@ -118,14 +176,12 @@ function Sendcall() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter full name"
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                  errors.name ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
-                }`}
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.name ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                  }`}
               />
               {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
             </div>
 
-            {/* Email */}
             <div className="mb-5">
               <label className="block font-semibold text-gray-700 mb-1">Email Address</label>
               <input
@@ -133,14 +189,12 @@ function Sendcall() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter email address"
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                  errors.email ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
-                }`}
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.email ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                  }`}
               />
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
 
-            {/* Mobile */}
             <div className="mb-5">
               <label className="block font-semibold text-gray-700 mb-1">Mobile Number</label>
               <input
@@ -148,28 +202,54 @@ function Sendcall() {
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
                 placeholder="Enter mobile number"
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                  errors.mobile ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
-                }`}
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.mobile ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                  }`}
               />
               {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
             </div>
 
-            {/* Brand */}
+            {/* 🧠 Language + Script Input */}
             <div className="mb-5">
-              <label className="block font-semibold text-gray-700 mb-1">Select Brand</label>
+              <label className="block font-semibold text-gray-700 mb-1">Select language</label>
               <select
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                className="border px-4 py-2 rounded w-full"
+                value={selectedLang}
+                onChange={(e) => setSelectedLang(e.target.value)}
+                className="border mb-2 px-4 py-2 rounded w-full"
               >
-                <option value="">Select a brand</option>
-                <option value="IBCRM">IBCRM</option>
-                <option value="IBHRMS">IBHRMS</option>
-                <option value="SMLK">SMLK</option>
+                <option value="en">English</option>
+                <option value="gu">Gujarati</option>
+                <option value="hi">Hindi</option>
               </select>
-              {errors.brand && <p className="text-red-500 text-sm mt-1">{errors.brand}</p>}
+
+              <textarea
+                rows="5"
+                className="w-full border rounded-xl px-4 py-3"
+                value={script}
+                onChange={(e) => setScript(e.target.value)}
+                placeholder="Write your script here..."
+              />
             </div>
+
+            {/* Brand */}
+            {Cookies.get("role") !== "admin" && Cookies.get("twilio_user") !== "1" && (
+              <div className="mb-4">
+                <label className="block text-gray-700 font-medium mb-1">Select Brand</label>
+                <select
+                  value={selectedBrand}
+                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select a brand</option>
+                  {brandList.map((brand) => (
+                    <option key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+
 
             {/* Submit */}
             <button
@@ -181,16 +261,14 @@ function Sendcall() {
             </button>
           </div>
 
-          {/* RIGHT FILE UPLOAD */}
+          {/* RIGHT SECTION */}
           <div className="flex flex-col justify-start">
             <label className="block font-semibold text-gray-700 mb-2">
               📂 Upload Excel File (.xlsx)
             </label>
-
             <div
-              className={`relative border-2 border-dashed p-6 rounded-xl text-center ${
-                errors.file ? "border-red-400 hover:border-red-500" : "border-gray-300 hover:border-blue-400"
-              }`}
+              className={`relative border-2 border-dashed p-6 rounded-xl text-center ${errors.file ? "border-red-400 hover:border-red-500" : "border-gray-300 hover:border-blue-400"
+                }`}
             >
               <HiUpload className="text-4xl mx-auto text-blue-500 mb-2" />
               <p className="text-sm text-gray-500 truncate">
@@ -231,7 +309,6 @@ function Sendcall() {
 
             {errors.file && <p className="text-red-500 text-sm mt-2">{errors.file}</p>}
 
-            {/* Audio Preview */}
             <div className="mt-8">
               <label className="block font-semibold text-gray-700 mb-2">🎧 Audio Message</label>
               <audio controls className="w-full">

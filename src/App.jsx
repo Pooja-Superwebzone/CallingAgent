@@ -1,18 +1,15 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './Component/Pages/Sidebar';
-import Login from './Component/Pages/Login';
 import Calling from './Component/Pages/Calling';
 import Loader from './Component/Pages/Loader';
 import Cookies from 'js-cookie';
-import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import WhatsappLogs from './Component/Pages/WhatsappLogs';
-import CallLogs from './Component/Pages/Calling';
 import WhatsApp from './Component/Pages/Whatsapp';
 import Sendcall from './Component/Pages/Sendcall';
 import SubAdmin from './Component/Pages/SubAdmin';
+import LoginSignup from './Component/Pages/LoginSignup';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -34,7 +31,16 @@ function App() {
     <>
       <Toaster position="top-center" />
       <Routes>
-        <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/calling" />} />
+        <Route
+          path="/login"
+          element={
+            !isAuthenticated ? (
+              <LoginSignup key={location.search} />
+            ) : (
+              <Navigate to="/calling" replace />
+            )
+          }
+        />
 
         {isAuthenticated && (
           <Route element={<Sidebar />}>
@@ -42,12 +48,12 @@ function App() {
             <Route path="/whatsapp-logs" element={<WhatsappLogs />} />
             <Route path="/sendcall" element={<Sendcall />} />
             <Route path="/whats-app" element={<WhatsApp />} />
-             <Route path="/sub-admin" element={<SubAdmin />} />
-            {/* Add more sidebar-routed pages here */}
+            <Route path="/sub-admin" element={<SubAdmin />} />
           </Route>
         )}
 
-        <Route path="*" element={<Navigate to={isAuthenticated ? "/calling" : "/login"} />} />
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/calling" : "/login?tab=login"} />} />
+
       </Routes>
     </>
   );

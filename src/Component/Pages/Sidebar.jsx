@@ -29,18 +29,20 @@ const Sidebar = () => {
     setRole(roleFromCookie);
     setTwilioUser(Number(twilioFromCookie));
   }, []);
+const handleLogout = () => {
+  setLoading(true);
 
-  const handleLogout = () => {
-    setLoading(true);
-    setTimeout(() => {
-      Cookies.remove("CallingAgent");
-      Cookies.remove("role");
-      Cookies.remove("twilio_user");
-      toast.success("Logged out successfully");
-      navigate("/login");
-      setLoading(false);
-    }, 1000);
-  };
+  // Remove all login cookies immediately
+  Cookies.remove("CallingAgent");
+  Cookies.remove("role");
+  Cookies.remove("twilio_user");
+
+  // Show toast and navigate right away
+  toast.success("Logged out successfully");
+
+  navigate({ pathname: "/login", search: "?tab=login" });
+  setLoading(false);
+};
 
   const SidebarContent = () => (
     <div className="flex flex-col justify-between h-full w-full">
