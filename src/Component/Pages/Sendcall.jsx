@@ -41,7 +41,7 @@ function Sendcall() {
 
         const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
         const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
-        const twilioUserFlag = Cookies.get("twilio_user") === 1;
+        const twilioUserFlag = Cookies.get("twilio_user") === "1";
 
         setMinute(Number(userMinute));
         setIsAdmin(adminFlag);
