@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { HiUpload } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
@@ -17,17 +18,17 @@ function Sendcall() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [minute, setMinute] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isTwilioUser, setIsTwilioUser] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
 
-
-  const languageMap = {
-    en: "en",
-    hi: "hi", // Hindi
-    gu: "gu", // Gujarati
-    mr: "mr", // Marathi
-  };
+  // ✅ Static brand list
+  const brandList = [
+    { id: "SMLK", name: "SMLK" },
+    { id: "IBCRM", name: "IBCRM" },
+    { id: "IBHRMS", name: "IBHRMS" },
+  ];
 
   useEffect(() => {
     async function fetchProfile() {
@@ -40,9 +41,11 @@ function Sendcall() {
 
         const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
         const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
+        const twilioUserFlag = Cookies.get("twilio_user") === 1;
 
         setMinute(Number(userMinute));
-        setIsAdmin(adminFlag); // ✅ Set isAdmin
+        setIsAdmin(adminFlag);
+        setIsTwilioUser(twilioUserFlag);
       } catch (error) {
         console.error("❌ Failed to fetch profile:", error);
         toast.error("Failed to load user profile");
@@ -52,7 +55,6 @@ function Sendcall() {
     fetchProfile();
   }, []);
 
-
   const validate = () => {
     const newErrors = {};
     if (!name.trim()) newErrors.name = "Name is required.";
@@ -61,7 +63,8 @@ function Sendcall() {
     if (!mobile.trim()) newErrors.mobile = "Mobile number is required.";
     else if (!/^\d{10,}$/.test(mobile.trim()))
       newErrors.mobile = "Enter a valid 10+ digit mobile number.";
-    if (!isAdmin && !brand) newErrors.brand = "Please select a brand.";
+    if (!isAdmin && !isTwilioUser && !brand)
+      newErrors.brand = "Please select a brand.";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -76,37 +79,31 @@ function Sendcall() {
     if (!validate()) return;
 
     setLoading(true);
-    try {
-      const payload = {
-        customer_name: name.trim(),
-        customer_email: email.trim(),
-        customer_phone: `+91${mobile.trim()}`,
-        brand,
-      };
-
-      await sendManualCall(payload);
-      toast.success("Call triggered successfully");
-
-      const res = await service.get("Profile", {
-        headers: {
-          Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
-        },
-      });
-      const updatedMinute = res.data?.data?.twilio_user_minute?.minute || "0";
-      setMinute(Number(updatedMinute));
-
-      setName("");
-      setEmail("");
-      setMobile("");
-      setBrand("");
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
+   try {
+  const payload = {
+    customer_name: name.trim(),
+    customer_email: email.trim(),
+    customer_phone: `+91${mobile.trim()}`,
+    brand,
+    script: script.trim(),
   };
 
-  // 🧠 Google Translate Script Logic
+  console.log("📤 API Payload:", payload);
+
+  const token = Cookies.get("CallingAgent");
+  console.log("🪪 Token:", token);
+
+  await sendManualCall(payload);
+  toast.success("Call triggered successfully");
+} catch (error) {
+  console.error("❌ sendManualCall error:", error);
+  toast.error(
+    error?.response?.data?.message || error.message || "Call failed"
+  );
+}
+
+  };
+
   useEffect(() => {
     const googleTranslateElementInit = () => {
       new window.google.translate.TranslateElement(
@@ -131,22 +128,23 @@ function Sendcall() {
     };
   }, []);
 
-  // 🧠 Apply Google Translate Programmatically (textarea)
   useEffect(() => {
     const translateText = async () => {
-      if (selectedLang === "en") return;
+      if (!script.trim() || selectedLang === "en") return;
 
-      const response = await fetch(
-        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${selectedLang}&dt=t&q=${encodeURIComponent(script)}`
-      );
-      const result = await response.json();
-      const translatedText = result[0].map((item) => item[0]).join(" ");
-      setScript(translatedText);
+      try {
+        const response = await fetch(
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${selectedLang}&dt=t&q=${encodeURIComponent(script)}`
+        );
+        const result = await response.json();
+        const translatedText = result[0].map((item) => item[0]).join(" ");
+        setScript(translatedText);
+      } catch (err) {
+        toast.error("Translation failed");
+      }
     };
 
-    if (script.trim()) {
-      translateText();
-    }
+    translateText();
   }, [selectedLang]);
 
   return (
@@ -155,16 +153,12 @@ function Sendcall() {
         onSubmit={handleSubmit}
         className="bg-white shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-5xl relative"
       >
-        {/* Top Right Counter */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">
-            Send Call
-          </h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Send Call</h2>
           <div className="text-sm font-semibold text-blue-600">
             Remaining Minutes: {minute}
           </div>
         </div>
-
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* LEFT FORM */}
@@ -208,7 +202,6 @@ function Sendcall() {
               {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
             </div>
 
-            {/* 🧠 Language + Script Input */}
             <div className="mb-5">
               <label className="block font-semibold text-gray-700 mb-1">Select language</label>
               <select
@@ -230,28 +223,26 @@ function Sendcall() {
               />
             </div>
 
-            {/* Brand */}
-            {Cookies.get("role") !== "admin" && Cookies.get("twilio_user") !== "1" && (
+            {/* ✅ Show brand only if not admin or Twilio user */}
+            {!isAdmin && !isTwilioUser && (
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-1">Select Brand</label>
                 <select
-                  value={selectedBrand}
-                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
                   className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select a brand</option>
-                  {brandList.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.name}
+                  {brandList.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
                     </option>
                   ))}
                 </select>
+                {errors.brand && <p className="text-red-500 text-sm mt-1">{errors.brand}</p>}
               </div>
             )}
 
-
-
-            {/* Submit */}
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition w-full sm:w-auto"
