@@ -116,7 +116,7 @@ const WhatsappLogs = () => {
       </div>
 
       {/* Pagination */}
-      {!loading && filteredLogs.length > 0 && (
+      {/* {!loading && filteredLogs.length > 0 && (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mt-4">
           <div className="text-sm text-gray-600">
             Showing {indexOfFirstLog + 1} to{" "}
@@ -156,7 +156,80 @@ const WhatsappLogs = () => {
             </button>
           </div>
         </div>
+      )} */}
+      {/* Pagination */}
+{!loading && filteredLogs.length > 0 && (
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mt-4">
+    <div className="text-sm text-gray-600">
+      Showing {indexOfFirstLog + 1} to{" "}
+      {Math.min(indexOfLastLog, filteredLogs.length)} of{" "}
+      {filteredLogs.length} results
+    </div>
+
+    <div className="flex items-center flex-wrap gap-1">
+      {/* Prev Button */}
+      <button
+        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+        disabled={currentPage === 1}
+        className="px-3 py-1 border rounded disabled:opacity-50"
+      >
+        Prev
+      </button>
+
+      {/* First Page */}
+      <button
+        className={`px-3 py-1 border rounded ${currentPage === 1 ? "bg-blue-600 text-white" : ""}`}
+        onClick={() => setCurrentPage(1)}
+      >
+        1
+      </button>
+
+      {/* Left dots */}
+      {currentPage > 3 && <span className="px-2">...</span>}
+
+      {/* Pages near current */}
+      {Array.from({ length: totalPages }, (_, i) => i + 1)
+        .filter(
+          (page) =>
+            page !== 1 &&
+            page !== totalPages &&
+            Math.abs(currentPage - page) <= 1
+        )
+        .map((page) => (
+          <button
+            key={page}
+            className={`px-3 py-1 border rounded ${currentPage === page ? "bg-blue-600 text-white" : ""}`}
+            onClick={() => setCurrentPage(page)}
+          >
+            {page}
+          </button>
+        ))}
+
+      {/* Right dots */}
+      {currentPage < totalPages - 2 && <span className="px-2">...</span>}
+
+      {/* Last Page */}
+      {totalPages > 1 && (
+        <button
+          className={`px-3 py-1 border rounded ${currentPage === totalPages ? "bg-blue-600 text-white" : ""}`}
+          onClick={() => setCurrentPage(totalPages)}
+        >
+          {totalPages}
+        </button>
       )}
+
+      {/* Next Button */}
+      <button
+        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+        disabled={currentPage === totalPages}
+        className="px-3 py-1 border rounded disabled:opacity-50"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };

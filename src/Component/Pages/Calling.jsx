@@ -148,44 +148,79 @@ const Calling = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
-          <div className="text-sm text-nowrap">
-            Showing {(currentPage - 1) * logsPerPage + 1} to{" "}
-            {Math.min(currentPage * logsPerPage, filteredLogs.length)} of{" "}
-            {filteredLogs.length} results
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              className="px-3 py-1 border rounded disabled:opacity-50 text-nowrap"
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </button>
-            {[...Array(totalPages)].map((_, idx) => (
-              <button
-                key={idx}
-                className={`px-3 py-1 border rounded text-nowrap ${currentPage === idx + 1
-                    ? "bg-blue-500 text-white"
-                    : "bg-white"
-                  }`}
-                onClick={() => goToPage(idx + 1)}
-              >
-                {idx + 1}
-              </button>
-            ))}
-            <button
-              className="px-3 py-1 border rounded disabled:opacity-50 text-nowrap"
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </button>
-          </div>
-        </div>
+   
+      {/* Smart Pagination */}
+{!loading && totalPages > 1 && (
+  <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
+    <div className="text-sm text-nowrap">
+      Showing {(currentPage - 1) * logsPerPage + 1} to{" "}
+      {Math.min(currentPage * logsPerPage, filteredLogs.length)} of{" "}
+      {filteredLogs.length} results
+    </div>
+    <div className="flex items-center space-x-1">
+      {/* Prev */}
+      <button
+        className="px-3 py-1 border rounded disabled:opacity-50"
+        onClick={() => goToPage(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        Prev
+      </button>
+
+      {/* First Page */}
+      <button
+        className={`px-3 py-1 border rounded ${currentPage === 1 ? "bg-blue-500 text-white" : ""}`}
+        onClick={() => goToPage(1)}
+      >
+        1
+      </button>
+
+      {/* Left Dots */}
+      {currentPage > 3 && <span className="px-2">...</span>}
+
+      {/* Pages Around Current */}
+      {Array.from({ length: totalPages }, (_, i) => i + 1)
+        .filter(
+          (page) =>
+            page !== 1 &&
+            page !== totalPages &&
+            Math.abs(currentPage - page) <= 1
+        )
+        .map((page) => (
+          <button
+            key={page}
+            className={`px-3 py-1 border rounded ${currentPage === page ? "bg-blue-500 text-white" : ""}`}
+            onClick={() => goToPage(page)}
+          >
+            {page}
+          </button>
+        ))}
+
+      {/* Right Dots */}
+      {currentPage < totalPages - 2 && <span className="px-2">...</span>}
+
+      {/* Last Page */}
+      {totalPages > 1 && (
+        <button
+          className={`px-3 py-1 border rounded ${currentPage === totalPages ? "bg-blue-500 text-white" : ""}`}
+          onClick={() => goToPage(totalPages)}
+        >
+          {totalPages}
+        </button>
       )}
+
+      {/* Next */}
+      <button
+        className="px-3 py-1 border rounded disabled:opacity-50"
+        onClick={() => goToPage(currentPage + 1)}
+        disabled={currentPage === totalPages}
+      >
+        Next
+      </button>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };
