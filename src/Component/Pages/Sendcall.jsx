@@ -21,7 +21,7 @@ function Sendcall() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isTwilioUser, setIsTwilioUser] = useState(false);
   const [useStaticScript, setUseStaticScript] = useState(false);
-const [role, setRole] = useState("");
+  const [role, setRole] = useState("");
 
 
   const fileInputRef = useRef(null);
@@ -33,63 +33,63 @@ const [role, setRole] = useState("");
     { id: "IBHRMS", name: "IBHRMS" },
   ];
 
- useEffect(() => {
-  async function fetchProfile() {
-    try {
-      const res = await service.get("Profile", {
-        headers: {
-          Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
-        },
-      });
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const res = await service.get("Profile", {
+          headers: {
+            Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
+          },
+        });
 
-      const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
-      const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
-      const twilioUserFlag =
-        res.data?.data?.twilio_user === 1 ||
-        Cookies.get("twilio_user") === "1";
+        const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
+        const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
+        const twilioUserFlag =
+          res.data?.data?.twilio_user === 1 ||
+          Cookies.get("twilio_user") === "1";
 
-      const userRole = res.data?.data?.role || ""; // ✅ Use res here
-      setRole(userRole.toLowerCase());
+        const userRole = res.data?.data?.role || ""; // ✅ Use res here
+        setRole(userRole.toLowerCase());
 
-      setMinute(Number(userMinute));
-      setIsAdmin(adminFlag);
-      setIsTwilioUser(twilioUserFlag);
-    } catch (error) {
-      console.error("❌ Failed to fetch profile:", error);
-      toast.error("Failed to load user profile");
+        setMinute(Number(userMinute));
+        setIsAdmin(adminFlag);
+        setIsTwilioUser(twilioUserFlag);
+      } catch (error) {
+        console.error("❌ Failed to fetch profile:", error);
+        toast.error("Failed to load user profile");
+      }
     }
-  }
 
-  fetchProfile();
-}, []);
+    fetchProfile();
+  }, []);
 
   const validate = () => {
-  const newErrors = {};
+    const newErrors = {};
 
-  if (!name.trim()) newErrors.name = "Name is required.";
+    if (!name.trim()) newErrors.name = "Name is required.";
 
-  if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-    newErrors.email = "Enter a valid email address.";
-  }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = "Enter a valid email address.";
+    }
 
-  if (!mobile.trim()) {
-    newErrors.mobile = "Mobile number is required.";
-  } else if (!/^\d{10,}$/.test(mobile.trim())) {
-    newErrors.mobile = "Enter a valid 10+ digit mobile number.";
-  }
+    if (!mobile.trim()) {
+      newErrors.mobile = "Mobile number is required.";
+    } else if (!/^\d{10,}$/.test(mobile.trim())) {
+      newErrors.mobile = "Enter a valid 10+ digit mobile number.";
+    }
 
-  // ✅ ALLOW any one option
-  const isScriptFilled = !!script.trim();
-  const isStaticChecked = useStaticScript;
-  const isBrandSelected = !!brand;
+    // ✅ ALLOW any one option
+    const isScriptFilled = !!script.trim();
+    const isStaticChecked = useStaticScript;
+    const isBrandSelected = !!brand;
 
-  if (!isScriptFilled && !isStaticChecked && !isBrandSelected) {
-    newErrors.script = "Please provide a script, OR select static script, OR choose a brand.";
-  }
+    if (!isScriptFilled && !isStaticChecked && !isBrandSelected) {
+      newErrors.script = "Please provide a script, OR select static script, OR choose a brand.";
+    }
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
 
   const handleFileClick = () => {
@@ -109,10 +109,10 @@ const [role, setRole] = useState("");
 
       if (useStaticScript) {
         payload.static = 1;
-     
+
       } else if (script.trim()) {
         payload.script = script.trim();
-      }   else if (brand) payload.brand = brand;
+      } else if (brand) payload.brand = brand;
 
       console.log("📤 API Payload:", payload);
       const token = Cookies.get("CallingAgent");
@@ -137,7 +137,7 @@ const [role, setRole] = useState("");
       new window.google.translate.TranslateElement(
         {
           pageLanguage: "en",
-          includedLanguages: "en,hi,gu,mr",
+          includedLanguages: "en,hi",
           autoDisplay: false,
         },
         "google_translate_element"
@@ -224,7 +224,6 @@ const [role, setRole] = useState("");
                   className="border mb-2 px-4 py-2 rounded w-full"
                 >
                   <option value="en">English</option>
-                  <option value="gu">Gujarati</option>
                   <option value="hi">Hindi</option>
                 </select>
 
@@ -250,7 +249,7 @@ const [role, setRole] = useState("");
             )}
 
             {/* STATIC SCRIPT TOGGLE - only show if no script and no brand selected */}
-            {!script.trim() && !brand && (
+            {!script.trim() && !brand && !(role === "admin" && isTwilioUser == "1") && (
               <div className="mb-4">
                 <label className="inline-flex items-center">
                   <input
@@ -258,15 +257,12 @@ const [role, setRole] = useState("");
                     className="mr-2"
                     checked={useStaticScript}
                     onChange={() => {
-                      setUseStaticScript(prev => {
+                      setUseStaticScript((prev) => {
                         const next = !prev;
-                        if (!next) {
-                          setBrand("");
-                        }
+                        if (!next) setBrand("");
                         return next;
                       });
                     }}
-
                   />
                   Use static script
                 </label>
@@ -274,37 +270,38 @@ const [role, setRole] = useState("");
             )}
 
 
-            {/* BRAND DROPDOWN - only show if script is empty */}
-            {!script.trim() && !useStaticScript && role !== "admin" && role !== "franchise" && (
-              <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-1">Select Brand</label>
-                <select
-                  value={brand}
-                  onChange={(e) => {
-                    const newBrand = e.target.value;
-                    if (brand !== newBrand) {
-                      setBrand(newBrand);
-                      if (newBrand) {
-                        setScript("");
-                        setUseStaticScript(false);
-                      }
-                    }
-                  }}
 
-                  className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select a brand</option>
-                  {brandList.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.brand && (
-                  <p className="text-red-500 text-sm mt-1">{errors.brand}</p>
-                )}
-              </div>
-            )}
+            {/* BRAND DROPDOWN - only show if script is empty */}
+            {!script.trim() && !useStaticScript && role === "admin" && !isTwilioUser && (
+  <div className="mb-4">
+    <label className="block text-gray-700 font-medium mb-1">Select Brand</label>
+    <select
+      value={brand}
+      onChange={(e) => {
+        const newBrand = e.target.value;
+        if (brand !== newBrand) {
+          setBrand(newBrand);
+          if (newBrand) {
+            setScript("");
+            setUseStaticScript(false);
+          }
+        }
+      }}
+      className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      <option value="">Select a brand</option>
+      {brandList.map((b) => (
+        <option key={b.id} value={b.id}>
+          {b.name}
+        </option>
+      ))}
+    </select>
+    {errors.brand && (
+      <p className="text-red-500 text-sm mt-1">{errors.brand}</p>
+    )}
+  </div>
+)}
+
 
 
             <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition w-full sm:w-auto" disabled={loading}>

@@ -52,6 +52,25 @@ const handleLogout = () => {
         </div>
 
         <ul className="mt-6 space-y-2 px-4">
+            {(role === "admin" || twilioUser === 1) && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/sendcall");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/sendcall"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <PhoneForwarded size={18} />
+                Send Call
+              </button>
+            </li>
+          )}
+
           {/* ✅ Always show Call Log */}
           <li>
             <button
@@ -113,25 +132,7 @@ const handleLogout = () => {
           )}
 
           {/* ✅ Admin or twilioUser === 1 → Send Call */}
-          {(role === "admin" || twilioUser === 1) && (
-            <li>
-              <button
-                onClick={() => {
-                  navigate("/sendcall");
-                  setMobileOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                  location.pathname === "/sendcall"
-                    ? "bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-700 text-gray-300"
-                }`}
-              >
-                <PhoneForwarded size={18} />
-                Send Call
-              </button>
-            </li>
-          )}
-
+        
           {/* ✅ Admin + twilioUser === 0 → Sub Admin */}
           {role === "admin" && twilioUser === 0 && (
             <li>
