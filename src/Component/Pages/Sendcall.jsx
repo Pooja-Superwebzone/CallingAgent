@@ -33,35 +33,67 @@ function Sendcall() {
     { id: "IBHRMS", name: "IBHRMS" },
   ];
 
+  // useEffect(() => {
+  //   async function fetchProfile() {
+  //     try {
+  //       const res = await service.get("Profile", {
+  //         headers: {
+  //           Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
+  //         },
+  //       });
+
+  //       const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
+  //       const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
+  //       const twilioUserFlag =
+  //         res.data?.data?.twilio_user === 1 ||
+  //         Cookies.get("twilio_user") === "1";
+
+  //       const userRole = res.data?.data?.role || ""; // ✅ Use res here
+  //       setRole(userRole.toLowerCase());
+
+  //       setMinute(Number(userMinute));
+  //       setIsAdmin(adminFlag);
+  //       setIsTwilioUser(twilioUserFlag);
+  //     } catch (error) {
+  //       console.error("❌ Failed to fetch profile:", error);
+  //       toast.error("Failed to load user profile");
+  //     }
+  //   }
+
+  //   fetchProfile();
+  // }, []);
+
   useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const res = await service.get("Profile", {
-          headers: {
-            Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
-          },
-        });
+  async function fetchProfile() {
+    try {
+      const res = await service.get("Profile", {
+        headers: {
+          Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
+        },
+      });
 
-        const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
-        const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
-        const twilioUserFlag =
-          res.data?.data?.twilio_user === 1 ||
-          Cookies.get("twilio_user") === "1";
+      const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
+      const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
+      const twilioUserFlag =
+        res.data?.data?.twilio_user === 1 ||
+        Cookies.get("twilio_user") === "1";
+      const userRole = res.data?.data?.role || "";
 
-        const userRole = res.data?.data?.role || ""; // ✅ Use res here
-        setRole(userRole.toLowerCase());
+      setRole(userRole.toLowerCase());
+      setMinute(Number(userMinute));
+      setIsAdmin(adminFlag);
+      setIsTwilioUser(twilioUserFlag);
 
-        setMinute(Number(userMinute));
-        setIsAdmin(adminFlag);
-        setIsTwilioUser(twilioUserFlag);
-      } catch (error) {
-        console.error("❌ Failed to fetch profile:", error);
-        toast.error("Failed to load user profile");
-      }
+      // ✅ Store in localStorage
+      localStorage.setItem("userRemainingMinutes", userMinute);
+    } catch (error) {
+      console.error("❌ Failed to fetch profile:", error);
+      toast.error("Failed to load user profile");
     }
+  }
 
-    fetchProfile();
-  }, []);
+  fetchProfile();
+}, []);
 
   const validate = () => {
     const newErrors = {};
@@ -206,7 +238,7 @@ function Sendcall() {
             </div>
 
             <div className="mb-5">
-              <label className="block font-semibold text-gray-700 mb-1">Mobile Number</label>
+              <label className="block font-semibold text-gray-700 mb-1">  Contact  Number</label>
               <input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="Enter mobile number"
                 className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.mobile ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"}`} />
               {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
