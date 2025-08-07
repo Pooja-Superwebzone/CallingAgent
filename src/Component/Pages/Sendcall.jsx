@@ -33,67 +33,38 @@ function Sendcall() {
     { id: "IBHRMS", name: "IBHRMS" },
   ];
 
-  // useEffect(() => {
-  //   async function fetchProfile() {
-  //     try {
-  //       const res = await service.get("Profile", {
-  //         headers: {
-  //           Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
-  //         },
-  //       });
-
-  //       const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
-  //       const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
-  //       const twilioUserFlag =
-  //         res.data?.data?.twilio_user === 1 ||
-  //         Cookies.get("twilio_user") === "1";
-
-  //       const userRole = res.data?.data?.role || ""; // ✅ Use res here
-  //       setRole(userRole.toLowerCase());
-
-  //       setMinute(Number(userMinute));
-  //       setIsAdmin(adminFlag);
-  //       setIsTwilioUser(twilioUserFlag);
-  //     } catch (error) {
-  //       console.error("❌ Failed to fetch profile:", error);
-  //       toast.error("Failed to load user profile");
-  //     }
-  //   }
-
-  //   fetchProfile();
-  // }, []);
 
   useEffect(() => {
-  async function fetchProfile() {
-    try {
-      const res = await service.get("Profile", {
-        headers: {
-          Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
-        },
-      });
+    async function fetchProfile() {
+      try {
+        const res = await service.get("Profile", {
+          headers: {
+            Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
+          },
+        });
 
-      const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
-      const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
-      const twilioUserFlag =
-        res.data?.data?.twilio_user === 1 ||
-        Cookies.get("twilio_user") === "1";
-      const userRole = res.data?.data?.role || "";
+        const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
+        const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
+        const twilioUserFlag =
+          res.data?.data?.twilio_user === 1 ||
+          Cookies.get("twilio_user") === "1";
+        const userRole = res.data?.data?.role || "";
 
-      setRole(userRole.toLowerCase());
-      setMinute(Number(userMinute));
-      setIsAdmin(adminFlag);
-      setIsTwilioUser(twilioUserFlag);
+        setRole(userRole.toLowerCase());
+        setMinute(Number(userMinute));
+        setIsAdmin(adminFlag);
+        setIsTwilioUser(twilioUserFlag);
 
-      // ✅ Store in localStorage
-      localStorage.setItem("userRemainingMinutes", userMinute);
-    } catch (error) {
-      console.error("❌ Failed to fetch profile:", error);
-      toast.error("Failed to load user profile");
+        // ✅ Store in localStorage
+        localStorage.setItem("userRemainingMinutes", userMinute);
+      } catch (error) {
+        console.error("❌ Failed to fetch profile:", error);
+        toast.error("Failed to load user profile");
+      }
     }
-  }
 
-  fetchProfile();
-}, []);
+    fetchProfile();
+  }, []);
 
   const validate = () => {
     const newErrors = {};
@@ -160,9 +131,6 @@ function Sendcall() {
       setLoading(false);
     }
   };
-
-
-
 
   useEffect(() => {
     const googleTranslateElementInit = () => {
@@ -301,41 +269,36 @@ function Sendcall() {
               </div>
             )}
 
-
-
             {/* BRAND DROPDOWN - only show if script is empty */}
             {!script.trim() && !useStaticScript && role === "admin" && !isTwilioUser && (
-  <div className="mb-4">
-    <label className="block text-gray-700 font-medium mb-1">Select Brand</label>
-    <select
-      value={brand}
-      onChange={(e) => {
-        const newBrand = e.target.value;
-        if (brand !== newBrand) {
-          setBrand(newBrand);
-          if (newBrand) {
-            setScript("");
-            setUseStaticScript(false);
-          }
-        }
-      }}
-      className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-    >
-      <option value="">Select a brand</option>
-      {brandList.map((b) => (
-        <option key={b.id} value={b.id}>
-          {b.name}
-        </option>
-      ))}
-    </select>
-    {errors.brand && (
-      <p className="text-red-500 text-sm mt-1">{errors.brand}</p>
-    )}
-  </div>
-)}
-
-
-
+              <div className="mb-4">
+                <label className="block text-gray-700 font-medium mb-1">Select Brand</label>
+                <select
+                  value={brand}
+                  onChange={(e) => {
+                    const newBrand = e.target.value;
+                    if (brand !== newBrand) {
+                      setBrand(newBrand);
+                      if (newBrand) {
+                        setScript("");
+                        setUseStaticScript(false);
+                      }
+                    }
+                  }}
+                  className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select a brand</option>
+                  {brandList.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.brand && (
+                  <p className="text-red-500 text-sm mt-1">{errors.brand}</p>
+                )}
+              </div>
+            )}
             <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition w-full sm:w-auto" disabled={loading}>
               {loading ? "Sending..." : "Make a Call"}
             </button>

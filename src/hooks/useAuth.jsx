@@ -216,3 +216,35 @@ export function signupTwillioUser(payload) {
       throw new Error(errorMessage);
     });
 }
+
+
+
+export function verifyEmailOtp(payload) {
+  return service
+    .post("twillio-email-verify", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Email OTP verification failed:", error);
+      let errorMessage = "OTP verification failed.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+
+export function resendTwillioOtp(payload) {
+  return service
+    .post("twillio-resend-otp", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Resend OTP failed:", error);
+      let errorMessage = "Failed to resend OTP.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
