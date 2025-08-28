@@ -76,7 +76,7 @@ export default function WhatsappTemplates() {
 
   return (
     <div className="p-4 sm:p-6">
-      {/* Header */}
+
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-gray-700">WhatsApp Templates</h2>
         <button
@@ -92,8 +92,13 @@ export default function WhatsappTemplates() {
         <table className="min-w-full text-left">
           <thead className="bg-gray-100">
             <tr>
+                <th className="px-4 py-2">Template id</th>
+                <th className="px-4 py-2">category</th>
+                 <th className="px-4 py-2">status</th>  
               <th className="px-4 py-2">Template name</th>
               <th className="px-4 py-2">Body</th>
+             
+              
             </tr>
           </thead>
           <tbody>
@@ -112,13 +117,19 @@ export default function WhatsappTemplates() {
             ) : (
               rows.map((r) => (
                 <tr key={r.id} className="border-t hover:bg-gray-50 align-top">
-                  <td className="px-4 py-2 font-medium">{r.name}</td>
+                
+                  <td className="px-4 py-2 font-medium" >{r.template_id}</td>
+                  <td className="px-4 py-2 font-medium" >{r.category}</td>
+                  <td className="px-4 py-2 font-medium" >{r.status}</td>
+                  <td className="px-4 py-2 font-medium ">{r.name}</td>
             
                   <td className="px-4 py-2">
-                    <pre className="whitespace-pre-wrap break-words text-sm">
+                    <pre className="whitespace-pre-wrap break-words text-sm text-bold">
                        {r.content?.types?.["twilio/text"]?.body}
                     </pre>
                   </td>
+                
+                  
                 </tr>
               ))
             )}

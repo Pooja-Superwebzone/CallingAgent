@@ -14,6 +14,8 @@ import Sendcall from './Component/Pages/Sendcall';
 import SubAdmin from './Component/Pages/SubAdmin';
 import LoginSignup from './Component/Pages/LoginSignup';
 import WhatsappTemplatesPage from './Component/Pages/whatsapptemplate';
+import Callschedule from './Component/Pages/Callschedule';
+
 
 function App() {
   const location = useLocation();
@@ -40,7 +42,7 @@ function App() {
     const isAdminWithTwilioZero = role === 'admin' && twilioUser === '0';
 
     setIsAuthenticated(!!token);
-    setIsEmailVerified(emailVerified || isAdminWithTwilioZero); // allow if exception
+    setIsEmailVerified(emailVerified || isAdminWithTwilioZero);
   }, [location.pathname]);
 
   if (loading) return <Loader />;
@@ -78,6 +80,7 @@ function App() {
             <Route path="/whats-app" element={<WhatsApp />} />
             <Route path="/sub-admin" element={<SubAdmin />} />
             <Route path='/whatsapp-temp' element={<WhatsappTemplatesPage/>} />
+               <Route path='/call-schedule' element={<Callschedule />} />
           </Route>
         )}
 

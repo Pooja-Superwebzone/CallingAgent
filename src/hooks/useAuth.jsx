@@ -274,3 +274,29 @@ export function submitWhatsappTemplate({ static_script, template_name }) {
       throw new Error(msg);
     });
 }
+
+
+
+export function getCallSchedule() {
+  return service
+    .get("twilio/set-call")
+    .then((res) => res.data?.data || res.data) 
+    .catch((error) => {
+      let msg = "Failed to fetch call schedules";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+
+export function submitCallSchedule({ day, static_script, calling_script, email_script }) {
+  return service
+    .post("twilio/set-call", { day, static_script, calling_script, email_script })
+    .then((res) => res.data)
+    .catch((error) => {
+      let msg = "Failed to save call schedule";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+

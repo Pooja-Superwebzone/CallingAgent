@@ -17,6 +17,8 @@ import { toast } from "react-hot-toast";
 import { FiClock, FiAlertCircle, FiCreditCard, FiPhoneCall, FiSmile, FiArrowRight, FiX, FiGift, FiCheckCircle, FiPhone, FiUser, FiMail } from "react-icons/fi"
 import ContactFormModal from "./ContactFormModal";
 import { BiLogoWhatsapp } from "react-icons/bi";
+import { IoCallOutline } from "react-icons/io5";
+
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -69,7 +71,7 @@ const Sidebar = () => {
     const emailVerifiedFromCookie = Cookies.get("email_verified") === "true";
     setRole(roleFromCookie);
     setTwilioUser(Number(twilioFromCookie));
-    setEmailVerified(emailVerifiedFromCookie); // 👈 new state
+    setEmailVerified(emailVerifiedFromCookie); 
   }, []);
 
   // ✅ Logout logic
@@ -149,6 +151,19 @@ const Sidebar = () => {
               >
                 <User size={18} />
                 Next Steps
+              </button>
+            </li>
+          )}
+
+              {twilioUser === 1 && (
+            <li>
+              <button
+                onClick={() =>
+                navigate("/call-schedule")}
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
+              >
+                <IoCallOutline  size={18} />
+               Call Schedule
               </button>
             </li>
           )}
