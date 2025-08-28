@@ -16,6 +16,7 @@ import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { FiClock, FiAlertCircle, FiCreditCard, FiPhoneCall, FiSmile, FiArrowRight, FiX, FiGift, FiCheckCircle, FiPhone, FiUser, FiMail } from "react-icons/fi"
 import ContactFormModal from "./ContactFormModal";
+import { BiLogoWhatsapp } from "react-icons/bi";
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,6 +31,7 @@ const Sidebar = () => {
   const [showNextStepsModal, setShowNextStepsModal] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  
 
   const onClose = () => setShowContactForm(false);
 
@@ -125,6 +127,20 @@ const Sidebar = () => {
               Calls Log
             </button>
           </li>
+              
+              <li>
+                <button   
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
+                
+                onClick={() => {
+                  navigate("/whatsapp-temp");
+                }}
+                >
+                <BiLogoWhatsapp  size={18}  />
+                  Whatsapp Template
+                </button>
+                </li>    
+
           {twilioUser === 1 && (
             <li>
               <button

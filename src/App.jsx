@@ -13,6 +13,7 @@ import WhatsApp from './Component/Pages/Whatsapp';
 import Sendcall from './Component/Pages/Sendcall';
 import SubAdmin from './Component/Pages/SubAdmin';
 import LoginSignup from './Component/Pages/LoginSignup';
+import WhatsappTemplatesPage from './Component/Pages/whatsapptemplate';
 
 function App() {
   const location = useLocation();
@@ -76,6 +77,7 @@ function App() {
             <Route path="/whatsapp-logs" element={<WhatsappLogs />} />
             <Route path="/whats-app" element={<WhatsApp />} />
             <Route path="/sub-admin" element={<SubAdmin />} />
+            <Route path='/whatsapp-temp' element={<WhatsappTemplatesPage/>} />
           </Route>
         )}
 

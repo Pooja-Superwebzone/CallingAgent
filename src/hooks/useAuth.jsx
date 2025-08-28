@@ -248,3 +248,29 @@ export function resendTwillioOtp(payload) {
     });
 }
 
+
+//whatsapp template 
+
+export function getWhatsappTemplates() {
+  return service
+    .get("twilio/wa/templates")
+   .then((res) => res.data?.data || res.data)
+
+    .catch((error) => {
+      let msg = "Failed to fetch WhatsApp templates";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+
+export function submitWhatsappTemplate({ static_script, template_name }) {
+  return service
+    .post("twilio/wa/templates/submit", { static_script, template_name })
+    .then((res) => res.data)
+    .catch((error) => {
+      let msg = "Failed to submit WhatsApp template";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
