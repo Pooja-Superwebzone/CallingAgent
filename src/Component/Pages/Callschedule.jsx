@@ -37,7 +37,7 @@ const fetchSchedules = async () => {
       if (item?.static_script) return item.static_script;
 
       let content = item?.whatsapp_template?.content;
-      if (!content) return "";
+      if (!content) return "";  
 
       try {
 

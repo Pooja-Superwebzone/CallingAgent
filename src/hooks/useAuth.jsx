@@ -300,3 +300,33 @@ export function submitCallSchedule({ day, static_script, calling_script, email_s
     });
 }
 
+
+    export function sendConversationCall(payload) {
+      return service
+        .post("omni/call", payload)
+        .then((res) => res.data)
+        .catch((error) => {
+          console.error("❌ omni/call failed:", error);
+          let errorMessage = "Failed to trigger conversation call.";
+          if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          throw new Error(errorMessage);
+        });
+    }
+
+export function getChannelPartners() {
+  return service
+    .get("channel-partner")
+    .then((res) => {
+    
+      const out = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
+      return out;
+    })
+    .catch((error) => {
+      let msg = "Failed to fetch channel partners.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+

@@ -7,7 +7,7 @@ import {
   PhoneForwarded,
   LogOut,
   Menu,
-  X,
+    X,
   Smartphone,
   User,
 } from "lucide-react";
@@ -18,6 +18,9 @@ import { FiClock, FiAlertCircle, FiCreditCard, FiPhoneCall, FiSmile, FiArrowRigh
 import ContactFormModal from "./ContactFormModal";
 import { BiLogoWhatsapp } from "react-icons/bi";
 import { IoCallOutline } from "react-icons/io5";
+import { BiPhoneCall } from "react-icons/bi";
+import { FaUsers } from "react-icons/fa";
+
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -50,13 +53,11 @@ const Sidebar = () => {
       localStorage.setItem("userRemainingMinutes", trial.toString());
       localStorage.setItem("isSignupUser", "true");
 
-      // Remove navigation state to avoid repeat modal on refresh
       window.history.replaceState({}, document.title);
       navigate(location.pathname, { replace: true });
     }
   }, [location.state, navigate, location.pathname]);
 
-  // ✅ Load from localStorage on first mount
   useEffect(() => {
     const storedMinutes = parseInt(localStorage.getItem("userRemainingMinutes") || "0");
     const signupFlag = localStorage.getItem("isSignupUser") === "true";
@@ -64,7 +65,7 @@ const Sidebar = () => {
     setIsSignupUser(signupFlag);
   }, []);
 
-  // ✅ Load cookies (role and twilio user)
+  
   useEffect(() => {
     const roleFromCookie = Cookies.get("role") || "";
     const twilioFromCookie = Cookies.get("twilio_user") || "true";
@@ -74,7 +75,6 @@ const Sidebar = () => {
     setEmailVerified(emailVerifiedFromCookie); 
   }, []);
 
-  // ✅ Logout logic
   const handleLogout = () => {
     setLoading(true);
     Cookies.remove("CallingAgent");
@@ -168,6 +168,20 @@ const Sidebar = () => {
             </li>
           )}
 
+{twilioUser === 1 && (
+            <li>
+              <button
+                onClick={() =>
+                navigate("/call-coversation")}
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
+              >
+                <BiPhoneCall   size={18}/>
+                Send Conversation call 
+              </button>
+            </li>
+          )}  
+
+
           {(twilioUser === 0 && (role === "admin" || role !== "admin")) && (
             <>
               <li>
@@ -223,8 +237,31 @@ const Sidebar = () => {
               </button>
             </li>
           )}
+
+          {role === "admin" && twilioUser === 0 && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/channel-partner");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${location.pathname === "/channel-partner"
+                  ? "bg-gray-700 text-gray-300"
+                  : "hover:bg-gray-700 text-gray-300"
+                  }`}
+              >
+                <FaUsers  size={18}/>
+                channel partner
+              </button>
+            </li>
+          )}  
         </ul>
+
+        
       </div>
+
+
+      
 
       <div className="space-y-2 px-4 pb-4">
         <button
@@ -331,7 +368,7 @@ const Sidebar = () => {
                 </span>
               </p>
 
-              {/* Button */}
+     
               <div className="w-full flex justify-center">
                 <button
                   onClick={() => setShowWelcomeModal(false)}
@@ -394,7 +431,7 @@ const Sidebar = () => {
                 To continue making calls, please choose one of the options below:
               </p>
 
-              {/* Buttons */}
+           
               <div className="flex flex-col sm:flex-row justify-center gap-6">
                 <a
                   href="https://your-payment-link.com"
@@ -407,8 +444,8 @@ const Sidebar = () => {
                 </a>
                 <button
                   onClick={() => {
-                    setShowNextStepsModal(false);   // Close current modal
-                    setShowContactForm(true);       // Open Contact Form modal
+                    setShowNextStepsModal(false);   
+                    setShowContactForm(true);       
                   }}
                   className="bg-green-600 hover:bg-green-700 text-white text-lg px-6 py-3 rounded-lg font-semibold flex items-center gap-3 justify-center"
                 >

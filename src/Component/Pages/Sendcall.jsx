@@ -200,7 +200,7 @@ function Sendcall() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           <div>
-            {/* Name */}
+           
             <div className="mb-5">
               <label className="block font-semibold text-gray-700 mb-1">Full Name</label>
               <input
@@ -215,7 +215,7 @@ function Sendcall() {
               {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
             </div>
 
-            {/* Email */}
+         
             <div className="mb-5">
               <label className="block font-semibold text-gray-700 mb-1">Email Address</label>
               <input
@@ -310,7 +310,7 @@ function Sendcall() {
               </div>
             )}
 
-            {/* Static script toggle (non-admin) */}
+           
             {!isAdminTwilio && !script.trim() && !brand && (
               <div className="mb-4">
                 <label className="inline-flex items-center">
@@ -325,7 +325,7 @@ function Sendcall() {
               </div>
             )}
 
-            {/* Static script toggle (admin twilio) */}
+           
             {isAdminTwilio && (
               <div className="mb-4">
                 <label className="inline-flex items-center">
@@ -347,7 +347,7 @@ function Sendcall() {
               </div>
             )}
 
-            {/* Brand (only if no script & not static) */}
+            
             {!script.trim() && !useStaticScript && role === "admin" && !isTwilioUser && (
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-1">Select Brand</label>
@@ -385,7 +385,7 @@ function Sendcall() {
             </button>
           </div>
 
-          {/* Right column */}
+        
           <div className="flex flex-col justify-start">
             <label className="block font-semibold text-gray-700 mb-2">📂 Upload Excel File (.xlsx)</label>
             <div

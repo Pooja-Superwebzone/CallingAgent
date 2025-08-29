@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Cookies from 'js-cookie';
@@ -15,6 +13,9 @@ import SubAdmin from './Component/Pages/SubAdmin';
 import LoginSignup from './Component/Pages/LoginSignup';
 import WhatsappTemplatesPage from './Component/Pages/whatsapptemplate';
 import Callschedule from './Component/Pages/Callschedule';
+import LandingPage from './Component/Pages/Landingpage';
+import ConversationCall from './Component/Pages/ConversationCall';
+import ChannelPartner from "./Component/Pages/ChannelPartner";
 
 
 function App() {
@@ -23,19 +24,20 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
-  // Memoize minute to prevent re-renders
+
   const trialMinutes = useMemo(() => {
-    return Number(Cookies.get("twilio_user_minute")) || 10;
+    return Number(Cookies.get('twilio_user_minute')) || 10;
   }, []);
 
   // Simulate loading
   useEffect(() => {
-    setTimeout(() => setLoading(false), 1000);
+    const t = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
     const token = Cookies.get('CallingAgent');
-    const role = Cookies.get('role'); // Get user role
+    const role = Cookies.get('role');
     const twilioUser = Cookies.get('twilio_user');
     const emailVerified = Cookies.get('email_verified') === 'true';
 
@@ -47,51 +49,60 @@ function App() {
 
   if (loading) return <Loader />;
 
+  const authed = isAuthenticated && isEmailVerified;
+
   return (
     <>
       <Toaster position="top-center" />
       <Routes>
+        {/* Public: Landing first */}
+        <Route
+          path="/"
+          element={
+            authed ? (
+              <Navigate to="/sendcall" replace />
+            ) : (
+              <LandingPage />
+            )
+          }
+        />
 
-        {/* ✅ Public Login Route */}
+        {/* Public: Login */}
         <Route
           path="/login"
           element={
-            !isAuthenticated || !isEmailVerified ? (
+            !authed ? (
               <LoginSignup key={location.search} />
             ) : (
               <Navigate
                 to="/sendcall"
                 replace
-                state={{
-                  showWelcome: true,
-                  trialMinutes,
-                }}
+                state={{ showWelcome: true, trialMinutes }}
               />
             )
           }
         />
 
-        {/* ✅ Protected Routes with Sidebar */}
-        {isAuthenticated && isEmailVerified && (
+        {/* Protected (wrapped in Sidebar) */}
+        {authed && (
           <Route element={<Sidebar />}>
             <Route path="/sendcall" element={<Sendcall />} />
             <Route path="/calling" element={<Calling />} />
             <Route path="/whatsapp-logs" element={<WhatsappLogs />} />
             <Route path="/whats-app" element={<WhatsApp />} />
             <Route path="/sub-admin" element={<SubAdmin />} />
-            <Route path='/whatsapp-temp' element={<WhatsappTemplatesPage/>} />
-               <Route path='/call-schedule' element={<Callschedule />} />
+            <Route path="/whatsapp-temp" element={<WhatsappTemplatesPage />} />
+            <Route path="/call-schedule" element={<Callschedule />} />
+            <Route path='/call-coversation' element={<ConversationCall />} />
+            
+<Route path="/channel-partner" element={<ChannelPartner />} />
           </Route>
         )}
 
-        {/* ✅ Catch-all route */}
+        {/* Catch-all */}
         <Route
           path="*"
-          element={
-            isAuthenticated && isEmailVerified
-              ? <Navigate to="/sendcall" />
-              : <Navigate to="/login?tab=login" />
-          }
+          element={authed ? <Navigate to="/sendcall" /> : <Navigate to="/" />}
         />
       </Routes>
     </>

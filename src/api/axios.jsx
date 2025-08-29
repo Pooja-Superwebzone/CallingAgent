@@ -27,7 +27,7 @@ async function requestConfig(config) {
 
 service.interceptors.request.use(requestConfig);
 
-// service.interceptors.response.use((response) => response);
+
 service.interceptors.response.use(
   (response) => response,
   (error) => {
