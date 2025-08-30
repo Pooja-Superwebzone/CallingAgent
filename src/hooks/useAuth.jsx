@@ -330,3 +330,18 @@ export function getChannelPartners() {
     });
 }
 
+
+export function createChannelPartner(payload) {
+  return service
+    .post("channel-partner", payload)
+    .then((res) => {
+      console.log(" API Response:", res.data);  
+      return res.data;  
+    })
+    .catch((error) => {
+      throw new Error(error.response?.data?.message || "Failed to create channel partner");
+    });
+}
+
+
+

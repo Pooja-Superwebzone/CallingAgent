@@ -238,7 +238,7 @@ const Sidebar = () => {
             </li>
           )}
 
-          {role === "admin" && twilioUser === 0 && (
+          {role === "admin" && twilioUser === 1 && (
             <li>
               <button
                 onClick={() => {
