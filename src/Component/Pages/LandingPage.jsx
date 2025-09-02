@@ -54,9 +54,9 @@ export default function LandingPage() {
             </span>
 
             <h1 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight md:text-5xl animate-fade-up anim-delay-150">
-              Close more deals with a{" "}
+            First  Ai Sales{" "}
               <span className="bg-gradient-to-r from-indigo-700 via-fuchsia-600 to-cyan-600 bg-clip-text text-transparent">
-                smart voice agent
+              Agent Of The World
               </span>
               .
             </h1>
@@ -86,7 +86,7 @@ export default function LandingPage() {
             <div className="mt-8 grid w-full max-w-lg grid-cols-3 items-center rounded-2xl border border-slate-200 bg-white/70 p-4 text-center shadow-sm backdrop-blur animate-fade-up anim-delay-600">
               <div className="animate-fade-up">
                 <div className="text-2xl font-bold">
-                  <CountUp to={10000} duration={1600} suffix="+" />
+                  <CountUp to={10000000} duration={1800} suffix="+" />
                 </div>
                 <div className="text-xs text-slate-500">Calls handled</div>
               </div>
