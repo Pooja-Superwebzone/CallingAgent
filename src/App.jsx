@@ -16,6 +16,7 @@ import Callschedule from './Component/Pages/Callschedule';
 import LandingPage from './Component/Pages/Landingpage';
 import ConversationCall from './Component/Pages/ConversationCall';
 import ChannelPartner from "./Component/Pages/ChannelPartner";
+import AgentsPage from './Component/Pages/AgentsPage';
 
 
 function App() {
@@ -94,6 +95,7 @@ function App() {
             <Route path="/whatsapp-temp" element={<WhatsappTemplatesPage />} />
             <Route path="/call-schedule" element={<Callschedule />} />
             <Route path='/call-coversation' element={<ConversationCall />} />
+            <Route path='/Agents_Page' element={<AgentsPage/ >} />
             
 <Route path="/channel-partner" element={<ChannelPartner />} />
           </Route>

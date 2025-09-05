@@ -20,6 +20,7 @@ import { BiLogoWhatsapp } from "react-icons/bi";
 import { IoCallOutline } from "react-icons/io5";
 import { BiPhoneCall } from "react-icons/bi";
 import { FaUsers } from "react-icons/fa";
+import { FaMagento } from "react-icons/fa6";
 
 
 const Sidebar = () => {
@@ -255,14 +256,30 @@ const Sidebar = () => {
               </button>
             </li>
           )}  
-        </ul>
 
-        
+
+{twilioUser === 0 && role === "admin" &&(
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/Agents_Page");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${location.pathname === "/Agents"
+                  ? "bg-gray-700 text-gray-300"
+                  : "hover:bg-gray-700 text-gray-300"
+                  }`}
+              >
+                
+                 <FaMagento size={18} />
+                Agents
+              </button>
+            </li>
+          )} 
+
+        </ul>        
       </div>
-
-
       
-
       <div className="space-y-2 px-4 pb-4">
         <button
           onClick={handleLogout}

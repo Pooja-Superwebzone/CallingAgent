@@ -10,10 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-build-classic": "^41.4.2",
+    "@ckeditor/ckeditor5-react": "^11.0.0",
     "@tailwindcss/vite": "^4.1.11",
     "axios": "^1.10.0",
     "canvas-confetti": "^1.9.3",
     "daisyui": "^5.0.46",
+    "dompurify": "^3.2.6",
     "emoji-picker-react": "^4.13.2",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.525.0",

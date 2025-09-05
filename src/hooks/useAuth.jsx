@@ -345,3 +345,33 @@ export function createChannelPartner(payload) {
 
 
 
+
+export function getAgents() {
+  return service
+    .get("agents")
+    .then((res) => {
+      // backend might return array or { data: [...] } — normalize to array
+      const out = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
+      return out;
+    })
+    .catch((error) => {
+      let msg = "Failed to fetch agents.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+export function createAgent(payload) {
+  return service
+    .post("agents", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ createAgent failed:", error);
+      let msg = "Failed to create agent.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+
+
