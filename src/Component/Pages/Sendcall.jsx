@@ -289,6 +289,10 @@ function Sendcall() {
                 >
                   <option value="en">English</option>
                   <option value="hi">Hindi</option>
+                  <option value="gu">Gujarati</option>
+                  <option value="mr">Marathi</option>
+                  <option value="ta">Tamil</option>
+                
                 </select>
 
                 <textarea

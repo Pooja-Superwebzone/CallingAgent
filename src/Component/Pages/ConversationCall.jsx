@@ -77,7 +77,8 @@ export default function ConversationCall() {
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-60"
+          //     className="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-60"
+               className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
             >
               {submitting ? "Calling..." : "Send Call"}
             </button>

@@ -17,7 +17,8 @@ import LandingPage from './Component/Pages/Landingpage';
 import ConversationCall from './Component/Pages/ConversationCall';
 import ChannelPartner from "./Component/Pages/ChannelPartner";
 import AgentsPage from './Component/Pages/AgentsPage';
-
+import SendOmniCall from './Component/Pages/SendOmniCall';
+  import AgentCreatePage  from './Component/Pages/AgentCreatePage';
 
 function App() {
   const location = useLocation();
@@ -30,7 +31,7 @@ function App() {
     return Number(Cookies.get('twilio_user_minute')) || 10;
   }, []);
 
-  // Simulate loading
+  
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1000);
     return () => clearTimeout(t);
@@ -95,7 +96,11 @@ function App() {
             <Route path="/whatsapp-temp" element={<WhatsappTemplatesPage />} />
             <Route path="/call-schedule" element={<Callschedule />} />
             <Route path='/call-coversation' element={<ConversationCall />} />
-            <Route path='/Agents_Page' element={<AgentsPage/ >} />
+            <Route path="/" element={<Navigate to="/agents" replace />} />
+        <Route path="/agents_page" element={<AgentsPage />} />
+        <Route path="/agents/new" element={<AgentCreatePage />} />
+        <Route path="/send-omni" element={<SendOmniCall />} />
+     
             
 <Route path="/channel-partner" element={<ChannelPartner />} />
           </Route>

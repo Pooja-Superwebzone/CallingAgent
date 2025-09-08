@@ -133,7 +133,8 @@ const onSubmit = async (data) => {
         <h2 className="text-2xl font-bold text-gray-700">SubAdmin</h2>
         <button
           onClick={handleCreateOpen}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          // className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+           className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
         >
           Create Admin
         </button>
@@ -333,7 +334,6 @@ const onSubmit = async (data) => {
                   type="number"
                   className="w-full border px-3 py-2 rounded"
                   placeholder="Enter call minute"
-                  readOnly
                 />
                 {errors.minute && <p className="text-red-500 text-sm">{errors.minute.message}</p>}
               </div>

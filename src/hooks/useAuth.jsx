@@ -375,3 +375,22 @@ export function createAgent(payload) {
 
 
 
+
+// API to send Omni Call
+export function sendOmniCall(payload) {
+  return service
+    .post("omni/call", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ sendOmniCall failed:", error);
+      let errorMessage = "Failed to send Omni call.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+
+
+

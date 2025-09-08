@@ -2,12 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import DOMPurify from "dompurify";
-import { CKEditor } from "@ckeditor/ckeditor5-react";
-import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
+import { useNavigate } from "react-router-dom";
 
 import {
   getAgents,
-  createAgent,
 } from "../../hooks/useAuth";
 
 export default function AgentsPage() {
@@ -19,12 +17,7 @@ export default function AgentsPage() {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const pageRows = rows.slice((page - 1) * pageSize, page * pageSize);
 
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const [name, setName] = useState("");
-  const [welcomeMessage, setWelcomeMessage] = useState("");
-  const [bodyHtml, setBodyHtml] = useState("<p>Start writing...</p>");
+  const navigate = useNavigate();
 
   const loadRows = async () => {
     setLoading(true);
@@ -39,7 +32,7 @@ export default function AgentsPage() {
         }))
       );
     } catch (e) {
-      toast.error(e.message || "Failed to fetch agents");
+      toast.error(e?.message || "Failed to fetch agents");
       setRows([]);
     } finally {
       setLoading(false);
@@ -50,41 +43,15 @@ export default function AgentsPage() {
     loadRows();
   }, []);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!name?.trim()) {
-      toast.error("Name is required");
-      return;
-    }
-    setSaving(true);
-    try {
-      const payload = {
-        name,
-        welcome_message: welcomeMessage,
-        body: bodyHtml,
-      };
-      await createAgent(payload);
-      toast.success("Agent created successfully");
-      setShowForm(false);
-      setName("");
-      setWelcomeMessage("");
-      setBodyHtml("<p>Start writing...</p>");
-      loadRows();
-    } catch (err) {
-      toast.error(err.message || "Failed to save agent");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="p-4 sm:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-gray-700">Agents</h2>
         <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          onClick={() => navigate("/agents/new")}
+          // className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+           className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
         >
           Add Agent
         </button>
@@ -171,75 +138,6 @@ export default function AgentsPage() {
             >
               Next
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Add Agent Modal */}
-      {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          {/* Removed background blackout */}
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl border">
-            <h3 className="text-xl font-bold mb-4">Add Agent</h3>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium">Name</label>
-                <input
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium">
-                  Welcome Message
-                </label>
-                <input
-                  className="mt-1 w-full border rounded px-3 py-2"
-                  value={welcomeMessage}
-                  onChange={(e) => setWelcomeMessage(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium">Body</label>
-                <CKEditor
-                  editor={ClassicEditor}
-                  data={bodyHtml}
-                  config={{
-                    toolbar: [
-                      "bold",
-                      "italic",
-                      "underline",
-                      "bulletedList",
-                      "numberedList",
-                      "undo",
-                      "redo",
-                    ],
-                  }}
-                  onChange={(event, editor) => {
-                    setBodyHtml(editor.getData());
-                  }}
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <button
-                  type="button"
-                  className="px-4 py-2 border rounded"
-                  onClick={() => setShowForm(false)}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded"
-                  disabled={saving}
-                >
-                  {saving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

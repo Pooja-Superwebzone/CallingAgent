@@ -21,6 +21,7 @@ import { IoCallOutline } from "react-icons/io5";
 import { BiPhoneCall } from "react-icons/bi";
 import { FaUsers } from "react-icons/fa";
 import { FaMagento } from "react-icons/fa6";
+import { MdCallMade } from "react-icons/md";
 
 
 const Sidebar = () => {
@@ -262,7 +263,7 @@ const Sidebar = () => {
             <li>
               <button
                 onClick={() => {
-                  navigate("/Agents_Page");
+                  navigate("/agents_page");
                   setMobileOpen(false);
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${location.pathname === "/Agents"
@@ -276,6 +277,28 @@ const Sidebar = () => {
               </button>
             </li>
           )} 
+
+
+{twilioUser === 0 && role === "admin" &&(
+            <li>
+              <button
+                onClick={() => {
+               navigate("/send-omni");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${location.pathname === "/Agents"
+                  ? "bg-gray-700 text-gray-300"
+                  : "hover:bg-gray-700 text-gray-300"
+                  }`}
+              >
+                 <MdCallMade size={18} />
+                Send a Call
+              </button>
+            </li>
+          )} 
+
+
+          
 
         </ul>        
       </div>
@@ -342,7 +365,7 @@ const Sidebar = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
             <div className="relative w-full max-w-3xl min-h-[350px] p-10 sm:p-16 rounded-3xl shadow-2xl text-center animate-fadeIn overflow-hidden bg-gradient-to-br from-blue-100 via-white to-blue-200">
 
-              {/* Decorative Background SVGs */}
+              
               <svg
                 className="absolute top-[-60px] left-[-60px] w-72 h-72 opacity-10 text-blue-300 pointer-events-none"
                 viewBox="0 0 100 100"
@@ -358,7 +381,7 @@ const Sidebar = () => {
                 <circle cx="50" cy="50" r="50" />
               </svg>
 
-              {/* Close Button */}
+              
               <button
                 onClick={() => setShowWelcomeModal(false)}
                 className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold"
@@ -366,13 +389,13 @@ const Sidebar = () => {
                 <FiX />
               </button>
 
-              {/* Welcome Heading */}
+              
               <h2 className="text-3xl font-bold text-blue-700 mb-4 leading-snug flex items-center justify-center gap-3">
                 <FiGift size={32} className="text-blue-600" />
                 Welcome To The World Of Richa AI
               </h2>
 
-              {/* Description */}
+
               <p className="text-gray-800 text-lg sm:text-2xl mb-6 leading-relaxed flex flex-col items-center">
                 <span>Your free trial demo has started.</span>
                 <span className="flex items-center justify-center gap-2 mt-3">
