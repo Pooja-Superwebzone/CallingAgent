@@ -45,7 +45,7 @@ function Sendcall() {
     { value: "hi", label: "Hindi", key: "hindi" },
     { value: "gu", label: "Gujarati", key: "gujarati" },
     { value: "mr", label: "Marathi", key: "marathi" },
-  
+    { value: "ta", label: "Tamil", key: "tamil" },
   ];
 
   // For mapping language value to the key used in the backend/files
