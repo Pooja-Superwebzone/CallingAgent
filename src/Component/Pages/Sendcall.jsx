@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import service from "../../api/axios";
 
+
 function Sendcall() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -22,6 +23,7 @@ function Sendcall() {
   const [useStaticScript, setUseStaticScript] = useState(false);
   const [role, setRole] = useState("");
   const [rows, setRows] = useState([]);
+  const [twilioUser, setTwilioUser] = useState(0);
 
 
   const [selectedTemplate, setSelectedTemplate] = useState("");     
@@ -36,6 +38,35 @@ function Sendcall() {
     { id: "IBCRM", name: "IBCRM" },
     { id: "IBHRMS", name: "IBHRMS" },
   ];
+
+  // Language options as in the code
+  const languageOptions = [
+    { value: "en", label: "English", key: "english" },
+    { value: "hi", label: "Hindi", key: "hindi" },
+    { value: "gu", label: "Gujarati", key: "gujarati" },
+    { value: "mr", label: "Marathi", key: "marathi" },
+  
+  ];
+
+  // For mapping language value to the key used in the backend/files
+  const langValueToKey = {
+    en: "english",
+    hi: "hindi",
+    gu: "gujarati",
+    mr: "marathi",
+    ta: "tamil",
+  };
+
+  // For mapping language key to file name (example, for SMLK)
+  const brandLangFiles = {
+    SMLK: {
+      english: "SMLK_ENGLISH.mp3",
+      hindi: "SMLK_HINDI.mp3",
+      marathi: "SMLK_MARATHI.mp3",
+      gujarati: "SMLK_GUJARTI.mp3",
+    },
+    // Add other brands if needed
+  };
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -127,7 +158,6 @@ function Sendcall() {
         customer_phone: `+91${mobile.trim()}`,
       };
 
-
       if (selectedTemplate) payload.whatsapp_id  = selectedTemplate;
 
       if (useStaticScript) {
@@ -136,6 +166,8 @@ function Sendcall() {
         payload.script = script.trim();
       } else if (brand) {
         payload.brand = brand;
+        // Add lang key if brand is selected
+        payload.lang = langValueToKey[selectedLang] || "english";
       }
 
       console.log("📤 API Payload:", payload);
@@ -152,8 +184,6 @@ function Sendcall() {
     }
   };
 
-
-  
   useEffect(() => {
     const googleTranslateElementInit = () => {
       new window.google.translate.TranslateElement(
@@ -168,7 +198,6 @@ function Sendcall() {
     window.googleTranslateElementInit = googleTranslateElementInit;
     return () => { document.body.removeChild(scriptTag); };
   }, []);
-
 
   useEffect(() => {
     const translateText = async () => {
@@ -185,10 +214,19 @@ function Sendcall() {
       }
     };
     translateText();
- 
   }, [selectedLang]);
 
   const getTemplateBody = (tpl) => tpl?.content?.types?.["twilio/text"]?.body || "";
+
+  // For showing audio file for brand+lang
+  const getBrandAudioFile = () => {
+    if (!brand) return null;
+    const langKey = langValueToKey[selectedLang] || "english";
+    if (brandLangFiles[brand] && brandLangFiles[brand][langKey]) {
+      return `/audio/${brandLangFiles[brand][langKey]}`;
+    }
+    return null;
+  };
 
   return (
     <div className="flex items-center justify-center w-full min-h-[calc(100vh-80px)] px-4 sm:px-6 lg:px-8">
@@ -200,7 +238,6 @@ function Sendcall() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           <div>
-           
             <div className="mb-5">
               <label className="block font-semibold text-gray-700 mb-1">Full Name</label>
               <input
@@ -215,7 +252,6 @@ function Sendcall() {
               {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
             </div>
 
-         
             <div className="mb-5">
               <label className="block font-semibold text-gray-700 mb-1">Email Address</label>
               <input
@@ -230,7 +266,6 @@ function Sendcall() {
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
 
-            
             <div className="mb-5">
               <label className="block font-semibold text-gray-700 mb-1">Contact Number</label>
               <input
@@ -245,40 +280,36 @@ function Sendcall() {
               {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
             </div>
 
-            
             <div className="mb-4">
               <label className="block text-gray-700 font-medium mb-1">Template</label>
-            
-<select
-  value={selectedTemplate}
-  onChange={(e) => {
-    const id = e.target.value; 
-    const name = e.target.options[e.target.selectedIndex]?.text || "";
-    setSelectedTemplate(id);
-    setSelectedTemplateName(name);
+              <select
+                value={selectedTemplate}
+                onChange={(e) => {
+                  const id = e.target.value; 
+                  const name = e.target.options[e.target.selectedIndex]?.text || "";
+                  setSelectedTemplate(id);
+                  setSelectedTemplateName(name);
 
-    
-    const tpl = rows.find((r) => String(r.id) === String(id));
-    setScript(tpl?.content?.types?.["twilio/text"]?.body || "");
+                  const tpl = rows.find((r) => String(r.id) === String(id));
+                  setScript(tpl?.content?.types?.["twilio/text"]?.body || "");
 
-    if (id) {
-      setBrand("");
-      setUseStaticScript(false);
-    }
-  }}
-  className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
->
-  <option value="">Select a template</option>
-  {rows.map((r) => (
-    <option key={r.id} value={r.id}>
-      {r.name || `Template ${r.id}`}
-    </option>
-  ))}
-</select>
-
+                  if (id) {
+                    setBrand("");
+                    setUseStaticScript(false);
+                  }
+                }}
+                className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a template</option>
+                {rows.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name || `Template ${r.id}`}
+                  </option>
+                ))}
+              </select>
             </div>
 
-     
+            {/* Show language select and textarea if NOT admin-twilio, NOT brand, NOT static script */}
             {!isAdminTwilio && !brand && !useStaticScript && (
               <div>
                 <label className="block font-semibold text-gray-700 mb-1">Select Language</label>
@@ -287,12 +318,9 @@ function Sendcall() {
                   onChange={(e) => setSelectedLang(e.target.value)}
                   className="border mb-2 px-4 py-2 rounded w-full"
                 >
-                  <option value="en">English</option>
-                  <option value="hi">Hindi</option>
-                  <option value="gu">Gujarati</option>
-                  <option value="mr">Marathi</option>
-                  <option value="ta">Tamil</option>
-                
+                  {languageOptions.map((lang) => (
+                    <option key={lang.value} value={lang.value}>{lang.label}</option>
+                  ))}
                 </select>
 
                 <textarea
@@ -305,7 +333,6 @@ function Sendcall() {
                     if (value.trim()) {
                       setBrand("");
                       setUseStaticScript(false);
-                    
                     }
                   }}
                   placeholder="Write your script here..."
@@ -314,7 +341,7 @@ function Sendcall() {
               </div>
             )}
 
-           
+  
             {!isAdminTwilio && !script.trim() && !brand && (
               <div className="mb-4">
                 <label className="inline-flex items-center">
@@ -329,7 +356,6 @@ function Sendcall() {
               </div>
             )}
 
-           
             {isAdminTwilio && (
               <div className="mb-4">
                 <label className="inline-flex items-center">
@@ -351,7 +377,7 @@ function Sendcall() {
               </div>
             )}
 
-            
+            {/* Show brand select if NOT script, NOT static script, role=admin, NOT twilio user */}
             {!script.trim() && !useStaticScript && role === "admin" && !isTwilioUser && (
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-1">Select Brand</label>
@@ -380,6 +406,22 @@ function Sendcall() {
               </div>
             )}
 
+            {/* Show language select if brand is selected and not admin-twilio */}
+            {!isAdminTwilio && brand  && twilioUser === 0 && role === "admin"&& (
+              <div className="mb-4">
+                <label className="block font-semibold text-gray-700 mb-1">Select Language</label>
+                <select
+                  value={selectedLang}
+                  onChange={(e) => setSelectedLang(e.target.value)}
+                  className="border mb-2 px-4 py-2 rounded w-full"
+                >
+                  {languageOptions.map((lang) => (
+                    <option key={lang.value} value={lang.value}>{lang.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition w-full sm:w-auto"
@@ -389,7 +431,6 @@ function Sendcall() {
             </button>
           </div>
 
-        
           <div className="flex flex-col justify-start">
             <label className="block font-semibold text-gray-700 mb-2">📂 Upload Excel File (.xlsx)</label>
             <div
@@ -431,11 +472,23 @@ function Sendcall() {
             {errors.file && <p className="text-red-500 text-sm mt-2">{errors.file}</p>}
             <div className="mt-8">
               <label className="block font-semibold text-gray-700 mb-2">🎧 Audio Message</label>
-              <audio controls className="w-full">
-                <source src="/Hindi.wav" type="audio/mpeg" />
-                Your browser does not support the audio element.
-              </audio>
-              <p className="text-sm text-gray-500 mt-1">This audio will be used in the call.</p>
+              {/* Show brand+lang audio if brand is selected, else fallback */}
+              {brand && getBrandAudioFile() ? (
+                <audio controls className="w-full">
+                  <source src={getBrandAudioFile()} type="audio/mpeg" />
+                  Your browser does not support the audio element.
+                </audio>
+              ) : (
+                <audio controls className="w-full">
+                  <source src="/Hindi.wav" type="audio/mpeg" />
+                  Your browser does not support the audio element.
+                </audio>
+              )}
+              <p className="text-sm text-gray-500 mt-1">
+                {brand && getBrandAudioFile()
+                  ? `Audio for ${brand} in ${languageOptions.find(l => l.value === selectedLang)?.label || "English"}`
+                  : "This audio will be used in the call."}
+              </p>
             </div>
           </div>
         </div>
@@ -445,3 +498,4 @@ function Sendcall() {
 }
 
 export default Sendcall;
+ 

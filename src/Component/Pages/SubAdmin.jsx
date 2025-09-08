@@ -35,14 +35,15 @@ const SubAdmin = () => {
   }, []);
 
   useEffect(() => {
-    // Auto-set minute based on role
-    if (selectedRole === 'admin') {
-      setValue('minute', 10);
-    } else if (selectedRole === 'franchise') {
-      setValue('minute', 25);
+    if (editMode) return; // 🚫 Don't run when editing
+  
+    if (selectedRole === "admin") {
+      setValue("minute", 10);
+    } else if (selectedRole === "franchise") {
+      setValue("minute", 25);
     }
-  }, [selectedRole, setValue]);
-
+  }, [selectedRole, setValue, editMode]);
+  
   const fetchAdmins = async () => {
     setLoading(true);
     try {
