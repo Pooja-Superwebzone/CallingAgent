@@ -7,12 +7,14 @@ import Cookies from "js-cookie";
 import service from "../../api/axios";
 import * as XLSX from "xlsx";
 
+
+
 function Sendcall() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [file, setFile] = useState(null);
-  const [fileUrl, setFileUrl] = useState(""); // NEW: object URL to display
+  const [fileUrl, setFileUrl] = useState(""); 
   const [brand, setBrand] = useState("");
   const [script, setScript] = useState("");
   const [selectedLang, setSelectedLang] = useState("en");

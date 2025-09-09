@@ -392,5 +392,30 @@ export function sendOmniCall(payload) {
 }
 
 
+// in hooks/useAuth.js (or wherever you keep those functions)
+export function downloadTemplateExcel() {
+  // endpoint path from your screenshot: "email-template-twillio-sample-excel"
+  // returns a binary file -> request as blob
+  return service
+    .get("email-template-twillio-sample-excel", { responseType: "blob" })
+    .then((res) => {
+      // return both the blob and filename (if backend set Content-Disposition)
+      const contentDisposition = res.headers["content-disposition"] || "";
+      let filename = "call_template_demo.xlsx";
+      const match = /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i.exec(contentDisposition);
+      if (match && match[1]) {
+        filename = decodeURIComponent(match[1]);
+      }
+      return { blob: res.data, filename };
+    })
+    .catch((error) => {
+      console.error("❌ downloadTemplateExcel failed:", error);
+      let msg = "Failed to download template";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+
 
 
