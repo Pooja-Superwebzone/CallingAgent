@@ -1,17 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
-import { HiUpload } from "react-icons/hi";
+import { HiUpload, HiTrash } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 import { sendManualCall, getWhatsappTemplates } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import service from "../../api/axios";
-
+import * as XLSX from "xlsx";
 
 function Sendcall() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [file, setFile] = useState(null);
+  const [fileUrl, setFileUrl] = useState(""); // NEW: object URL to display
   const [brand, setBrand] = useState("");
   const [script, setScript] = useState("");
   const [selectedLang, setSelectedLang] = useState("en");
@@ -25,9 +26,17 @@ function Sendcall() {
   const [rows, setRows] = useState([]);
   const [twilioUser, setTwilioUser] = useState(0);
 
-
-  const [selectedTemplate, setSelectedTemplate] = useState("");     
+  const [selectedTemplate, setSelectedTemplate] = useState("");
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
+
+  const [hideContactInputs, setHideContactInputs] = useState(false);
+
+  // parsed rows from uploaded excel
+  const [parsedRows, setParsedRows] = useState([]); // each item: { name, email, number }
+
+  // progress
+  const [currentCall, setCurrentCall] = useState(0);
+  const [totalCalls, setTotalCalls] = useState(0);
 
   const isAdminTwilio = isTwilioUser && role === "admin";
   const fileInputRef = useRef(null);
@@ -39,7 +48,6 @@ function Sendcall() {
     { id: "IBHRMS", name: "IBHRMS" },
   ];
 
-  // Language options as in the code
   const languageOptions = [
     { value: "en", label: "English", key: "english" },
     { value: "hi", label: "Hindi", key: "hindi" },
@@ -48,7 +56,6 @@ function Sendcall() {
     { value: "ta", label: "Tamil", key: "tamil" },
   ];
 
-  // For mapping language value to the key used in the backend/files
   const langValueToKey = {
     en: "english",
     hi: "hindi",
@@ -57,7 +64,6 @@ function Sendcall() {
     ta: "tamil",
   };
 
-  // For mapping language key to file name (example, for SMLK)
   const brandLangFiles = {
     SMLK: {
       english: "SMLK_ENGLISH.mp3",
@@ -65,13 +71,12 @@ function Sendcall() {
       marathi: "SMLK_MARATHI.mp3",
       gujarati: "SMLK_GUJARTI.mp3",
     },
-    // Add other brands if needed
   };
 
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const res = await getWhatsappTemplates(); 
+      const res = await getWhatsappTemplates();
       setRows(Array.isArray(res?.templates) ? res.templates : []);
     } catch (e) {
       console.error("❌ Fetch templates failed:", e);
@@ -85,7 +90,6 @@ function Sendcall() {
     fetchTemplates();
   }, []);
 
-  // Fetch Profile
   useEffect(() => {
     async function fetchProfile() {
       try {
@@ -96,8 +100,7 @@ function Sendcall() {
         const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
         const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
         const twilioUserFlag =
-          res.data?.data?.twilio_user === 1 ||
-          Cookies.get("twilio_user") === "1";
+          res.data?.data?.twilio_user === 1 || Cookies.get("twilio_user") === "1";
         const userRole = res.data?.data?.role || "";
 
         setRole(userRole.toLowerCase());
@@ -127,12 +130,15 @@ function Sendcall() {
       }
     }
 
-    if (!name.trim()) newErrors.name = "Name is required.";
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-      newErrors.email = "Enter a valid email address.";
-    if (!mobile.trim()) newErrors.mobile = "Mobile number is required.";
-    else if (!/^\d{10,}$/.test(mobile.trim()))
-      newErrors.mobile = "Enter a valid 10+ digit mobile number.";
+    // if we have parsedRows from file, skip single-contact validation
+    if (parsedRows.length === 0) {
+      if (!name.trim()) newErrors.name = "Name is required.";
+      if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+        newErrors.email = "Enter a valid email address.";
+      if (!mobile.trim()) newErrors.mobile = "Mobile number is required.";
+      else if (!/^\d{10,}$/.test(mobile.trim()))
+        newErrors.mobile = "Enter a valid 10-digit mobile number.";
+    }
 
     const isScriptFilled = !!script.trim();
     const isStaticChecked = useStaticScript;
@@ -147,9 +153,220 @@ function Sendcall() {
 
   const handleFileClick = () => fileInputRef.current?.click();
 
+  // Helper to normalize header names
+  const norm = (s) => (s || "").toString().trim().toLowerCase();
+
+  // Helper: detect header variants -> returns map name/email/mobile indexes
+  const detectHeaders = (headers) => {
+    if (!Array.isArray(headers)) return {};
+    const headerMap = {};
+    headers.forEach((h, idx) => {
+      const hnorm = norm(h);
+      if (!hnorm) return;
+      if (hnorm === "full name" || hnorm === "fullname" || hnorm.includes("name")) {
+        headerMap.name = idx;
+      }
+      if (hnorm.includes("email")) {
+        headerMap.email = idx;
+      }
+      if (
+        hnorm.includes("phone") ||
+        hnorm.includes("mobile") ||
+        hnorm.includes("contact") ||
+        hnorm === "number"
+      ) {
+        headerMap.mobile = idx;
+      }
+    });
+    return headerMap;
+  };
+
+  // Normalize a raw phone string to 10-digit Indian (remove +, spaces, dashes, leading 91/0)
+  const normalizeIndianNumber = (raw) => {
+    if (!raw) return null;
+    const digits = String(raw).replace(/\D/g, ""); // remove non-digits
+    if (!digits) return null;
+    let d = digits;
+    if (d.length > 10 && d.startsWith("91")) d = d.slice(2);
+    if (d.length > 10 && d.startsWith("0")) {
+      d = d.replace(/^0+/, "");
+    }
+    if (/^[6-9]\d{9}$/.test(d)) return d;
+    return null;
+  };
+
+  // handle file change and parse excel to detect headers & parse all rows
+  const handleFileChange = async (e) => {
+    const f = e.target.files[0] || null;
+
+    // revoke previous object URL if exists
+    if (fileUrl) {
+      URL.revokeObjectURL(fileUrl);
+      setFileUrl("");
+    }
+
+    setFile(f);
+    setErrors((prev) => ({ ...prev, file: "" }));
+    setParsedRows([]);
+    setHideContactInputs(false);
+
+    if (!f) return;
+
+    // create object URL to show the selected file link
+    try {
+      const objUrl = URL.createObjectURL(f);
+      setFileUrl(objUrl);
+    } catch (err) {
+      console.warn("Could not create object URL for file", err);
+      setFileUrl("");
+    }
+
+    try {
+      const data = await f.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const sheetRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      if (!sheetRows || sheetRows.length === 0) {
+        toast.error("Excel is empty");
+        return;
+      }
+
+      const headers = sheetRows[0].map((h) => (h === undefined || h === null ? "" : String(h)));
+      const headerMap = detectHeaders(headers);
+
+      const hasName = typeof headerMap.name === "number";
+      const hasEmail = typeof headerMap.email === "number";
+      const hasMobile = typeof headerMap.mobile === "number";
+
+      if (!hasMobile) {
+        toast.error("Please include a column for Number / Phone / Mobile in the Excel.");
+        setHideContactInputs(false);
+        setParsedRows([]);
+        return;
+      }
+
+      const parsed = [];
+      const invalidRows = [];
+      for (let r = 1; r < sheetRows.length; r++) {
+        const row = sheetRows[r];
+        if (!row || row.length === 0) continue;
+        const rawName = hasName ? (row[headerMap.name] || "") : "";
+        const rawEmail = hasEmail ? (row[headerMap.email] || "") : "";
+        const rawMobile = row[headerMap.mobile] || "";
+        const normalized = normalizeIndianNumber(rawMobile);
+        if (normalized) {
+          parsed.push({
+            name: String(rawName || "").trim(),
+            email: String(rawEmail || "").trim(),
+            number: normalized,
+          });
+        } else {
+          invalidRows.push({ rowNumber: r + 1, value: rawMobile });
+        }
+      }
+
+      if (parsed.length === 0) {
+        toast.error("No valid Indian 10-digit numbers found in the uploaded Excel.");
+        setHideContactInputs(false);
+        setParsedRows([]);
+        return;
+      }
+
+      setParsedRows(parsed);
+      setHideContactInputs(true);
+      setName(parsed[0]?.name || "");
+      setEmail(parsed[0]?.email || "");
+      setMobile(parsed[0]?.number || "");
+      toast.success(`Parsed ${parsed.length} valid numbers from Excel.`);
+      if (invalidRows.length > 0) {
+        toast(`${invalidRows.length} rows skipped due to invalid numbers (check console).`);
+        console.warn("Skipped rows due to invalid numbers:", invalidRows);
+      }
+    } catch (err) {
+      console.error("Error parsing excel:", err);
+      toast.error("Failed to parse Excel file");
+      setParsedRows([]);
+      setHideContactInputs(false);
+    }
+  };
+
+  const clearFile = () => {
+    // revoke object URL
+    if (fileUrl) {
+      try {
+        URL.revokeObjectURL(fileUrl);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    setFile(null);
+    setFileUrl("");
+    setHideContactInputs(false);
+    setName("");
+    setEmail("");
+    setMobile("");
+    setParsedRows([]);
+    setCurrentCall(0);
+    setTotalCalls(0);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Helper to send a single payload and return result
+  const sendSingle = async (payload) => {
+    try {
+      await sendManualCall(payload);
+      return { success: true };
+    } catch (err) {
+      console.error("sendManualCall failed for", payload, err);
+      return { success: false, error: err };
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validate()) return;
+
+    if (parsedRows.length > 0) {
+      setTotalCalls(parsedRows.length);
+      setCurrentCall(0);
+      setLoading(true);
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < parsedRows.length; i++) {
+        const row = parsedRows[i];
+        setCurrentCall(i + 1);
+
+        const payload = {
+          customer_name: (row.name || "").trim(),
+          customer_email: (row.email || "").trim(),
+          customer_phone: `+91${row.number}`,
+        };
+
+        if (selectedTemplate) payload.whatsapp_id = selectedTemplate;
+        if (useStaticScript) {
+          payload.static = 1;
+        } else if (script.trim()) {
+          payload.script = script.trim();
+        } else if (brand) {
+          payload.brand = brand;
+          payload.lang = langValueToKey[selectedLang] || "english";
+        }
+
+        const res = await sendSingle(payload);
+        if (res.success) successCount++;
+        else failCount++;
+      }
+
+      setLoading(false);
+      setCurrentCall(0);
+      setTotalCalls(0);
+      toast.success(`Completed. Success: ${successCount}, Failed: ${failCount}`);
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -158,7 +375,7 @@ function Sendcall() {
         customer_phone: `+91${mobile.trim()}`,
       };
 
-      if (selectedTemplate) payload.whatsapp_id  = selectedTemplate;
+      if (selectedTemplate) payload.whatsapp_id = selectedTemplate;
 
       if (useStaticScript) {
         payload.static = 1;
@@ -166,13 +383,8 @@ function Sendcall() {
         payload.script = script.trim();
       } else if (brand) {
         payload.brand = brand;
-        // Add lang key if brand is selected
         payload.lang = langValueToKey[selectedLang] || "english";
       }
-
-      console.log("📤 API Payload:", payload);
-      const token = Cookies.get("CallingAgent");
-      console.log("🪪 Token:", token);
 
       await sendManualCall(payload);
       toast.success("Call triggered successfully");
@@ -196,7 +408,9 @@ function Sendcall() {
     scriptTag.async = true;
     document.body.appendChild(scriptTag);
     window.googleTranslateElementInit = googleTranslateElementInit;
-    return () => { document.body.removeChild(scriptTag); };
+    return () => {
+      document.body.removeChild(scriptTag);
+    };
   }, []);
 
   useEffect(() => {
@@ -204,7 +418,9 @@ function Sendcall() {
       if (!script.trim() || selectedLang === "en") return;
       try {
         const response = await fetch(
-          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${selectedLang}&dt=t&q=${encodeURIComponent(script)}`
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${selectedLang}&dt=t&q=${encodeURIComponent(
+            script
+          )}`
         );
         const result = await response.json();
         const translatedText = result[0].map((item) => item[0]).join(" ");
@@ -218,7 +434,6 @@ function Sendcall() {
 
   const getTemplateBody = (tpl) => tpl?.content?.types?.["twilio/text"]?.body || "";
 
-  // For showing audio file for brand+lang
   const getBrandAudioFile = () => {
     if (!brand) return null;
     const langKey = langValueToKey[selectedLang] || "english";
@@ -238,54 +453,69 @@ function Sendcall() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           <div>
-            <div className="mb-5">
-              <label className="block font-semibold text-gray-700 mb-1">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter full name"
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                  errors.name ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
-                }`}
-              />
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-            </div>
+            {!hideContactInputs && (
+              <>
+                <div className="mb-5">
+                  <label className="block font-semibold text-gray-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter full name"
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
+                      errors.name ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                    }`}
+                  />
+                  {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                </div>
 
-            <div className="mb-5">
-              <label className="block font-semibold text-gray-700 mb-1">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter email address"
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                  errors.email ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
-                }`}
-              />
-              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
-            </div>
+                <div className="mb-5">
+                  <label className="block font-semibold text-gray-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter email address"
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
+                      errors.email ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                    }`}
+                  />
+                  {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                </div>
 
-            <div className="mb-5">
-              <label className="block font-semibold text-gray-700 mb-1">Contact Number</label>
-              <input
-                type="tel"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                placeholder="Enter mobile number"
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                  errors.mobile ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
-                }`}
-              />
-              {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
-            </div>
+                <div className="mb-5">
+                  <label className="block font-semibold text-gray-700 mb-1">Contact Number</label>
+                  <input
+                    type="tel"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                    placeholder="Enter mobile number (10 digits, without +91)"
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
+                      errors.mobile ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                    }`}
+                  />
+                  {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
+                </div>
+              </>
+            )}
+
+            {/* {hideContactInputs && (
+              <div className="mb-5">
+                <p className="text-sm text-gray-700">
+                  Contact details are provided by the uploaded Excel file ({parsedRows.length} numbers). If you want to edit them manually,{" "}
+                  <button type="button" onClick={clearFile} className="inline-flex items-center gap-2 text-blue-600">
+                    <HiTrash className="text-lg" /> Clear file
+                  </button>.
+                </p>
+              </div>
+            )} */}
 
             <div className="mb-4">
               <label className="block text-gray-700 font-medium mb-1">Template</label>
               <select
                 value={selectedTemplate}
                 onChange={(e) => {
-                  const id = e.target.value; 
+                  const id = e.target.value;
                   const name = e.target.options[e.target.selectedIndex]?.text || "";
                   setSelectedTemplate(id);
                   setSelectedTemplateName(name);
@@ -309,7 +539,6 @@ function Sendcall() {
               </select>
             </div>
 
-            {/* Show language select and textarea if NOT admin-twilio, NOT brand, NOT static script */}
             {!isAdminTwilio && !brand && !useStaticScript && (
               <div>
                 <label className="block font-semibold text-gray-700 mb-1">Select Language</label>
@@ -341,7 +570,6 @@ function Sendcall() {
               </div>
             )}
 
-  
             {!isAdminTwilio && !script.trim() && !brand && (
               <div className="mb-4">
                 <label className="inline-flex items-center">
@@ -377,7 +605,6 @@ function Sendcall() {
               </div>
             )}
 
-            {/* Show brand select if NOT script, NOT static script, role=admin, NOT twilio user */}
             {!script.trim() && !useStaticScript && role === "admin" && !isTwilioUser && (
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-1">Select Brand</label>
@@ -406,8 +633,7 @@ function Sendcall() {
               </div>
             )}
 
-            {/* Show language select if brand is selected and not admin-twilio */}
-            {!isAdminTwilio && brand  && twilioUser === 0 && role === "admin"&& (
+            {!isAdminTwilio && brand && twilioUser === 0 && role === "admin" && (
               <div className="mb-4">
                 <label className="block font-semibold text-gray-700 mb-1">Select Language</label>
                 <select
@@ -427,13 +653,18 @@ function Sendcall() {
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition w-full sm:w-auto"
               disabled={loading}
             >
-              {loading ? "Sending..." : "Make a Call"}
+              {loading && totalCalls > 0
+                ? `Sending (${currentCall}/${totalCalls})...`
+                : loading
+                ? "Sending..."
+                : "Make a Call"}
             </button>
           </div>
 
           <div className="flex flex-col justify-start">
             <label className="block font-semibold text-gray-700 mb-2">📂 Upload Excel File (.xlsx)</label>
             <div
+              onClick={handleFileClick}
               className={`relative border-2 border-dashed p-6 rounded-xl text-center ${
                 errors.file ? "border-red-400 hover:border-red-500" : "border-gray-300 hover:border-blue-400"
               }`}
@@ -445,10 +676,7 @@ function Sendcall() {
               type="file"
               accept=".xls,.xlsx"
               ref={fileInputRef}
-              onChange={(e) => {
-                setFile(e.target.files[0] || null);
-                setErrors((prev) => ({ ...prev, file: "" }));
-              }}
+              onChange={handleFileChange}
               className="hidden"
             />
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
@@ -459,20 +687,58 @@ function Sendcall() {
               >
                 Select File
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const data = [["Full Name", "Email", "Number"], ["John Doe", "john.doe@example.com", "9876543210"]];
+                  const ws = XLSX.utils.aoa_to_sheet(data);
+                  const range = XLSX.utils.decode_range(ws["!ref"]);
+                  for (let R = range.s.r; R <= range.e.r; ++R) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: 2 });
+                    const cell = ws[cellAddress];
+                    if (cell) { cell.t = "s"; cell.v = String(cell.v); }
+                  }
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, "Template");
+                  XLSX.writeFile(wb, "call_template_demo.xlsx");
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-xl transition"
+              >
+                Download Demo Excel
+              </button>
+
               {file && (
-                <a
-                  href={URL.createObjectURL(file)}
-                  download={file.name}
-                  className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-xl transition"
+                <button
+                  type="button"
+                  onClick={clearFile}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-xl transition"
                 >
-                  Download Selected File
-                </a>
+                  <HiTrash className="text-lg" />
+                  Clear File
+                </button>
               )}
             </div>
+
+            {/* NEW: show selected file URL if present */}
+            {/* {fileUrl && (
+              <div className="mt-3">
+                <label className="block text-sm text-gray-600 mb-1">Selected file URL</label>
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-blue-600 underline truncate block max-w-full"
+                  title={fileUrl}
+                >
+                  {fileUrl}
+                </a>
+              </div>
+            )} */}
+
             {errors.file && <p className="text-red-500 text-sm mt-2">{errors.file}</p>}
             <div className="mt-8">
               <label className="block font-semibold text-gray-700 mb-2">🎧 Audio Message</label>
-              {/* Show brand+lang audio if brand is selected, else fallback */}
               {brand && getBrandAudioFile() ? (
                 <audio controls className="w-full">
                   <source src={getBrandAudioFile()} type="audio/mpeg" />
@@ -498,4 +764,3 @@ function Sendcall() {
 }
 
 export default Sendcall;
- 

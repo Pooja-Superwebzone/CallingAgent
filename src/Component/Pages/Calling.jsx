@@ -49,8 +49,9 @@ const Calling = () => {
     }
   };
 
+  // Corrected: 1 = correct (green), 0 = wrong (red)
   const renderStatus = (value) => {
-    return value === 1 ? (
+    return value === '1'? (
       <FaCheckCircle className="text-green-600 text-xl" />
     ) : (
       <FaTimesCircle className="text-red-500 text-xl" />
@@ -148,7 +149,6 @@ const Calling = () => {
         </table>
       </div>
 
-   
       {/* Smart Pagination */}
 {!loading && totalPages > 1 && (
   <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
