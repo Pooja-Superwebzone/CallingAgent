@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { HiUpload, HiTrash } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
-import { sendManualCall, getWhatsappTemplates, generateSpeech } from "../../hooks/useAuth";
+import { sendManualCall, getWhatsappTemplates, generateSpeech, generateExcelSheet } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import service from "../../api/axios";
@@ -44,6 +44,12 @@ function Sendcall() {
   // progress
   const [currentCall, setCurrentCall] = useState(0);
   const [totalCalls, setTotalCalls] = useState(0);
+  
+  // call tracking
+  const [callSids, setCallSids] = useState([]);
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
+  const [excelCountdown, setExcelCountdown] = useState(0);
+  const excelTimeoutRef = useRef(null);
 
   const isAdminTwilio = isTwilioUser && role === "admin";
   const fileInputRef = useRef(null);
@@ -95,6 +101,15 @@ function Sendcall() {
 
   useEffect(() => {
     fetchTemplates();
+  }, []);
+
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (excelTimeoutRef.current) {
+        clearTimeout(excelTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -363,14 +378,27 @@ function Sendcall() {
     setCurrentCall(0);
     setTotalCalls(0);
     setSpeechUrl("");
+    setCallSids([]);
+    setExcelCountdown(0);
+    // Clear any pending Excel generation timeout
+    if (excelTimeoutRef.current) {
+      clearTimeout(excelTimeoutRef.current);
+      excelTimeoutRef.current = null;
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   // Helper to send a single payload and return result
   const sendSingle = async (payload) => {
     try {
-      await sendManualCall(payload);
-      return { success: true };
+      const response = await sendManualCall(payload);
+      console.log("sendManualCall response:", response);
+      const callSid = response?.response?.original?.call_sid;
+      console.log("Extracted callSid:", callSid);
+      if (callSid) {
+        setCallSids(prev => [...prev, callSid]);
+      }
+      return { success: true, callSid };
     } catch (err) {
       console.error("sendManualCall failed for", payload, err);
       return { success: false, error: err };
@@ -395,12 +423,56 @@ function Sendcall() {
     }
   };
 
+  // Generate Excel file with call results
+  const generateExcelFile = async (callSids) => {
+    console.log("🔍 generateExcelFile called with callSids:", callSids);
+    
+    if (!callSids || callSids.length === 0) {
+      console.log("❌ No call SIDs provided to generateExcelFile");
+      toast.error("No call SIDs to generate Excel file");
+      return;
+    }
+
+    console.log("📊 Starting Excel generation with", callSids.length, "call SIDs");
+    setIsGeneratingExcel(true);
+    
+    try {
+      console.log("🌐 Calling generateExcelSheet API...");
+      const response = await generateExcelSheet(callSids);
+      console.log("📥 generateExcelSheet API response:", response);
+
+      if (response?.status === "success" && response?.file_url) {
+        console.log("✅ Excel generation successful, file URL:", response.file_url);
+        // Create a temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = response.file_url;
+        link.download = `calls_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log("📁 Excel file download triggered");
+        toast.success("Excel file downloaded successfully!");
+      } else {
+        console.log("❌ Excel generation failed - invalid response:", response);
+        toast.error("Failed to generate Excel file");
+      }
+    } catch (error) {
+      console.error("❌ Generate Excel failed:", error);
+      toast.error("Failed to generate Excel file");
+    } finally {
+      console.log("🏁 Excel generation process completed");
+      setIsGeneratingExcel(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validate()) return;
 
     setLoading(true);
+    setCallSids([]); // Reset call SIDs for new batch
 
     try {
 
@@ -412,6 +484,7 @@ function Sendcall() {
 
         let successCount = 0;
         let failCount = 0;
+        const collectedCallSids = []; // Local array to collect call SIDs
 
         for (let i = 0; i < parsedRows.length; i++) {
           const row = parsedRows[i];
@@ -426,13 +499,62 @@ function Sendcall() {
           };
 
           const res = await sendSingle(payload);
-          if (res.success) successCount++;
-          else failCount++;
+          if (res.success) {
+            successCount++;
+            // Collect call SID from the response
+            if (res.callSid) {
+              collectedCallSids.push(res.callSid);
+            }
+          } else {
+            failCount++;
+          }
         }
 
         toast.success(`Completed. Success: ${successCount}, Failed: ${failCount}`);
         setTotalCalls(0);
         setCurrentCall(0);
+        
+        // Show notification about Excel generation delay
+        if (collectedCallSids.length > 0) {
+          toast.success("Excel file will be generated in 2 minutes...", { duration: 5000 });
+        }
+
+        // Generate Excel file with collected call SIDs after 2 minutes
+        console.log("Collected call SIDs:", collectedCallSids);
+        if (collectedCallSids.length > 0) {
+          console.log("Waiting 2 minutes before generating Excel file...");
+          // Clear any existing timeout
+          if (excelTimeoutRef.current) {
+            clearTimeout(excelTimeoutRef.current);
+          }
+          
+          // Start countdown
+          setExcelCountdown(120);
+          const countdownInterval = setInterval(() => {
+            setExcelCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(countdownInterval);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+          
+          // Set new timeout
+          excelTimeoutRef.current = setTimeout(async () => {
+            console.log("2 minutes elapsed, generating Excel file now...");
+            clearInterval(countdownInterval);
+            setExcelCountdown(0);
+            try {
+              await generateExcelFile(collectedCallSids);
+            } catch (error) {
+              console.error("Error generating Excel file:", error);
+            }
+            excelTimeoutRef.current = null;
+          }, 2 * 60 * 1000); // 2 minutes
+        } else {
+          console.log("No call SIDs collected, skipping Excel generation");
+        }
       } else {
         // Single contact flow - send only the 4 required keys
         const payload = {
@@ -442,8 +564,29 @@ function Sendcall() {
           audio_file: generatedAudio || speechUrl || "",
         };
 
-        await sendSingle(payload);
-        toast.success("Call triggered successfully");
+        const res = await sendSingle(payload);
+        if (res.success) {
+          toast.success("Call triggered successfully");
+          // Generate Excel file for single call too after 2 minutes
+          if (res.callSid) {
+            toast.success("Excel file will be generated in 2 minutes...", { duration: 5000 });
+            console.log("Waiting 2 minutes before generating Excel file for single call...");
+            // Clear any existing timeout
+            if (excelTimeoutRef.current) {
+              clearTimeout(excelTimeoutRef.current);
+            }
+            // Set new timeout
+            excelTimeoutRef.current = setTimeout(async () => {
+              console.log("2 minutes elapsed, generating Excel file for single call now...");
+              try {
+                await generateExcelFile([res.callSid]);
+              } catch (error) {
+                console.error("Error generating Excel file:", error);
+              }
+              excelTimeoutRef.current = null;
+            }, 2 * 60 * 1000); // 2 minutes
+          }
+        }
       }
     } catch (error) {
       console.error("❌ sendManualCall error:", error);
@@ -705,9 +848,11 @@ function Sendcall() {
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition w-full sm:w-auto"
-              disabled={loading}
+              disabled={loading || isGeneratingExcel}
             >
-              {loading && totalCalls > 0
+              {isGeneratingExcel
+                ? "Generating Excel..."
+                : loading && totalCalls > 0
                 ? `Sending (${currentCall}/${totalCalls})...`
                 : loading
                 ? "Sending..."
@@ -718,6 +863,20 @@ function Sendcall() {
             {speechUrl && (
               <div className="mt-3 text-sm text-gray-600 break-words">
                 {/* Audio URL is available */}
+              </div>
+            )}
+
+            {/* Show call SIDs collected */}
+            {callSids.length > 0 && (
+              <div className="mt-3 text-sm text-green-600">
+                📞 {callSids.length} call(s) initiated successfully
+              </div>
+            )}
+
+            {/* Show Excel countdown */}
+            {excelCountdown > 0 && (
+              <div className="mt-3 text-sm text-blue-600">
+                ⏳ Excel file will be generated in {excelCountdown} seconds...
               </div>
             )}
           </div>

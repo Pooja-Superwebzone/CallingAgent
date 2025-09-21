@@ -457,4 +457,26 @@ export function getCallTranscript(callId) {
     });
 }
 
+export function generateExcelSheet(callSids) {
+  return service
+    .post("generate-excel-sheet", 
+      { call_sids: callSids },
+      {
+        headers: { 
+          Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ generateExcelSheet failed:", error);
+      let errorMessage = "Failed to generate Excel file.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
 
