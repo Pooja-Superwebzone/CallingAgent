@@ -394,12 +394,10 @@ export function sendOmniCall(payload) {
 
 // in hooks/useAuth.js (or wherever you keep those functions)
 export function downloadTemplateExcel() {
-  // endpoint path from your screenshot: "email-template-twillio-sample-excel"
-  // returns a binary file -> request as blob
   return service
     .get("email-template-twillio-sample-excel", { responseType: "blob" })
     .then((res) => {
-      // return both the blob and filename (if backend set Content-Disposition)
+      
       const contentDisposition = res.headers["content-disposition"] || "";
       let filename = "call_template_demo.xlsx";
       const match = /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i.exec(contentDisposition);
@@ -416,6 +414,47 @@ export function downloadTemplateExcel() {
     });
 }
 
+export function generateSpeech(payload) {
+  return service
+    .post("elevenlabs/generate-speech", payload)
+    .then((res) => res.data) 
+    .catch((error) => {
+      console.error("❌ generateSpeech failed:", error);
+      let msg = "Failed to generate speech/text.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
 
+export function getCallLogss() {
+  return service
+    .get("calls-logs", {
+      headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
+    })
+    .then((res) => Array.isArray(res.data) ? res.data : [])
+    .catch((error) => {
+      console.error("❌ Failed to fetch Call Logs:", error);
+      let errorMessage = "Failed to fetch Call Logs";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+
+export function getCallTranscript(callId) {
+  return service
+    .get(`calls-logs/${callId}`, {
+      headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Failed to fetch call transcript:", error);
+      let msg = "Failed to fetch transcript.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
 
 

@@ -1,26 +1,30 @@
 import React, { useState, useRef, useEffect } from "react";
 import { HiUpload, HiTrash } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
-import { sendManualCall, getWhatsappTemplates } from "../../hooks/useAuth";
+import { sendManualCall, getWhatsappTemplates, generateSpeech } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import service from "../../api/axios";
 import * as XLSX from "xlsx";
-
-
 
 function Sendcall() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [file, setFile] = useState(null);
-  const [fileUrl, setFileUrl] = useState(""); 
+  const [fileUrl, setFileUrl] = useState("");
   const [brand, setBrand] = useState("");
   const [script, setScript] = useState("");
   const [selectedLang, setSelectedLang] = useState("en");
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  // total fallback minute (legacy)
   const [minute, setMinute] = useState(0);
+  // new split minutes
+  const [oneWayMinutes, setOneWayMinutes] = useState(0);
+  const [twoWayMinutes, setTwoWayMinutes] = useState(10);
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [isTwilioUser, setIsTwilioUser] = useState(false);
   const [useStaticScript, setUseStaticScript] = useState(false);
@@ -32,9 +36,10 @@ function Sendcall() {
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
 
   const [hideContactInputs, setHideContactInputs] = useState(false);
+  const [speechUrl, setSpeechUrl] = useState(""); 
 
   // parsed rows from uploaded excel
-  const [parsedRows, setParsedRows] = useState([]); // each item: { name, email, number }
+  const [parsedRows, setParsedRows] = useState([]); 
 
   // progress
   const [currentCall, setCurrentCall] = useState(0);
@@ -99,7 +104,32 @@ function Sendcall() {
           headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
         });
 
+
         const userMinute = res.data?.data?.twilio_user_minute?.minute || "0";
+
+        const minuteObj = res.data?.data?.twilio_user_minute || null;
+
+        let oWay = 0;
+        let tWay = 0;
+
+
+        if (minuteObj && typeof minuteObj === "object") {
+          
+          oWay =
+            Number(minuteObj.one_way ?? minuteObj.oneWay ?? minuteObj.outbound ?? minuteObj.outbound_minute ?? 10);
+          tWay =
+            Number(minuteObj.two_way ?? minuteObj.twoWay ?? minuteObj.inbound ?? minuteObj.inbound_minute ?? 10);
+
+          if (!oWay && !tWay && minuteObj.minute) {
+            oWay = Number(minuteObj.minute);
+            tWay = 0;
+          }
+        } else {
+          // fallback to the legacy minute number
+          oWay = Number(userMinute) || 0;
+          tWay = 0;
+        }
+
         const adminFlag = res.data?.data?.twilio_user_is_admin === 1;
         const twilioUserFlag =
           res.data?.data?.twilio_user === 1 || Cookies.get("twilio_user") === "1";
@@ -107,6 +137,8 @@ function Sendcall() {
 
         setRole(userRole.toLowerCase());
         setMinute(Number(userMinute));
+        setOneWayMinutes(Number(oWay));
+        setTwoWayMinutes(Number(tWay));
         setIsAdmin(adminFlag);
         setIsTwilioUser(twilioUserFlag);
         localStorage.setItem("userRemainingMinutes", userMinute);
@@ -203,7 +235,7 @@ function Sendcall() {
 
     // revoke previous object URL if exists
     if (fileUrl) {
-      URL.revokeObjectURL(fileUrl);
+      try { URL.revokeObjectURL(fileUrl); } catch (err) { /* ignore */ }
       setFileUrl("");
     }
 
@@ -211,6 +243,7 @@ function Sendcall() {
     setErrors((prev) => ({ ...prev, file: "" }));
     setParsedRows([]);
     setHideContactInputs(false);
+    setSpeechUrl(""); // reset previous speech url
 
     if (!f) return;
 
@@ -275,6 +308,24 @@ function Sendcall() {
         return;
       }
 
+      // Generate speech automatically on upload **only if** script exists
+      if (script && script.trim()) {
+        try {
+          const resp = await generateSpeech({ script });
+          const url = resp?.audio_url || resp?.audioUrl || resp?.url || "";
+          if (url) {
+            setSpeechUrl(url);
+            toast.success("Speech generated successfully");
+            console.log("Generated Speech URL:", url);
+          } else {
+            console.warn("No audio url in generateSpeech response:", resp);
+          }
+        } catch (err) {
+          console.error("generateSpeech failed:", err);
+          toast.error("Failed to generate speech");
+        }
+      }
+
       setParsedRows(parsed);
       setHideContactInputs(true);
       setName(parsed[0]?.name || "");
@@ -311,6 +362,7 @@ function Sendcall() {
     setParsedRows([]);
     setCurrentCall(0);
     setTotalCalls(0);
+    setSpeechUrl("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -325,71 +377,74 @@ function Sendcall() {
     }
   };
 
+  // Generate speech helper used at submit time if needed
+  const ensureSpeechUrl = async () => {
+    if (speechUrl && speechUrl.trim()) return speechUrl;
+    if (!script || !script.trim()) return ""; // nothing to generate
+    try {
+      const resp = await generateSpeech({ script });
+      const url = resp?.audio_url || resp?.audioUrl || resp?.url || "";
+      if (url) {
+        setSpeechUrl(url);
+        return url;
+      }
+      return "";
+    } catch (err) {
+      console.error("generateSpeech failed on submit:", err);
+      return "";
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validate()) return;
 
-    if (parsedRows.length > 0) {
-      setTotalCalls(parsedRows.length);
-      setCurrentCall(0);
-      setLoading(true);
-      let successCount = 0;
-      let failCount = 0;
+    setLoading(true);
 
-      for (let i = 0; i < parsedRows.length; i++) {
-        const row = parsedRows[i];
-        setCurrentCall(i + 1);
+    try {
 
-        const payload = {
-          customer_name: (row.name || "").trim(),
-          customer_email: (row.email || "").trim(),
-          customer_phone: `+91${row.number}`,
-        };
+      const generatedAudio = await ensureSpeechUrl();
 
-        if (selectedTemplate) payload.whatsapp_id = selectedTemplate;
-        if (useStaticScript) {
-          payload.static = 1;
-        } else if (script.trim()) {
-          payload.script = script.trim();
-        } else if (brand) {
-          payload.brand = brand;
-          payload.lang = langValueToKey[selectedLang] || "english";
+      if (parsedRows.length > 0) {
+        setTotalCalls(parsedRows.length);
+        setCurrentCall(0);
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < parsedRows.length; i++) {
+          const row = parsedRows[i];
+          setCurrentCall(i + 1);
+
+          // send only the four keys requested
+          const payload = {
+            customer_name: (row.name || "").trim(),
+            customer_email: (row.email || "").trim(),
+            customer_phone: `+91${row.number}`,
+            audio_file: generatedAudio || speechUrl || "",
+          };
+
+          const res = await sendSingle(payload);
+          if (res.success) successCount++;
+          else failCount++;
         }
 
-        const res = await sendSingle(payload);
-        if (res.success) successCount++;
-        else failCount++;
+        toast.success(`Completed. Success: ${successCount}, Failed: ${failCount}`);
+        setTotalCalls(0);
+        setCurrentCall(0);
+      } else {
+        // Single contact flow - send only the 4 required keys
+        const payload = {
+          customer_name: name.trim(),
+          customer_email: email.trim(),
+          customer_phone: `+91${mobile.trim()}`,
+          audio_file: generatedAudio || speechUrl || "",
+        };
+
+        await sendSingle(payload);
+        toast.success("Call triggered successfully");
       }
-
-      setLoading(false);
-      setCurrentCall(0);
-      setTotalCalls(0);
-      toast.success(`Completed. Success: ${successCount}, Failed: ${failCount}`);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const payload = {
-        customer_name: name.trim(),
-        customer_email: email.trim(),
-        customer_phone: `+91${mobile.trim()}`,
-      };
-
-      if (selectedTemplate) payload.whatsapp_id = selectedTemplate;
-
-      if (useStaticScript) {
-        payload.static = 1;
-      } else if (script.trim()) {
-        payload.script = script.trim();
-      } else if (brand) {
-        payload.brand = brand;
-        payload.lang = langValueToKey[selectedLang] || "english";
-      }
-
-      await sendManualCall(payload);
-      toast.success("Call triggered successfully");
     } catch (error) {
       console.error("❌ sendManualCall error:", error);
       toast.error(error?.response?.data?.message || error.message || "Call failed");
@@ -411,7 +466,7 @@ function Sendcall() {
     document.body.appendChild(scriptTag);
     window.googleTranslateElementInit = googleTranslateElementInit;
     return () => {
-      document.body.removeChild(scriptTag);
+      try { document.body.removeChild(scriptTag); } catch (e) { /* ignore */ }
     };
   }, []);
 
@@ -445,12 +500,37 @@ function Sendcall() {
     return null;
   };
 
+  // Helper: compute a simple percent for small progress bar (clamped)
+  const computePercent = (value) => {
+    const max = Math.max(oneWayMinutes + twoWayMinutes, 1);
+    const p = Math.round((value / max) * 100);
+    return Math.min(Math.max(p, 0), 100);
+  };
+
   return (
     <div className="flex items-center justify-center w-full min-h-[calc(100vh-80px)] px-4 sm:px-6 lg:px-8">
       <form onSubmit={handleSubmit} className="bg-white shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-5xl relative">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Send Call</h2>
-          <div className="text-sm font-semibold text-blue-600">Remaining Minutes: {minute}</div>
+
+          {/* NEW: One-way / Two-way minutes display */}
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-600 mr-2">Remaining Minutes</div>
+
+            <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl shadow-sm">
+              <div className="flex flex-col items-center px-3">
+                <span className="text-xs text-gray-500">One-way</span>
+                <span className="text-sm font-semibold text-gray-800">{oneWayMinutes}</span>
+              </div>
+
+              <div className="h-8 w-[1px] bg-gray-200" />
+
+              <div className="flex flex-col items-center px-3">
+                <span className="text-xs text-gray-500">Two-way</span>
+                <span className="text-sm font-semibold text-gray-800">{twoWayMinutes}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
@@ -501,17 +581,6 @@ function Sendcall() {
               </>
             )}
 
-            {/* {hideContactInputs && (
-              <div className="mb-5">
-                <p className="text-sm text-gray-700">
-                  Contact details are provided by the uploaded Excel file ({parsedRows.length} numbers). If you want to edit them manually,{" "}
-                  <button type="button" onClick={clearFile} className="inline-flex items-center gap-2 text-blue-600">
-                    <HiTrash className="text-lg" /> Clear file
-                  </button>.
-                </p>
-              </div>
-            )} */}
-
             <div className="mb-4">
               <label className="block text-gray-700 font-medium mb-1">Template</label>
               <select
@@ -541,36 +610,34 @@ function Sendcall() {
               </select>
             </div>
 
-            {!isAdminTwilio && !brand && !useStaticScript && (
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Select Language</label>
-                <select
-                  value={selectedLang}
-                  onChange={(e) => setSelectedLang(e.target.value)}
-                  className="border mb-2 px-4 py-2 rounded w-full"
-                >
-                  {languageOptions.map((lang) => (
-                    <option key={lang.value} value={lang.value}>{lang.label}</option>
-                  ))}
-                </select>
+            <div>
+              <label className="block font-semibold text-gray-700 mb-1">Select Language</label>
+              <select
+                value={selectedLang}
+                onChange={(e) => setSelectedLang(e.target.value)}
+                className="border mb-2 px-4 py-2 rounded w-full"
+              >
+                {languageOptions.map((lang) => (
+                  <option key={lang.value} value={lang.value}>{lang.label}</option>
+                ))}
+              </select>
 
-                <textarea
-                  rows="5"
-                  className="w-full border rounded-xl px-4 py-3"
-                  value={script}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setScript(value);
-                    if (value.trim()) {
-                      setBrand("");
-                      setUseStaticScript(false);
-                    }
-                  }}
-                  placeholder="Write your script here..."
-                />
-                {errors.script && <p className="text-red-500 text-sm mt-1">{errors.script}</p>}
-              </div>
-            )}
+              <textarea
+                rows="5"
+                className="w-full border rounded-xl px-4 py-3"
+                value={script}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setScript(value);
+                  if (value.trim()) {
+                    setBrand("");
+                    setUseStaticScript(false);
+                  }
+                }}
+                placeholder="Write your script here..."
+              />
+              {errors.script && <p className="text-red-500 text-sm mt-1">{errors.script}</p>}
+            </div>
 
             {!isAdminTwilio && !script.trim() && !brand && (
               <div className="mb-4">
@@ -635,21 +702,6 @@ function Sendcall() {
               </div>
             )}
 
-            {!isAdminTwilio && brand && twilioUser === 0 && role === "admin" && (
-              <div className="mb-4">
-                <label className="block font-semibold text-gray-700 mb-1">Select Language</label>
-                <select
-                  value={selectedLang}
-                  onChange={(e) => setSelectedLang(e.target.value)}
-                  className="border mb-2 px-4 py-2 rounded w-full"
-                >
-                  {languageOptions.map((lang) => (
-                    <option key={lang.value} value={lang.value}>{lang.label}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition w-full sm:w-auto"
@@ -661,6 +713,13 @@ function Sendcall() {
                 ? "Sending..."
                 : "Make a Call"}
             </button>
+
+            {/* show generated speech url (optional debug) */}
+            {speechUrl && (
+              <div className="mt-3 text-sm text-gray-600 break-words">
+                {/* Audio URL is available */}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col justify-start">
@@ -721,22 +780,6 @@ function Sendcall() {
                 </button>
               )}
             </div>
-
-            {/* NEW: show selected file URL if present */}
-            {/* {fileUrl && (
-              <div className="mt-3">
-                <label className="block text-sm text-gray-600 mb-1">Selected file URL</label>
-                <a
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-blue-600 underline truncate block max-w-full"
-                  title={fileUrl}
-                >
-                  {fileUrl}
-                </a>
-              </div>
-            )} */}
 
             {errors.file && <p className="text-red-500 text-sm mt-2">{errors.file}</p>}
             <div className="mt-8">

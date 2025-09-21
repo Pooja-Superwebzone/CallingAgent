@@ -19,6 +19,10 @@ import ChannelPartner from "./Component/Pages/ChannelPartner";
 import AgentsPage from './Component/Pages/AgentsPage';
 import SendOmniCall from './Component/Pages/SendOmniCall';
   import AgentCreatePage  from './Component/Pages/AgentCreatePage';
+  import CallLogs from "./Component/Pages/CallLogs";
+
+
+
 
 function App() {
   const location = useLocation();
@@ -100,6 +104,8 @@ function App() {
         <Route path="/agents_page" element={<AgentsPage />} />
         <Route path="/agents/new" element={<AgentCreatePage />} />
         <Route path="/send-omni" element={<SendOmniCall />} />
+        
+<Route path="/call-logs" element={<CallLogs />} />
      
             
 <Route path="/channel-partner" element={<ChannelPartner />} />
