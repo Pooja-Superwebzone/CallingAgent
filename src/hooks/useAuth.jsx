@@ -1,5 +1,6 @@
 import Cookies from "js-cookie";
 import service from "../api/axios";
+import axios from "axios";
 
 export function login(formData) {
   return service
@@ -344,13 +345,10 @@ export function createChannelPartner(payload) {
 }
 
 
-
-
 export function getAgents() {
   return service
     .get("agents")
     .then((res) => {
-      // backend might return array or { data: [...] } — normalize to array
       const out = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
       return out;
     })
@@ -476,6 +474,162 @@ export function generateExcelSheet(callSids) {
         errorMessage = error.response.data.message;
       }
       throw new Error(errorMessage);
+    });
+}
+
+
+export function getAllUsers() {
+  return service
+    .get("all-users")
+    .then((res) => {
+      const out = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
+      return out;
+    })
+    .catch((error) => {
+      console.error("❌ Failed to fetch all-users:", error);
+      let msg = "Failed to fetch users.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+
+export function getAgentWhatsappConnect() {
+  return service
+    .get("agent-whatsapp-connect")
+    .then((res) => {
+      const out = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
+      return out;
+    })
+    .catch((error) => {
+      console.error("❌ Failed to fetch agent-whatsapp-connect:", error);
+      let msg = "Failed to fetch agent WhatsApp connections.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+
+
+export function getEmailTemplates() {
+  return service
+    .get("email-template-twilio")
+    .then((res) => {
+      if (res?.data?.data) return res.data.data;
+      return Array.isArray(res?.data) ? res.data : res?.data || [];
+    })
+    .catch((error) => {
+      console.error("❌ Failed to fetch email-template-twilio:", error);
+      let msg = "Failed to fetch email templates.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+
+export function createAgentWhatsappConnect(payload) {
+  return service
+    .post("agent-whatsapp-connect", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Failed to create agent-whatsapp-connect:", error);
+      let msg = "Failed to create connection.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+// GET single connection
+export function getAgentWhatsappConnectById(id) {
+  return service
+    .get(`agent-whatsapp-connect/${id}`)
+    .then((res) => {
+      // backend returns { status: true, data: { ... } } or the object directly
+      if (res?.data?.data) return res.data.data;
+      return res?.data || {};
+    })
+    .catch((error) => {
+      console.error("❌ Failed to fetch agent-whatsapp-connect/:id", error);
+      let msg = "Failed to fetch connection.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+// UPDATE (note: you said POST agent-whatsapp-connect/:id for update)
+export function updateAgentWhatsappConnect(id, payload) {
+  return service
+    .post(`agent-whatsapp-connect/${id}`, payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Failed to update agent-whatsapp-connect/:id", error);
+      let msg = "Failed to update connection.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+// DELETE
+export function deleteAgentWhatsappConnect(id) {
+  return service
+    .delete(`agent-whatsapp-connect/${id}`)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ Failed to delete agent-whatsapp-connect/:id", error);
+      let msg = "Failed to delete connection.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+
+export function createEmailTemplate(payload) {
+  return service
+    .post("email-template-twilio", payload)
+    .then((res) => {
+      // If API returns created object under data.data or data, return that.
+      if (res?.data?.data) return res.data.data;
+      if (res?.data) return res.data;
+      return res;
+    })
+    .catch((error) => {
+      console.error("❌ Failed to create email-template-twilio:", error);
+      // try to extract useful message
+      let msg = "Failed to create email template.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      else if (error.response?.data) msg = JSON.stringify(error.response.data);
+      throw new Error(msg);
+    });
+}
+
+
+// useAut
+export function updateEmailTemplate(id, payload) {
+  if (!id) return Promise.reject(new Error("Missing template id"));
+  return service
+    .post(`email-template-twilio/${id}`, payload)
+    .then((res) => {
+      
+      if (res?.data?.data) return res.data.data;
+      return res?.data ?? res;
+    })
+    .catch((error) => {
+      console.error(`❌ Failed to update email-template-twilio/${id}:`, error);
+      let msg = "Failed to update email template.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+
+export function submitWhatsappTemplateScript(templateId, { static_script }) {
+  return service
+    .post(`twilio/wa/templates/submit/${templateId}`, { static_script })
+    .then((res) => res.data)
+    .catch((error) => {
+      let msg = "Failed to update WhatsApp template";
+      if (error?.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
     });
 }
 

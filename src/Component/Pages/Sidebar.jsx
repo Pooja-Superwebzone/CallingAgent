@@ -34,7 +34,10 @@ import { FaUsers } from "react-icons/fa";
 import { FaMagento } from "react-icons/fa6";
 import { MdCallMade } from "react-icons/md";
 import { MdCallReceived } from "react-icons/md";
-import { FaRegChessQueen } from "react-icons/fa6";
+import { TbCloudDataConnection } from "react-icons/tb";
+import { FiUsers } from "react-icons/fi";
+import { MdOutlineEmail } from "react-icons/md";
+
 
 
 import service from "../../api/axios";
@@ -195,6 +198,22 @@ const Sidebar = () => {
             </button>
           </li>
 
+               {twilioUser === 0 && role === "admin" && (
+            <li>
+              <button
+                onClick={() => navigate("/email-template")}
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
+              >
+
+                <MdOutlineEmail  size={18}/>
+                Email Template
+              </button>
+            </li>
+          )}
+
+
+
+
           {twilioUser === 1 && (
             <li>
               <button
@@ -322,6 +341,54 @@ const Sidebar = () => {
               </button>
             </li>
           )}
+
+             {twilioUser === 0 && role === "admin" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/agent-user");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${location.pathname === "/Agents"
+                  ? "bg-gray-700 text-gray-300"
+                  : "hover:bg-gray-700 text-gray-300"
+                  }`}
+              >
+            
+                <FiUsers size={18} />
+              Agents for Users
+              </button>
+            </li>
+          )}
+
+
+               {twilioUser === 0 && role === "admin" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/agent-Connection");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${location.pathname === "/Agents"
+                  ? "bg-gray-700 text-gray-300"
+                  : "hover:bg-gray-700 text-gray-300"
+                  }`}
+              >
+                <TbCloudDataConnection  size={18} />
+                  
+              
+              Agents Connection
+              </button>
+            </li>
+          )}
+
+
+
+
+
+
+
+
 
           {twilioUser === 0 && role === "admin" && (
             <li>

@@ -20,6 +20,12 @@ import AgentsPage from './Component/Pages/AgentsPage';
 import SendOmniCall from './Component/Pages/SendOmniCall';
   import AgentCreatePage  from './Component/Pages/AgentCreatePage';
   import CallLogs from "./Component/Pages/CallLogs";
+import AgentUsersPage from './Component/Pages/AgentUsersPage';
+import AgentUserCreate from './Component/Pages/AgentUserCreate';
+import AgentConnection from './Component/Pages/AgentConnection';  
+import AgentConnectionCreate from './Component/Pages/AgentConnectionCreate';
+import EmailTemplateList from './Component/Pages/EmailTemplateList';
+
 
 
 
@@ -104,14 +110,18 @@ function App() {
         <Route path="/agents_page" element={<AgentsPage />} />
         <Route path="/agents/new" element={<AgentCreatePage />} />
         <Route path="/send-omni" element={<SendOmniCall />} />
-        
+         <Route path="/agent-user" element={<AgentUsersPage />} />
+           <Route path="/agent-new" element={<AgentUserCreate />} />
+            <Route path="/agent-Connection" element={<AgentConnection />} />
+               <Route path="/agent-connection/new" element={<AgentConnectionCreate />} />
+             <Route path="/email-template" element={<EmailTemplateList />} />
+
 <Route path="/call-logs" element={<CallLogs />} />
      
             
 <Route path="/channel-partner" element={<ChannelPartner />} />
           </Route>
         )}
-
         {/* Catch-all */}
         <Route
           path="*"
