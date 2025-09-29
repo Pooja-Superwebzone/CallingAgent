@@ -57,7 +57,7 @@ const Sidebar = () => {
   const [showContactForm, setShowContactForm] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
 
-  // NEW: one-way and two-way minutes
+  // NEW: one-way and two-way minutes 
   const [oneWayMinutes, setOneWayMinutes] = useState(0);
   const [twoWayMinutes, setTwoWayMinutes] = useState(10);
   const [loadingMinutes, setLoadingMinutes] = useState(false);
@@ -111,7 +111,7 @@ const Sidebar = () => {
           headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
         });
         const mins = res?.data?.data?.twilio_user_minute || {};
-        // backend may use `minute` single value or structured one_way/two_way
+
         const one = Number(mins.one_way ?? mins.minute ?? 0);
         const two = Number(mins.two_way ?? 10);
         setOneWayMinutes(one);
@@ -238,7 +238,7 @@ const Sidebar = () => {
             </li>
           )}
 
-          {twilioUser === 0 && role === "admin" && (
+          {/* {twilioUser === 0 && role === "admin" && (
             <li>
               <button
                 onClick={() => navigate("/call-coversation")}
@@ -248,7 +248,7 @@ const Sidebar = () => {
                 Send Conversation call
               </button>
             </li>
-          )}
+          )} */}
 
           {(twilioUser === 0 && (role === "admin" || role !== "admin")) && (
             <>
@@ -493,11 +493,12 @@ const Sidebar = () => {
           </aside>
         )}
 
-        {!isWhatsAppFull && (
-          <aside className="hidden md:flex w-64 bg-[#101826] text-white">
-            <SidebarContent />
-          </aside>
-        )}
+
+{!isWhatsAppFull && (<aside className="hidden md:flex w-64 bg-[#101826] text-white md:fixed md:top-0 md:left-0 md:h-screen">
+  <SidebarContent />
+</aside>
+)}
+
 
         {showWelcomeModal && role === "admin" && twilioUser === 1 && emailVerified && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
@@ -652,9 +653,14 @@ const Sidebar = () => {
           />
         )}
 
-        <main className={`flex-1 overflow-auto ${isWhatsAppFull ? "p-0" : "p-4 md:p-6"}`}>
-          <Outlet />
-        </main>
+        
+<main
+  className={`flex-1 overflow-auto ${isWhatsAppFull ? "p-0" : "p-4 md:p-6"} md:ml-64`}
+  style={{ maxHeight: "100vh" }}
+>
+  <Outlet />
+</main>
+
       </div>
     </div>
   );
