@@ -51,16 +51,11 @@ const SubAdmin = () => {
   }, []);
 
   useEffect(() => {
-    if (editMode) return; // 🚫 Don't run when editing
-  
-    if (selectedRole === "admin") {
-      setValue("oneWayMinute", 10);
-      setValue("twoWayMinute", 10);
-      setValue("internationalMinute", 5);
-    } else if (selectedRole === "franchise") {
-      setValue("oneWayMinute", 25);
-      setValue("twoWayMinute", 25);
-      setValue("internationalMinute", 10);
+    // Auto-set minute based on role
+    if (selectedRole === 'admin') {
+      setValue('minute', 10);
+    } else if (selectedRole === 'franchise') {
+      setValue('minute', 25);
     }
   }, [selectedRole, setValue, editMode]);
   
@@ -415,42 +410,15 @@ const onSubmit = async (data) => {
               )}
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-1">Call Minutes</label>
-                <div className="space-y-1.5">
-                  <div>
-                    <label className="block text-gray-700 text-xs mb-1">One-way Minutes</label>
-                    <input
-                      {...register('oneWayMinute', { required: 'One-way minutes is required' })}
-                      type="number"
-                      min="0"
-                      className="w-full border px-2 py-1.5 rounded text-sm"
-                      placeholder="Enter one-way minutes"
-                    />
-                    {errors.oneWayMinute && <p className="text-red-500 text-xs">{errors.oneWayMinute.message}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-xs mb-1">Two-way Minutes</label>
-                    <input
-                      {...register('twoWayMinute', { required: 'Two-way minutes is required' })}
-                      type="number"
-                      min="0"
-                      className="w-full border px-2 py-1.5 rounded text-sm"
-                      placeholder="Enter two-way minutes"
-                    />
-                    {errors.twoWayMinute && <p className="text-red-500 text-xs">{errors.twoWayMinute.message}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-xs mb-1">International Minutes</label>
-                    <input
-                      {...register('internationalMinute', { required: 'International minutes is required' })}
-                      type="number"
-                      min="0"
-                      className="w-full border px-2 py-1.5 rounded text-sm"
-                      placeholder="Enter international minutes"
-                    />
-                    {errors.internationalMinute && <p className="text-red-500 text-xs">{errors.internationalMinute.message}</p>}
-                  </div>
-                </div>
+                <label className="block text-gray-700">Call Minute</label>
+                <input
+                  {...register('minute', { required: 'Call minute is required' })}
+                  type="number"
+                  className="w-full border px-3 py-2 rounded"
+                  placeholder="Enter call minute"
+                  readOnly
+                />
+                {errors.minute && <p className="text-red-500 text-sm">{errors.minute.message}</p>}
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
