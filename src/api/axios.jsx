@@ -11,7 +11,7 @@ async function requestConfig(config) {
   }
 
   try {
-   config.headers.version = "1.0.0"; // static version for now
+   config.headers.version = "1.0.0"; 
   } catch (error) {
     console.warn("Failed to retrieve app version:", error);
   }
@@ -27,7 +27,7 @@ async function requestConfig(config) {
 
 service.interceptors.request.use(requestConfig);
 
-// service.interceptors.response.use((response) => response);
+
 service.interceptors.response.use(
   (response) => response,
   (error) => {

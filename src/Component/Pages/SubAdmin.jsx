@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
+import Cookies from 'js-cookie';
+import service from '../../api/axios';
 import {
   createTwillioUser,
   getAllTwillioUsers,
@@ -16,6 +18,11 @@ const SubAdmin = () => {
   const [editId, setEditId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  
+  // Two-way minutes edit modal state
+  const [showTwoWayModal, setShowTwoWayModal] = useState(false);
+  const [twoWayEditId, setTwoWayEditId] = useState(null);
+  const [twoWayLoading, setTwoWayLoading] = useState(false);
 
   const adminsPerPage = 15;
 
@@ -28,6 +35,15 @@ const SubAdmin = () => {
     watch,
   } = useForm();
 
+  // Two-way minutes form
+  const {
+    register: registerTwoWay,
+    handleSubmit: handleSubmitTwoWay,
+    reset: resetTwoWay,
+    formState: { errors: errorsTwoWay },
+    setValue: setValueTwoWay,
+  } = useForm();
+
   const selectedRole = watch('role');
 
   useEffect(() => {
@@ -35,14 +51,19 @@ const SubAdmin = () => {
   }, []);
 
   useEffect(() => {
-    // Auto-set minute based on role
-    if (selectedRole === 'admin') {
-      setValue('minute', 10);
-    } else if (selectedRole === 'franchise') {
-      setValue('minute', 25);
+    if (editMode) return; // 🚫 Don't run when editing
+  
+    if (selectedRole === "admin") {
+      setValue("oneWayMinute", 10);
+      setValue("twoWayMinute", 10);
+      setValue("internationalMinute", 5);
+    } else if (selectedRole === "franchise") {
+      setValue("oneWayMinute", 25);
+      setValue("twoWayMinute", 25);
+      setValue("internationalMinute", 10);
     }
-  }, [selectedRole, setValue]);
-
+  }, [selectedRole, setValue, editMode]);
+  
   const fetchAdmins = async () => {
     setLoading(true);
     try {
@@ -65,7 +86,10 @@ const onSubmit = async (data) => {
     name: data.name,
     email: data.email,
     contact_no: data.contact_no,
-    minute: data.minute,
+    minute: data.oneWayMinute, // Keep legacy field for backward compatibility
+    one_way: data.oneWayMinute,
+    two_way: data.twoWayMinute,
+    international: data.internationalMinute,
     role: data.role,
   };
 
@@ -107,7 +131,9 @@ const onSubmit = async (data) => {
     setValue('name', admin.name || '');
     setValue('email', admin.email || '');
     setValue('contact_no', admin.contact_no || '');
-    setValue('minute', admin.twilio_user_minute?.minute || '');
+    setValue('oneWayMinute', admin.twilio_user_minute?.one_way || admin.twilio_user_minute?.oneWay || admin.twilio_user_minute?.outbound || admin.twilio_user_minute?.outbound_minute || admin.twilio_user_minute?.minute || '');
+    setValue('twoWayMinute', admin.twilio_two_way_user_minute?.minute || admin.twilio_user_minute?.two_way || admin.twilio_user_minute?.twoWay || admin.twilio_user_minute?.inbound || admin.twilio_user_minute?.inbound_minute || '');
+    setValue('internationalMinute', admin.twilio_user_minute?.international || admin.twilio_user_minute?.international_minute || admin.twilio_user_minute?.intl || '');
     setValue('password', '');
     setValue('gender', admin.gender || '');
     setValue('role', admin.role || '');
@@ -123,8 +149,48 @@ const onSubmit = async (data) => {
     setValue('contact_no', '');
     setValue('password', '');
     setValue('role', '');
-    setValue('minute', '');
+    setValue('oneWayMinute', '');
+    setValue('twoWayMinute', '');
+    setValue('internationalMinute', '');
     setShowModal(true);
+  };
+
+  // Handle two-way minutes edit
+  const handleTwoWayEdit = (admin) => {
+    setTwoWayEditId(admin.id);
+    setValueTwoWay('twoWayMinute', admin.twilio_two_way_user_minute?.minute || admin.twilio_user_minute?.two_way || admin.twilio_user_minute?.twoWay || admin.twilio_user_minute?.inbound || admin.twilio_user_minute?.inbound_minute || '0');
+    setShowTwoWayModal(true);
+  };
+
+  // Submit two-way minutes update
+  const onSubmitTwoWay = async (data) => {
+    setTwoWayLoading(true);
+    try {
+      const response = await service.post('add-minute', {
+        minute: data.twoWayMinute,
+        user_id: twoWayEditId
+      }, {
+        headers: { 
+          Authorization: `Bearer ${Cookies.get("CallingAgent")}` 
+        }
+      });
+
+      toast.success('Two-way minutes updated successfully');
+      
+      // Close modal
+      setShowTwoWayModal(false);
+      setTwoWayEditId(null);
+      resetTwoWay();
+      
+      // Refresh data from server
+      fetchAdmins();
+    } catch (err) {
+      console.error('Error updating two-way minutes:', err);
+      const errorMessage = err?.response?.data?.message || 'Failed to update two-way minutes';
+      toast.error(errorMessage);
+    } finally {
+      setTwoWayLoading(false);
+    }
   };
 
   return (
@@ -133,7 +199,8 @@ const onSubmit = async (data) => {
         <h2 className="text-2xl font-bold text-gray-700">SubAdmin</h2>
         <button
           onClick={handleCreateOpen}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          // className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+           className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
         >
           Create Admin
         </button>
@@ -154,14 +221,16 @@ const onSubmit = async (data) => {
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Gender</th>
                 <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Call Minute</th>
+                <th className="px-4 py-3">One-way Minutes</th>
+                <th className="px-4 py-3">Two-way Minutes</th>
+                <th className="px-4 py-3">International Minutes</th>
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
             <tbody className="text-gray-700">
               {currentAdmins.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-6">
+                  <td colSpan="10" className="text-center py-6">
                     No admins found
                   </td>
                 </tr>
@@ -177,7 +246,26 @@ const onSubmit = async (data) => {
                     <td className="px-4 py-2">{admin.contact_no || '-'}</td>
                     <td className="px-4 py-2 capitalize">{admin.gender || '-'}</td>
                     <td className="px-4 py-2 capitalize">{admin.role || '-'}</td>
-                    <td className="px-4 py-2">{admin.twilio_user_minute?.minute || '0'} min</td>
+                    <td className="px-4 py-2">
+                      {admin.twilio_user_minute?.one_way || admin.twilio_user_minute?.oneWay || admin.twilio_user_minute?.outbound || admin.twilio_user_minute?.outbound_minute || admin.twilio_user_minute?.minute || '0'} min
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <span>{admin.twilio_two_way_user_minute?.minute || admin.twilio_user_minute?.two_way || admin.twilio_user_minute?.twoWay || admin.twilio_user_minute?.inbound || admin.twilio_user_minute?.inbound_minute || '0'} min</span>
+                        <button
+                          onClick={() => handleTwoWayEdit(admin)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Edit two-way minutes"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      {admin.twilio_user_minute?.international || admin.twilio_user_minute?.international_minute || admin.twilio_user_minute?.intl || '0'} min
+                    </td>
                     <td className="px-4 py-2">
                       <button
                         onClick={() => handleEdit(admin)}
@@ -252,17 +340,17 @@ const onSubmit = async (data) => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
-          <div className="bg-white max-w-md w-full p-6 rounded-2xl shadow-lg relative mx-3">
-            <h3 className="text-2xl font-semibold mb-4 text-gray-800">
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-2">
+          <div className="bg-white w-full max-w-sm p-3 rounded-lg shadow-lg relative max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-2 text-gray-800">
               {editMode ? 'Edit Admin' : 'Create Admin'}
             </h3>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
               <div>
                 <label className="block text-gray-700">Name</label>
                 <input
                   {...register('name', { required: 'Name is required' })}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border px-2 py-1.5 rounded text-sm"
                   placeholder="Enter name"
                 />
                 {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
@@ -271,7 +359,7 @@ const onSubmit = async (data) => {
                 <label className="block text-gray-700">Email</label>
                 <input
                   {...register('email')}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border px-2 py-1.5 rounded text-sm"
                   placeholder="Enter email"
                 />
               </div>
@@ -279,7 +367,7 @@ const onSubmit = async (data) => {
                 <label className="block text-gray-700">Contact No</label>
                 <input
                   {...register('contact_no')}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border px-2 py-1.5 rounded text-sm"
                   placeholder="Enter contact number"
                 />
               </div>
@@ -287,7 +375,7 @@ const onSubmit = async (data) => {
                 <label className="block text-gray-700">Role</label>
                 <select
                   {...register('role', { required: 'Role is required' })}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full border px-2 py-1.5 rounded text-sm"
                 >
                   <option value="">Select Role</option>
                   <option value="admin">Admin</option>
@@ -301,7 +389,7 @@ const onSubmit = async (data) => {
                   <label className="block text-gray-700">Gender</label>
                   <select
                     {...register('gender')}
-                    className="w-full border px-3 py-2 rounded"
+                    className="w-full border px-2 py-1.5 rounded text-sm"
                   >
                     <option value="">Select Gender</option>
                     <option value="male">Male</option>
@@ -319,7 +407,7 @@ const onSubmit = async (data) => {
                       minLength: { value: 6, message: 'Min 6 characters' },
                     })}
                     type="password"
-                    className="w-full border px-3 py-2 rounded"
+                    className="w-full border px-2 py-1.5 rounded text-sm"
                     placeholder="Enter password"
                   />
                   {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
@@ -327,18 +415,45 @@ const onSubmit = async (data) => {
               )}
 
               <div>
-                <label className="block text-gray-700">Call Minute</label>
-                <input
-                  {...register('minute', { required: 'Call minute is required' })}
-                  type="number"
-                  className="w-full border px-3 py-2 rounded"
-                  placeholder="Enter call minute"
-                  readOnly
-                />
-                {errors.minute && <p className="text-red-500 text-sm">{errors.minute.message}</p>}
+                <label className="block text-gray-700 font-semibold mb-1">Call Minutes</label>
+                <div className="space-y-1.5">
+                  <div>
+                    <label className="block text-gray-700 text-xs mb-1">One-way Minutes</label>
+                    <input
+                      {...register('oneWayMinute', { required: 'One-way minutes is required' })}
+                      type="number"
+                      min="0"
+                      className="w-full border px-2 py-1.5 rounded text-sm"
+                      placeholder="Enter one-way minutes"
+                    />
+                    {errors.oneWayMinute && <p className="text-red-500 text-xs">{errors.oneWayMinute.message}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs mb-1">Two-way Minutes</label>
+                    <input
+                      {...register('twoWayMinute', { required: 'Two-way minutes is required' })}
+                      type="number"
+                      min="0"
+                      className="w-full border px-2 py-1.5 rounded text-sm"
+                      placeholder="Enter two-way minutes"
+                    />
+                    {errors.twoWayMinute && <p className="text-red-500 text-xs">{errors.twoWayMinute.message}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs mb-1">International Minutes</label>
+                    <input
+                      {...register('internationalMinute', { required: 'International minutes is required' })}
+                      type="number"
+                      min="0"
+                      className="w-full border px-2 py-1.5 rounded text-sm"
+                      placeholder="Enter international minutes"
+                    />
+                    {errors.internationalMinute && <p className="text-red-500 text-xs">{errors.internationalMinute.message}</p>}
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -346,15 +461,64 @@ const onSubmit = async (data) => {
                     setEditMode(false);
                     reset();
                   }}
-                  className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400"
+                  className="bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-sm hover:bg-gray-400"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700"
                 >
                   {editMode ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Two-way Minutes Edit Modal */}
+      {showTwoWayModal && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-2">
+          <div className="bg-white w-full max-w-sm p-3 rounded-lg shadow-lg relative max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-2 text-gray-800">
+              Edit Two-way Minutes
+            </h3>
+            <form onSubmit={handleSubmitTwoWay(onSubmitTwoWay)} className="space-y-2">
+              <div>
+                <label className="block text-gray-700 text-sm mb-1">Two-way Minutes</label>
+                <input
+                  {...registerTwoWay('twoWayMinute', { 
+                    required: 'Two-way minutes is required',
+                    min: { value: 0, message: 'Minutes must be 0 or greater' }
+                  })}
+                  type="number"
+                  min="0"
+                  className="w-full border px-2 py-1.5 rounded text-sm"
+                  placeholder="Enter two-way minutes"
+                />
+                {errorsTwoWay.twoWayMinute && <p className="text-red-500 text-xs">{errorsTwoWay.twoWayMinute.message}</p>}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTwoWayModal(false);
+                    setTwoWayEditId(null);
+                    resetTwoWay();
+                  }}
+                  className="bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-sm hover:bg-gray-400"
+                  disabled={twoWayLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                  disabled={twoWayLoading}
+                >
+                  {twoWayLoading ? 'Updating...' : 'Update'}
                 </button>
               </div>
             </form>

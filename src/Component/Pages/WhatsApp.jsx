@@ -9,10 +9,6 @@ import {
   sendWhatsappTextMessage
 } from "../../hooks/useAuth"; 
 import { useNavigate, useLocation } from "react-router-dom";
-
-
-
-
 const WhatsApp = () => {
   const [chats, setChats] = useState([]);
   const [selectedChatId, setSelectedChatId] = useState(null);
