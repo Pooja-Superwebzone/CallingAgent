@@ -241,14 +241,14 @@ export default function AgentConnectionCreate() {
       toast.error("Please select an Agent");
       return;
     }
-    if (!selectedWaId) {
-      toast.error("Please select a WhatsApp template");
-      return;
-    }
-    if (!selectedEmailId) {
-      toast.error("Please select an Email template");
-      return;
-    }
+    // if (!selectedWaId) {
+    //   toast.error("Please select a WhatsApp template");
+    //   return;
+    // }
+    // if (!selectedEmailId) {
+    //   toast.error("Please select an Email template");
+    //   return;
+    // }
 
     setSaving(true);
     try {

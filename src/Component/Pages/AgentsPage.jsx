@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import DOMPurify from "dompurify";
 import { useNavigate } from "react-router-dom";
+import Cookies from "js-cookie";
+import service from "../../api/axios";
 
 import {
   getAgents,
@@ -11,6 +13,7 @@ import {
 export default function AgentsPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState("");
 
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -18,6 +21,19 @@ export default function AgentsPage() {
   const pageRows = rows.slice((page - 1) * pageSize, page * pageSize);
 
   const navigate = useNavigate();
+
+  const fetchUserEmail = async () => {
+    try {
+      const res = await service.get("Profile", {
+        headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
+      });
+      const email = res?.data?.data?.email || "";
+      console.log("User email:", email);
+      setUserEmail(email);
+    } catch (err) {
+      console.warn("Could not fetch user email:", err);
+    }
+  };
 
   const loadRows = async () => {
     setLoading(true);
@@ -40,6 +56,7 @@ export default function AgentsPage() {
   };
 
   useEffect(() => {
+    fetchUserEmail();
     loadRows();
   }, []);
 
@@ -48,13 +65,14 @@ export default function AgentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-gray-700">Agents</h2>
-        <button
-          onClick={() => navigate("/agents/new")}
-          // className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-           className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-        >
-          Add Agent
-        </button>
+        {userEmail === "paragshah.devac@gmail.com" && (
+          <button
+            onClick={() => navigate("/agents/new")}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            Add Agent
+          </button>
+        )}
       </div>
 
       {/* Table */}
