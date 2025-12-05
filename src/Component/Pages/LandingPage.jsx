@@ -1,9 +1,36 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import CountUp from "./CountUp";
+import richaHero from "/Richa.png";
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const plans = [
+    {
+      id: "queen",
+      title: "Richa Queen Pack",
+      subtitle: "5 Sales Executive For 2 Months Free",
+      price: "₹ 99,999/-",
+      original: "Rs. 1,99,999/-",
+      link: "https://ibcrm.in",
+    },
+    {
+      id: "king",
+      title: "Richa King Pack",
+      subtitle: "4 Sales Executive Free For 1 Year",
+      price: "₹ 4,99,999/-",
+      original: "Rs. 9,99,999/-",
+      link: "https://ibcrm.in",
+    },
+    {
+      id: "trial",
+      title: "Richa Trial Pack",
+      subtitle: "1 Month Sales Executive Free",
+      price: "₹ 19,000/-",
+      original: "Rs. 38,000/-",
+      link: "https://ibcrm.in",
+    },
+  ];
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900 overflow-x-hidden">
@@ -104,56 +131,23 @@ export default function LandingPage() {
           {/* right visual */}
           <div className="relative animate-fade-up anim-delay-300">
             <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-indigo-200 to-fuchsia-200 blur-2xl opacity-70 animate-fade-in" />
-            <div className="relative rounded-3xl border border-slate-200 bg-white p-6 shadow-xl">
-              {/* window header */}
-              <div className="mb-5 flex items-center gap-2 animate-fade-in">
-                <span className="h-3 w-3 rounded-full bg-rose-400/90" />
-                <span className="h-3 w-3 rounded-full bg-amber-400/90" />
-                <span className="h-3 w-3 rounded-full bg-emerald-400/90" />
-                <span className="ml-2 text-xs text-slate-500">Live preview</span>
+    
+              {/* richa hero image */}
+              <div className="mt-4 rounded-2xl bg-slate-50/70 p-3 border border-slate-200 animate-fade-up">
+                <img
+                  src={richaHero}
+                  alt="Richa AI assistant"
+                  className="h-96 w-full object-cover rounded-2xl shadow-sm"
+                />
               </div>
 
-              {/* chat mock w/ stagger */}
-              <div className="space-y-3">
-                <div className="flex gap-2 animate-slide-r">
-                  <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-800 shadow-sm">
-                    Hello! Looking for a BMW 3-Series in automatic?
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 animate-slide-l anim-delay-150">
-                  <div className="rounded-2xl bg-indigo-600 px-4 py-3 text-sm text-white shadow-sm">
-                    Found 3 options. Want to schedule a test drive?
-                  </div>
-                </div>
-                <div className="flex gap-2 animate-slide-r anim-delay-300">
-                  <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-800 shadow-sm">
-                    Yes, tomorrow 2pm works.
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 animate-fade-up anim-delay-450">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold">Auto-scheduler</div>
-                    <div className="text-xs text-slate-500">
-                      Syncs with Google Calendar
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/login?tab=signup")}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-100 animate-pop-in anim-delay-600"
-                  >
-                    Try it now
-                  </button>
-                </div>
-              </div>
-            </div>
+      
           </div>
         </section>
 
-        
+        {/* subscription plans */}
+   
+
         <section className="pb-16">
           <div className="mx-auto max-w-xl">
             <div className="rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-md transition hover:shadow-lg animate-fade-up anim-delay-300">
@@ -165,8 +159,68 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-      </main>
+        <section className="pb-16 mb:px-[25px]">
+          <div className="mx-auto max-w-6xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">
+                  Subscription Plans
+                </p>
+                <h2 className="text-3xl font-bold mt-1">Choose your Richa plan</h2>
+                <p className="text-slate-600 mt-2">
+                  Unlock benefits and scale with AI sales executives.
+                </p>
+              </div>
+            
+            </div>
 
+            <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {plans.map((plan) => (
+                <a
+                  key={plan.id}
+                  href={plan.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group block rounded-3xl border border-slate-200 bg-white text-slate-900 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold text-slate-900">{plan.title}</h3>
+                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-100">
+                      {plan.id === "queen"
+                        ? "Best deal"
+                        : plan.id === "king"
+                        ? "Popular"
+                        : "Starter"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">{plan.subtitle}</p>
+
+                  <div className="mt-4 flex items-baseline justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-sm line-through text-slate-400">{plan.original}</span>
+                      <span className="text-2xl font-extrabold text-slate-900">{plan.price}</span>
+                    </div>
+                    <span className="text-sm text-slate-500">+GST</span>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
+                      <span className="h-2 w-2 rounded-full bg-indigo-500" />
+                      <span>Unlock Benefits Pay Now!</span>
+                    </div>
+                    <div className="mt-auto">
+                      <div className="inline-flex w-full justify-center rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-indigo-700">
+                        Get started
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+     
 
       <footer className="border-t border-slate-200 bg-white/80 backdrop-blur animate-fade-in flex">
         <div className="mx-auto flex max-w-7xl items-center  justify-between px-6 py-6 text-sm text-slate-600">
