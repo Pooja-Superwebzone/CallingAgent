@@ -1,12 +1,63 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
 import { signupTwillioUser } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 
+const plans = [
+  {
+    id: "queen",
+    title: "Richa Queen Pack",
+    subtitle: "5 Sales Executive For 2 Months Free",
+    price: "₹ 99,999/-",
+    original: "Rs. 1,99,999/-",
+    link: "https://ibcrm.in/richa-queen-pack/",
+  },
+  {
+    id: "king",
+    title: "Richa King Pack",
+    subtitle: "4 Sales Executive Free For 1 Year",
+    price: "₹ 4,99,999/-",
+    original: "Rs. 9,99,999/-",
+    link: "https://ibcrm.in/richa-king-pack/",
+  },
+  {
+    id: "trial",
+    title: "Richa Trial Pack",
+    subtitle: "1 Month Sales Executive Free",
+    price: "₹ 18,999/-",
+    original: "Rs. 38,000/-",
+    link: "https://ibcrm.in/richa-trial-pack/",
+  },
+  {
+    id: "certified_ai_training",
+    title: "Certified AI Training",
+    subtitle: "",
+    price: "₹999/-",
+    original: "Rs. 9,999/-",
+    link: "https://ibcrm.in/become-ai-certified-by-richa/",
+  },
+  {
+    id: "demo_call",
+    title: "Demo Call Pack",
+    subtitle: "Try Richa AI with a Demo Call",
+    price: "₹99/-",
+    original: "Rs. 299/-",
+    link: "https://ibcrm.in/paid_demo_trial_richa_ai/",
+  },
+];
+
+const getStoredToken = (planId) => {
+  if (typeof window === "undefined") return "";
+  const planToken = localStorage.getItem(`plan_token_${planId}`) || "";
+  const genericToken = localStorage.getItem("signup_token") || "";
+  return planToken || genericToken || "";
+};
+
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showSignup, setShowSignup] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [formValues, setFormValues] = useState({
@@ -42,46 +93,21 @@ export default function LandingPage() {
     getCookie("CallingAgent") ||
     "";
 
-  const getStoredToken = (planId) => {
-    if (typeof window === "undefined") return "";
-    const planToken = localStorage.getItem(`plan_token_${planId}`) || "";
-    const genericToken = localStorage.getItem("signup_token") || "";
-    return planToken || genericToken || "";
-  };
-  const plans = [
-    {
-      id: "queen",
-      title: "Richa Queen Pack",
-      subtitle: "5 Sales Executive For 2 Months Free",
-      price: "₹ 99,999/-",
-      original: "Rs. 1,99,999/-",
-      link: "https://ibcrm.in",
-    },
-    {
-      id: "king",
-      title: "Richa King Pack",
-      subtitle: "4 Sales Executive Free For 1 Year",
-      price: "₹ 4,99,999/-",
-      original: "Rs. 9,99,999/-",
-      link: "https://ibcrm.in",
-    },
-    {
-      id: "trial",
-      title: "Richa Trial Pack",
-      subtitle: "1 Month Sales Executive Free",
-      price: "₹ 18,999/-",
-      original: "Rs. 38,000/-",
-      link: "https://ibcrm.in",
-    },
-    {
-      id: "paragconsultant_trial",
-      title: "Certified AI Training",
-      subtitle: "",
-      price: "₹999/-",
-      original: "Rs. 9,999/-",
-      link: "https://ibcrm.in",
-    },
-  ];
+  // Handle URL-based plan selection
+  useEffect(() => {
+    const planId = searchParams.get("plan");
+    if (planId) {
+      const plan = plans.find((p) => p.id === planId);
+      if (plan) {
+        setSelectedPlan(plan);
+        setStoredToken(getStoredToken(plan.id));
+        setShowSignup(true);
+        // Optional: Remove the plan parameter from URL after opening modal
+        // Uncomment the line below if you want to clean the URL
+        // setSearchParams({});
+      }
+    }
+  }, [searchParams, setStoredToken]);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900 overflow-x-hidden">
@@ -239,7 +265,9 @@ export default function LandingPage() {
                           ? "Best deal"
                           : plan.id === "king"
                             ? "Popular"
-                            : "Starter"}
+                            : plan.id === "demo_call"
+                              ? "Demo"
+                              : "Starter"}
                       </span>
                     </div>
 
@@ -259,7 +287,7 @@ export default function LandingPage() {
                     </div>
                     <div className="mt-auto">
                       <div className="inline-flex w-full justify-center rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-indigo-700">
-                        Get started
+                        Get starteds
                       </div>
                     </div>
                   </button>
