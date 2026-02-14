@@ -16,7 +16,8 @@ async function requestConfig(config) {
     console.warn("Failed to retrieve app version:", error);
   }
 
-  const authToken = Cookies.get("CallingAgent");
+  // Check for token in cookies first, then localStorage (ibcrmtoken)
+  const authToken = Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken");
 
   
   if (authToken) {
@@ -36,6 +37,7 @@ service.interceptors.response.use(
       error?.response?.statusText === "Unauthenticated."
     ) {
       Cookies.remove("CallingAgent");
+      localStorage.removeItem("ibcrmtoken");
     }
 
     return Promise.reject(error);

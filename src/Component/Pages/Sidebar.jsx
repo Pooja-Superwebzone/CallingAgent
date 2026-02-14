@@ -8,6 +8,7 @@ import {
   X,
   Smartphone,
   User,
+  BookOpen,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
@@ -30,7 +31,7 @@ import ContactFormModal from "./ContactFormModal";
 import { BiLogoWhatsapp } from "react-icons/bi";
 import { IoCallOutline } from "react-icons/io5";
 import { BiPhoneCall } from "react-icons/bi";
-import { FaUsers } from "react-icons/fa";
+import { FaCertificate, FaUsers } from "react-icons/fa";
 import { FaMagento } from "react-icons/fa6";
 import { MdCallMade } from "react-icons/md";
 import { MdCallReceived } from "react-icons/md";
@@ -92,6 +93,7 @@ const Sidebar = () => {
 
   useEffect(() => {
     const roleFromCookie = Cookies.get("role") || "";
+    const emailFromClient = Cookies.get("email") || "";
     const twilioFromCookie = Cookies.get("twilio_user") || "0";
     const emailVerifiedFromCookie = Cookies.get("email_verified") === "true";
     setRole(roleFromCookie);
@@ -146,9 +148,49 @@ const Sidebar = () => {
 
         {/* ---------- MENU ---------- */}
         <ul className="mt-6 space-y-2 px-4">
+          {/* Tutorial Link - Available to all users */}
+          <li>
+            <button
+              onClick={() => {
+                navigate("/tutorial");
+                setMobileOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                location.pathname === "/tutorial"
+                  ? "bg-gray-700 text-gray-300"
+                  : "hover:bg-gray-700 text-gray-300"
+              }`}
+            >
+              <BookOpen size={18} />
+              Tutorial
+            </button>
+          </li>
+
           {/* ---------------------------
               If Twilio user === 1 AND role === "admin" show this exact set
              --------------------------- */}
+          { Cookies.get("email")  == "paragshah.devac@gmail.com" && (
+            <>
+             
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/certificate_page");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/certificate_page"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <FaCertificate size={18} />
+                  Certificate Users
+                </button>
+              </li>
+            </>
+          )}
+
           {twilioUser === 1 && role === "admin" && (
             <>
              
@@ -563,7 +605,7 @@ const Sidebar = () => {
               }`}
             >
               <BsChatTextFill size={18} className="flex-shrink-0" />
-              <span className="whitespace-nowrap">Perplexity</span>
+              <span className="whitespace-nowrap">LLM</span>
             </button>
           </li>
 

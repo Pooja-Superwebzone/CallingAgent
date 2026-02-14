@@ -29,6 +29,11 @@ import Perplexity from './Component/Pages/Perplexity';
 import LandingPage from './Component/Pages/LandingPage';
 import ExamInfo from './Component/Pages/ExamInfo';
 import ExamMcq from './Component/Pages/ExamMcq';
+import CertificatePage from './Component/Pages/CertificatePage';
+import CertifiedAITrainingPage from './Component/Pages/CertifiedAITrainingPage';
+import RichaTrialPackPage from './Component/Pages/RichaTrialPackPage';
+import DemoCallPackPage from './Component/Pages/DemoCallPackPage';
+import TutorialPage from './Component/Pages/TutorialPage';
 
 function App() {
   const location = useLocation();
@@ -78,6 +83,7 @@ function App() {
             )
           }
         />
+        <Route path="/certificate_page" element={<CertificatePage />} />
 
         {/* Public: Login */}
         <Route
@@ -98,6 +104,18 @@ function App() {
         {/* Public: Exam info page */}
         <Route path="/exam-info" element={<ExamInfo />} />
         <Route path="/exam-start" element={<ExamMcq />} />
+
+        {/* Public: Certified AI Training Page */}
+        <Route path="/certified-ai-training" element={<CertifiedAITrainingPage />} />
+
+        {/* Public: Richa Trial Pack Page */}
+        <Route path="/richa-trial-pack" element={<RichaTrialPackPage />} />
+
+        {/* Public: Demo Call Pack Page */}
+        <Route path="/demo-call-pack" element={<DemoCallPackPage />} />
+
+        {/* Public: Tutorial Page */}
+        <Route path="/tutorial" element={<TutorialPage />} />
 
         {/* Protected (wrapped in Sidebar) */}
         {authed && (
@@ -122,8 +140,6 @@ function App() {
             <Route path="/whatsapp-send-message" element={<WhatsappSendMsg />} />
             <Route path="/perplexity" element={<Perplexity />} />
             <Route path="/call-logs" element={<CallLogs />} />
-
-
             <Route path="/channel-partner" element={<ChannelPartner />} />
           </Route>
         )}

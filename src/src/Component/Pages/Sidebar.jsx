@@ -563,7 +563,7 @@ const Sidebar = () => {
               }`}
             >
               <BsChatTextFill size={18} className="flex-shrink-0" />
-              <span className="whitespace-nowrap">Perplexity</span>
+              <span className="whitespace-nowrap">LLM</span>
             </button>
           </li>
 

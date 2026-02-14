@@ -129,7 +129,7 @@ export default function Perplexity() {
     <div className="p-4 sm:p-6">
       <div className="mx-auto max-w-sd bg-white rounded-xl shadow p-6">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Perplexity</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">LLM</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
