@@ -35,15 +35,15 @@ function Sendcall() {
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
 
   const [hideContactInputs, setHideContactInputs] = useState(false);
-  const [speechUrl, setSpeechUrl] = useState(""); 
+  const [speechUrl, setSpeechUrl] = useState("");
 
   // parsed rows from uploaded excel
-  const [parsedRows, setParsedRows] = useState([]); 
+  const [parsedRows, setParsedRows] = useState([]);
 
   // progress
   const [currentCall, setCurrentCall] = useState(0);
   const [totalCalls, setTotalCalls] = useState(0);
-  
+
   // call tracking
   const [callSids, setCallSids] = useState([]);
   const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
@@ -57,6 +57,7 @@ function Sendcall() {
   const brandList = [
     { id: "SMLK", name: "SMLK" },
     { id: "IBCRM", name: "IBCRM" },
+    { id: "Pushtimarg", name: "Pushtimarg" },
     // { id: "IBHRMS", name: "IBHRMS" },
   ];
 
@@ -417,7 +418,7 @@ function Sendcall() {
   // Generate Excel file with call results
   const generateExcelFile = async (callSids) => {
     console.log("🔍 generateExcelFile called with callSids:", callSids);
-    
+
     if (!callSids || callSids.length === 0) {
       console.log("❌ No call SIDs provided to generateExcelFile");
       toast.error("No call SIDs to generate Excel file");
@@ -426,7 +427,7 @@ function Sendcall() {
 
     console.log("📊 Starting Excel generation with", callSids.length, "call SIDs");
     setIsGeneratingExcel(true);
-    
+
     try {
       console.log("🌐 Calling generateExcelSheet API...");
       const response = await generateExcelSheet(callSids);
@@ -441,7 +442,7 @@ function Sendcall() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         console.log("📁 Excel file download triggered");
         toast.success("Excel file downloaded successfully!");
       } else {
@@ -469,6 +470,7 @@ function Sendcall() {
 
       const generatedAudio = await ensureSpeechUrl();
 
+
       if (parsedRows.length > 0) {
         setTotalCalls(parsedRows.length);
         setCurrentCall(0);
@@ -483,15 +485,22 @@ function Sendcall() {
 
           let payload;
           if (brand && !useStaticScript && !script.trim()) {
+
+            const finalBrand = brand === "Pushtimarg" ? "Richa" : brand;
+
             payload = {
-              customer_name: (row.name || "").trim(),
-              customer_email: (row.email || "").trim(),
-              customer_phone: `+91${row.number}`,
-              brand: brand,
+              customer_name: name.trim(),
+              customer_email: email.trim(),
+              customer_phone: `+91${mobile.trim()}`,
+              brand: finalBrand,
               lang: langValueToKey[selectedLang] || "english",
-              whatsapp_id: brand
+              whatsapp_id: finalBrand
             };
-          } else if (useStaticScript) {
+          }
+
+
+
+          else if (useStaticScript) {
             payload = {
               customer_name: (row.name || "").trim(),
               customer_email: (row.email || "").trim(),
@@ -525,7 +534,7 @@ function Sendcall() {
         toast.success(`Completed. Success: ${successCount}, Failed: ${failCount}`);
         setTotalCalls(0);
         setCurrentCall(0);
-        
+
         // Show notification about Excel generation delay
         if (collectedCallSids.length > 0) {
           toast.success("Excel file will be generated in 2 minutes...", { duration: 5000 });
@@ -539,7 +548,7 @@ function Sendcall() {
           if (excelTimeoutRef.current) {
             clearTimeout(excelTimeoutRef.current);
           }
-          
+
           // Start countdown
           setExcelCountdown(120);
           const countdownInterval = setInterval(() => {
@@ -551,7 +560,7 @@ function Sendcall() {
               return prev - 1;
             });
           }, 1000);
-          
+
           // Set new timeout
           excelTimeoutRef.current = setTimeout(async () => {
             console.log("2 minutes elapsed, generating Excel file now...");
@@ -563,23 +572,24 @@ function Sendcall() {
               console.error("Error generating Excel file:", error);
             }
             excelTimeoutRef.current = null;
-          }, 2 * 60 * 1000); // 2 minutes
+          }, 2 * 60 * 1000);
         } else {
           console.log("No call SIDs collected, skipping Excel generation");
         }
       } else {
-        // Single contact flow
         let payload;
         if (brand && !useStaticScript && !script.trim()) {
+          const finalBrand = brand === "Pushtimarg" ? "RICHA" : brand;
           payload = {
             customer_name: name.trim(),
             customer_email: email.trim(),
             customer_phone: `+91${mobile.trim()}`,
-            brand: brand,
+            brand: finalBrand,
             lang: langValueToKey[selectedLang] || "english",
-            whatsapp_id: brand
+            whatsapp_id: finalBrand
           };
-        } else if (useStaticScript) {
+        }
+        else if (useStaticScript) {
           payload = {
             customer_name: name.trim(),
             customer_email: email.trim(),
@@ -714,9 +724,8 @@ function Sendcall() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Enter full name"
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                      errors.name ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
-                    }`}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.name ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                      }`}
                   />
                   {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
                 </div>
@@ -728,9 +737,8 @@ function Sendcall() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter email address"
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                      errors.email ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
-                    }`}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.email ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                      }`}
                   />
                   {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                 </div>
@@ -742,9 +750,8 @@ function Sendcall() {
                     value={mobile}
                     onChange={(e) => setMobile(e.target.value)}
                     placeholder="Enter mobile number (10 digits, without +91)"
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                      errors.mobile ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
-                    }`}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.mobile ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                      }`}
                   />
                   {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
                 </div>
@@ -880,10 +887,10 @@ function Sendcall() {
               {isGeneratingExcel
                 ? "Generating Excel..."
                 : loading && totalCalls > 0
-                ? `Sending (${currentCall}/${totalCalls})...`
-                : loading
-                ? "Sending..."
-                : "Make a Call"}
+                  ? `Sending (${currentCall}/${totalCalls})...`
+                  : loading
+                    ? "Sending..."
+                    : "Make a Call"}
             </button>
 
             {/* show generated speech url (optional debug) */}
@@ -912,9 +919,8 @@ function Sendcall() {
             <label className="block font-semibold text-gray-700 mb-2">📂 Upload Excel File (.xlsx)</label>
             <div
               onClick={handleFileClick}
-              className={`relative border-2 border-dashed p-6 rounded-xl text-center ${
-                errors.file ? "border-red-400 hover:border-red-500" : "border-gray-300 hover:border-blue-400"
-              }`}
+              className={`relative border-2 border-dashed p-6 rounded-xl text-center ${errors.file ? "border-red-400 hover:border-red-500" : "border-gray-300 hover:border-blue-400"
+                }`}
             >
               <HiUpload className="text-4xl mx-auto text-blue-500 mb-2" />
               <p className="text-sm text-gray-500 truncate">{file ? file.name : "No file selected"}</p>
