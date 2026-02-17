@@ -489,9 +489,9 @@ function Sendcall() {
             const finalBrand = brand === "Pushtimarg" ? "Richa" : brand;
 
             payload = {
-              customer_name: name.trim(),
-              customer_email: email.trim(),
-              customer_phone: `+91${mobile.trim()}`,
+              customer_name: (row.name || "").trim(),
+              customer_email: (row.email || "").trim(),
+              customer_phone: `+91${row.number}`,
               brand: finalBrand,
               lang: langValueToKey[selectedLang] || "english",
               whatsapp_id: finalBrand
@@ -932,6 +932,53 @@ function Sendcall() {
               onChange={handleFileChange}
               className="hidden"
             />
+
+            {file && fileUrl && (
+              <div className="mt-2 text-sm">
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 hover:text-blue-700 underline"
+                >
+                  Open / Download selected Excel
+                </a>
+                {parsedRows.length > 0 && (
+                  <span className="ml-2 text-gray-600">
+                    ({parsedRows.length} valid row{parsedRows.length === 1 ? "" : "s"} parsed)
+                  </span>
+                )}
+              </div>
+            )}
+
+            {parsedRows.length > 0 && (
+              <div className="mt-4 border rounded-xl overflow-hidden">
+                <div className="bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700">
+                  Preview (first {Math.min(parsedRows.length, 10)} rows)
+                </div>
+                <div className="max-h-64 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-white">
+                      <tr className="text-left border-b">
+                        <th className="px-3 py-2">Name</th>
+                        <th className="px-3 py-2">Email</th>
+                        <th className="px-3 py-2">Number</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedRows.slice(0, 10).map((r, idx) => (
+                        <tr key={`${r.number}-${idx}`} className="border-b last:border-b-0">
+                          <td className="px-3 py-2">{r.name || "-"}</td>
+                          <td className="px-3 py-2">{r.email || "-"}</td>
+                          <td className="px-3 py-2">{r.number}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <button
                 type="button"
