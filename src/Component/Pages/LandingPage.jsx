@@ -14,6 +14,14 @@ const plans = [
     original: "Rs. 38,000/-",
     link: "richa-trial-pack",
   },
+   {
+    id: "trial",
+    title: "Richa Monthly Pack",
+    subtitle: "1 Month Sales Executive Free",
+    price: "₹ 14,999/month",
+    original: "",
+    link: "richa-monthly-trial-pack",
+  },
   {
     id: "certified_ai_training",
     title: "Certified AI Training",
@@ -61,6 +69,14 @@ const plans = [
     price: "₹ 4,99,999/-",
     original: "Rs. 9,99,999/-",
     link: "richa-king-pack",
+  },  
+  {
+    id: "king",
+    title: "Richa Monthly King Pack",
+    subtitle: "",
+    price: "₹28,999+/Month",
+    original: "",
+    link: "richa-monthly-king-pack",
   },  
     {
     id: "tithi_ai",
@@ -309,7 +325,7 @@ export default function LandingPage() {
                   onClick={() => navigate("/login?tab=signup")}
                   className="rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-fuchsia-200/60 transition hover:opacity-95 animate-pop-in anim-delay-450"
                 >
-                  Start Free Demo
+                  Start Paid Demo
                 </button>
                 <button
                   type="button"

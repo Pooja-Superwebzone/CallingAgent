@@ -72,7 +72,7 @@ export default function LandingPage() {
                 onClick={() => navigate("/login?tab=signup")}
                 className="rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-fuchsia-200/60 transition hover:opacity-95 animate-pop-in anim-delay-450"
               >
-                Start Free Demo
+                Start Paid Demo
               </button>
               <button
                 type="button"
