@@ -27,6 +27,8 @@ import AgentConnectionCreate from './Component/Pages/AgentConnectionCreate';
 import EmailTemplateList from './Component/Pages/EmailTemplateList';
 import WhatsappSendMsg from './Component/Pages/WhatsappSendMsg';
 import Perplexity from './Component/Pages/Perplexity';
+import MinutesPage from "./Component/Pages/MinutesPage";
+import UpgradeMinutesPage from "./Component/Pages/UpgradeMinutesPage";
 
 
 
@@ -119,6 +121,8 @@ function App() {
              <Route path="/email-template" element={<EmailTemplateList />} />
              <Route path="/whatsapp-send-message" element={<WhatsappSendMsg />} />
              <Route path="/perplexity" element={<Perplexity />} />
+             <Route path="/minutes" element={<MinutesPage />} />
+             <Route path="/upgrade-minutes" element={<UpgradeMinutesPage />} />
 
 <Route path="/call-logs" element={<CallLogs />} />
      

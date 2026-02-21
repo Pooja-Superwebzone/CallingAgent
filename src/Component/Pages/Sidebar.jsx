@@ -572,6 +572,43 @@ const Sidebar = () => {
             </li>
           )}
 
+          {twilioUser === 1 ? (
+          <>
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/minutes");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/minutes"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FiClock size={18} className="flex-shrink-0" />
+                <span className="whitespace-nowrap">Minutes</span>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => {    
+                  navigate("/upgrade-minutes");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/upgrade-minutes"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FiCreditCard size={18} className="flex-shrink-0" />
+                <span className="whitespace-nowrap">Upgrade Plan</span>
+              </button> 
+            </li>
+          </>
+        ) : null}
+
 
 
 
@@ -608,16 +645,9 @@ const Sidebar = () => {
               <span className="whitespace-nowrap">LLM</span>
             </button>
           </li>
-
-   
+          
         </ul>
       </div>
-
-
-
-
-      
-
       <div className="space-y-2 px-4 pb-4">
         <button
           onClick={handleLogout}

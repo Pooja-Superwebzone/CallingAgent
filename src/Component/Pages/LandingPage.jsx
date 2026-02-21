@@ -5,7 +5,7 @@ import richaHero from "/Richa.png";
 import { signupTwillioUser } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 
-const plans = [
+export const plans = [
   {
     id: "trial",
     title: "Richa Trial Pack",
@@ -145,7 +145,7 @@ const getStoredToken = (planId) => {
 };
 
 // Calculate discount percentage for a plan
-const calculateDiscountPercentage = (plan) => {
+export const calculateDiscountPercentage = (plan) => {
   if (!plan.original) return null;
   
   // Extract numbers from price strings (remove currency symbols, commas, etc.)
@@ -165,7 +165,7 @@ const calculateDiscountPercentage = (plan) => {
 };
 
 // Get cashback percentage for a plan
-const getCashbackPercentage = (plan) => {
+export const getCashbackPercentage = (plan) => {
   switch (plan.id) {
     case "trial": // Richa trial pack
       return 53;
