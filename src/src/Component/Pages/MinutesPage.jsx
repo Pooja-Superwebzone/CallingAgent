@@ -66,7 +66,7 @@ export default function MinutesPage() {
       return;
     }
 
-    const url = `https://ibcrm.in/?email=${encodeURIComponent(
+    const url = `https://ibcrm.in/buy-minutes/?email=${encodeURIComponent(
       userEmail
     )}&minutes=${encodeURIComponent(String(purchaseMinutes))}`;
     window.location.href = url;

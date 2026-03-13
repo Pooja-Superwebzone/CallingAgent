@@ -160,7 +160,7 @@ export default function LandingPage() {
               <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 animate-float" />
               <h3 className="text-xl font-semibold">WhatsApp + Voice</h3>
               <p className="mt-2 text-slate-600">
-                Single inbox for messages & calls with AI follow-ups.
+                Single inbox for messages & calls with AI follow-ups.1111
               </p>
             </div>
           </div>

@@ -18,6 +18,30 @@ html, body, #root {
   animation: slide-in 0.5s ease-out;
 }
 
+.gradient-text {
+  background: linear-gradient(
+    90deg,
+    #4f46e5,
+    #d946ef,
+    #ec4899,
+    #06b6d4,
+    #4f46e5
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientMove 4s linear infinite;
+}
+
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 300% 50%;
+  }
+}
+
 
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(12px); }

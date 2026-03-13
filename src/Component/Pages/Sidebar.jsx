@@ -607,7 +607,24 @@ const Sidebar = () => {
               </button> 
             </li>
           </>
-        ) : null}
+        ) : (<>
+        <li>
+            <button
+              onClick={() => {
+                navigate("/perplexity");
+                setMobileOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                location.pathname === "/perplexity"
+                  ? "bg-gray-700 text-gray-300"
+                  : "hover:bg-gray-700 text-gray-300"
+              }`}
+            >
+              <BsChatTextFill size={18} className="flex-shrink-0" />
+              <span className="whitespace-nowrap">LLM</span>
+            </button>
+          </li>
+        </>)}
 
 
 
@@ -629,22 +646,7 @@ const Sidebar = () => {
             </button>
           </li>
 
-          <li>
-            <button
-              onClick={() => {
-                navigate("/perplexity");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/perplexity"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <BsChatTextFill size={18} className="flex-shrink-0" />
-              <span className="whitespace-nowrap">LLM</span>
-            </button>
-          </li>
+          
           
         </ul>
       </div>
@@ -753,7 +755,7 @@ const Sidebar = () => {
               </h2>
 
               <p className="text-gray-800 text-lg sm:text-2xl mb-6 leading-relaxed flex flex-col items-center">
-                <span>Your free trial demo has started.</span>
+                <span>Your Richa Queen Pack started.</span>
                 <span className="flex items-center justify-center gap-2 mt-3">
                   <FiCheckCircle className="text-green-600" size={24} />
                   You can make up to{" "}

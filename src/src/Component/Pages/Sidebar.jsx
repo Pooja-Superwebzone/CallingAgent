@@ -681,7 +681,7 @@ const Sidebar = () => {
               </h2>
 
               <p className="text-gray-800 text-lg sm:text-2xl mb-6 leading-relaxed flex flex-col items-center">
-                <span>Your free trial demo has started.</span>
+                <span>Your Richa Queen Pack started.</span>
                 <span className="flex items-center justify-center gap-2 mt-3">
                   <FiCheckCircle className="text-green-600" size={24} />
                   You can make up to{" "}

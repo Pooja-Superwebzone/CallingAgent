@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
 import { signupTwillioUser } from "../../hooks/useAuth";
@@ -14,7 +14,7 @@ export const plans = [
     original: "Rs. 38,000/-",
     link: "richa-trial-pack",
   },
-   {
+  {
     id: "trial",
     title: "Richa Monthly Pack",
     subtitle: "1 Month Sales Executive Free",
@@ -39,50 +39,18 @@ export const plans = [
     link: "richa-prince-pack"
   },
   {
-    id: "queen",
-    title: "Richa Queen Pack",
-    subtitle: "5 Sales Executive For 2 Months Free",
-    price: "₹ 99,999/-",
-    original: "Rs. 1,99,999/-",
-    link: "richa-queen-pack",
-  },
-   {
-    id: "queen_2_exec",
-    title: "Richa Queen Pack",
-    subtitle: "2 Sales Executive Free For 4 Months",
-    price: "₹ 99,999/- + GST",
-    original: "Rs. 1,99,999/-",
-    link: "richa-queen-pack-2-exec"
-  },
-  {
-    id: "queen_1_exec",
-    title: "Richa Queen Pack",
-    subtitle: "1 Sales Executive For 7 Months",
-    price: "₹ 99,999/- + GST",
-    original: "Rs. 1,99,999/-",
-    link: "richa-queen-pack-1-exec"
-  },
-  {
-    id: "king",
-    title: "Richa King Pack",
-    subtitle: "4 Sales Executive Free For 1 Year",
-    price: "₹ 4,99,999/-",
-    original: "Rs. 9,99,999/-",
-    link: "richa-king-pack",
-  },  
-  {
     id: "king",
     title: "Richa Monthly King Pack",
     subtitle: "",
     price: "₹28,999+/Month",
     original: "",
     link: "richa-monthly-king-pack",
-  },  
-    {
+  },
+  {
     id: "tithi_ai",
     title: "Tithi AI",
     subtitle: "",
-    price: "₹ 24,999/- + GST",
+    price: "Free",
     original: "Rs. 29,999/-",
     link: "tithi-ai"
   },
@@ -94,14 +62,14 @@ export const plans = [
     original: "Rs. 299/-",
     link: "paid_demo_trial_richa_ai",
   },
-   {
+  {
     id: "mini",
     title: "Richa Mini Pack",
     subtitle: "1 Month Sales Executive Free",
     price: "₹ 49,000/- + GST",
     original: "Rs. 98,000/-",
     link: "richa-mini-pack"
-  },  
+  },
   {
     id: "become_channel_partner",
     title: "Become Channel Partner",
@@ -137,6 +105,39 @@ export const plans = [
 
 ];
 
+export const planFeatures = [
+  {
+    feature: "Life Time Validity (one time cost)",
+    king: "28,999 + GST",
+    queen: "Free"
+  },
+  {
+    feature: "AI Voice Call",
+    king: true,
+    queen: true,
+  },
+  {
+    feature: "WhatsApp Messaging",
+    king: true,
+    queen: true,
+  },
+  {
+    feature: "CRM Software To Support Rich AI ",
+    king: true,
+    queen: false,
+  },
+  {
+    feature: "Lead Auto Assign To Sales Executive",
+    king: true,
+    queen: false,
+  },
+  {
+    feature: "Agent Creation",
+    king: true,
+    queen: true,
+  },
+];
+
 const getStoredToken = (planId) => {
   if (typeof window === "undefined") return "";
   const planToken = localStorage.getItem(`plan_token_${planId}`) || "";
@@ -147,7 +148,7 @@ const getStoredToken = (planId) => {
 // Calculate discount percentage for a plan
 export const calculateDiscountPercentage = (plan) => {
   if (!plan.original) return null;
-  
+
   // Extract numbers from price strings (remove currency symbols, commas, etc.)
   const extractNumber = (str) => {
     if (!str) return 0;
@@ -156,9 +157,9 @@ export const calculateDiscountPercentage = (plan) => {
 
   const originalPrice = extractNumber(plan.original);
   const currentPrice = extractNumber(plan.price);
-  
+
   if (originalPrice === 0 || currentPrice === 0 || currentPrice >= originalPrice) return null;
-  
+
   const discount = originalPrice - currentPrice;
   const percentage = Math.round((discount / originalPrice) * 100);
   return percentage;
@@ -171,7 +172,7 @@ export const getCashbackPercentage = (plan) => {
       return 53;
     case "mini": // Richa mini pack
       return 20;
-      case "certified_ai_training": // Certificate AI training
+    case "certified_ai_training": // Certificate AI training
       return null;
     case "prince": // Certificate AI training
       return 100; // No cashback
@@ -196,6 +197,7 @@ export const getCashbackPercentage = (plan) => {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showSignup, setShowSignup] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -234,19 +236,36 @@ export default function LandingPage() {
 
   // Handle URL-based plan selection
   useEffect(() => {
-    const planId = searchParams.get("plan");
-    if (planId) {
-      const plan = plans.find((p) => p.id === planId);
-      if (plan) {
-        setSelectedPlan(plan);
-        setStoredToken(getStoredToken(plan.id));
-        setShowSignup(true);
-        // Optional: Remove the plan parameter from URL after opening modal
-        // Uncomment the line below if you want to clean the URL
-        // setSearchParams({});
-      }
+    const planQuery = searchParams.get("plan");
+    const linkQuery = searchParams.get("link");
+    const pathSlug = location.pathname.split("/").filter(Boolean).pop();
+
+    const plan = plans.find(
+      (p) =>
+        p.id === planQuery ||
+        p.link === planQuery ||
+        p.link === linkQuery ||
+        p.link === pathSlug
+    );
+
+    if (plan) {
+      setSelectedPlan(plan);
+      setStoredToken(getStoredToken(plan.id));
+      setShowSignup(true);
+      // Optional: Remove the plan parameter from URL after opening modal
+      // setSearchParams({});
     }
-  }, [searchParams, setStoredToken]);
+  }, [location.pathname, searchParams]);
+
+  const queenPlan = plans.find((p) => p.link === "richa-queen-pack");
+  const kingPlan = plans.find((p) => p.link === "richa-king-pack");
+
+  const handlePlanPurchase = (plan) => {
+    if (!plan) return;
+    setSelectedPlan(plan);
+    setStoredToken(getStoredToken(plan.id));
+    setShowSignup(true);
+  };
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900 overflow-x-hidden">
@@ -379,8 +398,17 @@ export default function LandingPage() {
             </div>
           </section>
 
+
           <section className="pb-16">
-            <div className="mx-auto max-w-xl">
+            <div className="mx-auto px-4 flex gap-12 justify-between">
+             <div className=" flex items-center justify-center">
+                <div className="max-w-4xl w-full rounded-3xl bg-white pT-6 text-center ">
+                  
+                  <h2 className="text-5xl md:text-5xl font-extrabold bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent">
+                    Welcome to the world of AI
+                  </h2>
+                </div>
+              </div>
               <div className="rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-md transition hover:shadow-lg animate-fade-up anim-delay-300">
                 <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 animate-float" />
                 <h3 className="text-xl font-semibold">WhatsApp + Voice</h3>
@@ -390,14 +418,145 @@ export default function LandingPage() {
               </div>
             </div>
           </section>
+          <section className="pb-20 px-4">
+            <div className="mx-auto max-w-6xl">
+              <div className="mb-10 text-center">
+                <span className="inline-flex items-center rounded-full border border-indigo-100 bg-indigo-50 px-4 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-700">
+                  Pack Comparison
+                </span>
+                <h2 className="mt-4 text-3xl font-extrabold text-slate-900 sm:text-4xl">
+                  Richa AI Packs Explained
+                </h2>
+                <p className="mx-auto mt-3 max-w-2xl text-slate-600">
+                  Compare features side by side and choose the best package for your growth.
+                </p>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-[0_18px_45px_-25px_rgba(79,70,229,0.45)]">
+                <div className="overflow-x-auto">
+                  <table className="min-w-[680px] w-full text-sm">
+                    <thead className="bg-gradient-to-r from-indigo-50 via-purple-50 to-fuchsia-50">
+                      <tr>
+                        <th className="w-[45%] px-6 py-5 text-left text-sm font-bold text-slate-800">
+                          Richa AI Pack Feature
+                        </th>
+                        <th className="w-[27.5%] px-6 py-5 text-center">
+                          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-indigo-700">
+                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[12px] text-indigo-700">
+                              ♕
+                            </span>
+                            Richa Queen Pack
+                          </div>
+                        </th>
+                        <th className="w-[27.5%] px-6 py-5 text-center">
+                          <div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-fuchsia-700">
+                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-fuchsia-100 text-[12px] text-fuchsia-700">
+                              ♔
+                            </span>
+                            Richa King Pack
+                            <span className="rounded-full bg-fuchsia-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                              Most Popular
+                            </span>
+                          </div>
+                        </th>
+                      </tr>
+                     
+                    </thead>
+
+                    <tbody>
+                      {planFeatures.map((item, i) => (
+                        <tr
+                          key={i}
+                          className="border-t border-slate-100 transition-colors hover:bg-indigo-50/40"
+                        >
+                          <td className="px-6 py-4 font-medium text-slate-700">
+                            {item.feature}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {typeof item.queen === "boolean" ? (
+                              item.queen ? (
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-base font-bold text-emerald-600">
+                                  ✓
+                                </span>
+                              ) : (
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base font-bold text-slate-400">
+                                  ✕
+                                </span>
+                              )
+                            ) : (
+                              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                                {item.queen}
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="px-6 py-4 text-center">
+                            {typeof item.king === "boolean" ? (
+                              item.king ? (
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-base font-bold text-emerald-600">
+                                  ✓
+                                </span>
+                              ) : (
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base font-bold text-slate-400">
+                                  ✕
+                                </span>
+                              )
+                            ) : (
+                              <span className="rounded-full bg-fuchsia-50 px-3 py-1 text-xs font-bold text-fuchsia-700">
+                                {item.king}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                       <tr>
+                        <th className="px-6 pb-5 pt-0 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          
+                        </th>
+                        <th className="px-6 pb-5 pt-0 text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                            navigate({
+                              pathname: "/login",
+                              search: "?tab=signup",
+                              hash: "#top"
+                            });
+
+                            window.scrollTo({
+                              top: 0,
+                              behavior: "smooth"
+                            });
+                          }}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                          >
+                            <span>♕</span>
+                            Signup
+                          </button>
+                        </th>
+                        <th className="px-6 pb-5 pt-0 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handlePlanPurchase(kingPlan)}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-fuchsia-200 bg-fuchsia-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-fuchsia-700"
+                          >
+                            <span>♔</span>
+                            Purchase King Subscription
+                          </button>
+                        </th>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </section>
           <section className="pb-16 mb:px-[25px]">
             <div className="mx-auto max-w-7xl">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">
-                    Subscription Plans
-                  </p>
-                  <h2 className="text-3xl font-bold mt-1">Choose your Richa plan</h2>
+                  <h2 className="text-3xl font-bold mt-1">Choose Other Richa Plan</h2>
                   <p className="text-slate-600 mt-2">
                     Unlock benefits and scale with AI sales executives.
                   </p>
@@ -429,26 +588,26 @@ export default function LandingPage() {
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold leading-tight">{plan.title}</h3>
-                        {plan.id !== 'queen' && plan.id !== 'king' && plan.id !== 'demo_call' ? null : ( <>
-                         <span className="inline-block mt-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-100">
-                          {plan.id === "queen"
-                            ? "Best deal"
-                            : plan.id === "king"
-                              ? "Popular"
-                              : plan.id === "demo_call"
-                                ? "Demo"
-                                : ""}
-                        </span>
-                        </>) }
+                        {plan.id !== 'queen' && plan.id !== 'king' && plan.id !== 'demo_call' ? null : (<>
+                          <span className="inline-block mt-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-100">
+                            {plan.id === "queen"
+                              ? "Best deal"
+                              : plan.id === "king"
+                                ? "Popular"
+                                : plan.id === "demo_call"
+                                  ? "Demo"
+                                  : ""}
+                          </span>
+                        </>)}
                       </div>
-                      
+
                       {/* Cashback Badge - Clean Design (Top Right Corner) */}
                       {getCashbackPercentage(plan) !== null && (
                         <div className="flex-shrink-0">
                           <div className="relative w-14 h-14">
                             {/* Subtle glow */}
                             <div className="absolute -inset-1 animate-ping bg-[#FFFF00] rounded-full blur-md "></div>
-                            
+
                             {/* Main badge */}
                             <div className="relative w-full h-full bg-[#FFFF00] rounded-full flex flex-col items-center justify-center shadow-lg border-2 border-white">
                               {/* Star icon */}
@@ -459,7 +618,7 @@ export default function LandingPage() {
                               >
                                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                               </svg>
-                              
+
                               {/* Text */}
                               <div className="text-center">
                                 <div className="text-[10px] font-black text-[#000000] leading-none drop-shadow-md">
@@ -469,7 +628,7 @@ export default function LandingPage() {
                                   CASHBACK
                                 </div>
                               </div>
-                              
+
                               {/* Shine */}
                               <div className="absolute top-0.5 left-0.5 w-6 h-6 bg-white/30 rounded-full blur-sm"></div>
                             </div>
@@ -487,7 +646,7 @@ export default function LandingPage() {
                         )}
                         <span className="text-2xl font-extrabold">{plan.price}</span>
                       </div>
-                      <span className="text-sm text-slate-500">+GST</span>
+                      <span className="text-sm text-slate-500"> {plan.price == 'Free' ? '' : '+GST'} </span>
                     </div>
 
                     <div className="mt-5 flex items-center gap-2 text-sm text-slate-600">
@@ -595,7 +754,7 @@ export default function LandingPage() {
               <div className="mt-6 flex items-center justify-between">
                 <div className="text-sm text-slate-600">
                   Price: <span className="font-semibold text-slate-900">{selectedPlan.price}</span>{" "}
-                  <span className="text-xs text-slate-500">(+GST)</span>
+                  <span className="text-xs text-slate-500">{selectedPlan.price == "Free" ? "": "(+GST)"} </span>
                 </div>
                 <button
                   type="button"
@@ -620,7 +779,7 @@ export default function LandingPage() {
                         confirmPassword: formValues.confirmPassword,
                         minute: "10",
                       };
-                      
+
                       const data = await signupTwillioUser(payload);
                       const tokenRaw = extractToken(data);
                       const tokenFromStorage = storedToken || getStoredToken(selectedPlan.id);

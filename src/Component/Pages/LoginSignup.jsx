@@ -9,6 +9,7 @@ import {
   verifyEmailOtp,
   resendTwillioOtp,
 } from "../../hooks/useAuth";
+import CustomerCareCall from "../../components/ui/CustomerCareCall";
 
 export default function LoginSignup() {
   const location = useLocation();
@@ -20,6 +21,7 @@ export default function LoginSignup() {
     name: "",
     email: "",
     contact_no: "",
+    customer_care_head_no: "",
     password: "",
     confirmPassword: "",
   });
@@ -242,7 +244,7 @@ const handleOtpVerify = async () => {
       )}
 
       {/* Main Layout */}
-      <div className="flex flex-col md:flex-row items-center justify-center min-h-screen px-4 py-8">
+      <div id="top" className="flex flex-col md:flex-row items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full sm:w-2/3 md:w-1/3 flex justify-center items-center h-auto sm:h-[50vh] md:h-[60vh] lg:h-[70vh] p-4">
           <img
             src="/Richa.png"
@@ -326,6 +328,25 @@ const handleOtpVerify = async () => {
                 {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
               </div>
 
+              {activeTab === "signup" && (
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-1">Customer Care Head No</label>
+                  <input
+                    type="text"
+                    value={signupData.customer_care_head_no}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "");
+                      if (value.length <= 10) {
+                        setSignupData({ ...signupData, customer_care_head_no: value });
+                      }
+                    }}
+                    maxLength={10}
+                    className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter customer care head number"
+                  />
+                </div>
+              )}
+
               {/* Password */}
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-1">Password</label>
@@ -404,6 +425,7 @@ const handleOtpVerify = async () => {
                 </button>
               </div>
             </form>
+                {/* <CustomerCareCall/> */}
           </div>
         </div>
 

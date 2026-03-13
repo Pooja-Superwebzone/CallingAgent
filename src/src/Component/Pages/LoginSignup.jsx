@@ -241,7 +241,7 @@ const handleOtpVerify = async () => {
       )}
 
       {/* Main Layout */}
-      <div className="flex flex-col md:flex-row items-center justify-center min-h-screen px-4 py-8">
+      <div id="top" className="flex flex-col md:flex-row items-center justify-center min-h-screen px-4 py-8">
         <div className="w-full sm:w-2/3 md:w-1/3 flex justify-center items-center h-auto sm:h-[50vh] md:h-[60vh] lg:h-[70vh] p-4">
           <img
             src="/Richa.png"
