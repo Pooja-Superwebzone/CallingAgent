@@ -224,6 +224,7 @@ const onSubmit = async (data) => {
                 <th className="px-4 py-3">One-way Minutes</th>
                 <th className="px-4 py-3">Two-way Minutes</th>
                 <th className="px-4 py-3">International Minutes</th>
+                <th className="px-4 py-3">Date & Time</th>
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
@@ -265,6 +266,11 @@ const onSubmit = async (data) => {
                     </td>
                     <td className="px-4 py-2">
                       {admin.twilio_user_minute?.international || admin.twilio_user_minute?.international_minute || admin.twilio_user_minute?.intl || '0'} min
+                    </td>
+                    <td className="px-4 py-2">
+                      {admin.created_at 
+                        ? new Date(admin.created_at).toLocaleString() 
+                        : '-'}
                     </td>
                     <td className="px-4 py-2">
                       <button
@@ -380,6 +386,7 @@ const onSubmit = async (data) => {
                   <option value="">Select Role</option>
                   <option value="admin">Admin</option>
                   <option value="franchise">Franchise</option>
+                  <option value="channelpartner">Channel Partner</option>
                 </select>
                 {errors.role && <p className="text-red-500 text-sm">{errors.role.message}</p>}
               </div>

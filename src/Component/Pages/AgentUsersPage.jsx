@@ -5,7 +5,7 @@ import DOMPurify from "dompurify";
 import { useNavigate } from "react-router-dom";
 
 import {
-  getAgents, 
+  getAgentsUsers, 
 } from "../../hooks/useAuth";
 
 export default function AgentUsersPage() {
@@ -22,7 +22,7 @@ export default function AgentUsersPage() {
   const loadRows = async () => {
     setLoading(true);
     try {
-      const list = await getAgents();
+      const list = await getAgentsUsers();
       setRows(
         (Array.isArray(list) ? list : []).map((r, i) => ({
           id: r.id ?? i + 1,
