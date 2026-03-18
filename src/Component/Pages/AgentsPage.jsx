@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import {
   getAgents,
 } from "../../hooks/useAuth";
+import { FiPlusCircle } from "react-icons/fi";
 
 export default function AgentsPage() {
   const [rows, setRows] = useState([]);
@@ -43,6 +44,7 @@ export default function AgentsPage() {
     loadRows();
   }, []);
 
+
   return (
     <div className="p-4 sm:p-6">
       {/* Header */}
@@ -50,11 +52,13 @@ export default function AgentsPage() {
         <h2 className="text-2xl font-bold text-gray-700">Agents</h2>
         <button
           onClick={() => navigate("/agents/new")}
-          // className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-           className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-        >
-          Add Agent
-        </button>
+            className="relative px-4 py-2 bg-gray-600 text-white cursor-pointer animate-bounce rounded-md hover:bg-gray-700 overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  <FiPlusCircle size={16} />
+                  Create Agent
+                </span>
+              </button>
       </div>
 
       {/* Table */}

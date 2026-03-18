@@ -754,8 +754,13 @@ const Sidebar = () => {
                 Welcome To The World Of Richa AI
               </h2>
 
-              <p className="text-gray-800 text-lg sm:text-2xl mb-6 leading-relaxed flex flex-col items-center">
+             <p className="text-gray-800 text-lg sm:text-2xl mb-6 leading-relaxed flex flex-col items-center">
                 <span>Your Richa Queen Pack started.</span>
+                
+                {/* New line added */}
+                <span className="mt-2 text-base sm:text-2xl text-red-600 font-semibold flex items-center justify-center gap-2 animate-pulse hover:scale-105 transition-transform duration-300">
+                  First step: Create your agent, then start calling
+                </span>
                 <span className="flex items-center justify-center gap-2 mt-3">
                   <FiCheckCircle className="text-green-600" size={24} />
                   You can make up to{" "}
@@ -773,7 +778,7 @@ const Sidebar = () => {
               </div>
             </div>
           </div>
-        )}
+        )} 
 
         {showNextStepsModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
