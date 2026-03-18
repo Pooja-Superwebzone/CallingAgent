@@ -73,8 +73,8 @@ export const plans = [
   {
     id: "become_channel_partner",
     title: "Become Channel Partner",
-    subtitle: "",
-    price: "₹ 9,999 + GST",
+    subtitle: "only mintues to be purchase",
+    price: "Free",
     // original: "Rs. 98,000/-",
     link: "become-channel-partner"
   },
