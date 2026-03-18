@@ -164,7 +164,7 @@ const TutorialPage = () => {
               <button
                 onClick={() => {
                   if (isAuthenticated) {
-                    navigate("/sendcall");
+                    navigate("/agents_page");
                   } else {
                     navigate("/");
                   }

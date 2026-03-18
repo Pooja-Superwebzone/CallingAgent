@@ -79,7 +79,7 @@ function App() {
           path="/"
           element={
             authed ? (
-              <Navigate to="/sendcall" replace />
+              <Navigate to="/agents_page" replace />
             ) : (
               <LandingPage />
             )
@@ -95,7 +95,7 @@ function App() {
               <LoginSignup key={location.search} />
             ) : (
               <Navigate
-                to="/sendcall"
+                to="/agents_page"
                 replace
                 state={{ showWelcome: true, trialMinutes }}
               />
@@ -150,7 +150,7 @@ function App() {
         {/* Catch-all */}
         <Route
           path="*"
-          element={authed ? <Navigate to="/sendcall" /> : <Navigate to="/" />}
+          element={authed ? <Navigate to="/agents_page" /> : <Navigate to="/" />}
         />
       </Routes>
     </>

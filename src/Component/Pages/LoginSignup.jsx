@@ -99,7 +99,7 @@ const handleLoginSubmit = async (e) => {
       Cookies.set("email", user?.email ? user?.email : "", { expires: 365 });
 
       toast.success("Login successful");
-      navigate("/sendcall");
+      navigate("/agents_page");
     } else {
       toast.error("Invalid login response");
     }
@@ -180,7 +180,7 @@ const handleOtpVerify = async () => {
       }
 
       // ✅ Navigate with welcome popup
-      navigate("/sendcall", {
+      navigate("/agents_page", {
         state: {
           showWelcome: true,
           trialMinutes: "10",
