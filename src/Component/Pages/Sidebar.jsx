@@ -166,6 +166,25 @@ const Sidebar = () => {
             </button>
           </li>
 
+          {twilioUser === 1 && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/minutes");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/minutes"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FiClock size={18} className="flex-shrink-0" />
+                <span className="whitespace-nowrap">Add Talktime</span>
+              </button>
+            </li>
+          )}
+
           {/* ---------------------------
               If Twilio user === 1 AND role === "admin" show this exact set
              --------------------------- */}
@@ -574,22 +593,6 @@ const Sidebar = () => {
 
           {twilioUser === 1 ? (
           <>
-            <li>
-              <button
-                onClick={() => {
-                  navigate("/minutes");
-                  setMobileOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                  location.pathname === "/minutes"
-                    ? "bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-700 text-gray-300"
-                }`}
-              >
-                <FiClock size={18} className="flex-shrink-0" />
-                <span className="whitespace-nowrap">Minutes</span>
-              </button>
-            </li>
             <li>
               <button
                 onClick={() => {    

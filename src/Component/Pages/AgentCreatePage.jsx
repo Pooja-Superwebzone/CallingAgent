@@ -32,7 +32,7 @@ export default function AgentCreatePage() {
       };
       await createAgent(payload);
       toast.success("Agent created successfully");
-      
+
       navigate("/agents");
     } catch (err) {
       toast.error(err?.message || "Failed to save agent");
@@ -73,7 +73,7 @@ export default function AgentCreatePage() {
               className="mt-1 w-full border rounded px-3 py-2"
               value={welcomeMessage}
               onChange={(e) => setWelcomeMessage(e.target.value)}
-                placeholder="Write a message"
+              placeholder="Write a message"
             />
           </div>
 
@@ -102,7 +102,7 @@ export default function AgentCreatePage() {
           <div className="flex justify-end gap-2 pt-4">
             <button
               type="button"
-            //  className="px-4 py-2 border rounded"
+              //  className="px-4 py-2 border rounded"
               className="px-4 py-2 border rounded-md hover:bg-gray-100"
 
               onClick={() => navigate("/agents_page")}
@@ -112,8 +112,8 @@ export default function AgentCreatePage() {
             </button>
             <button
               type="submit"
-             // className="px-4 py-2 bg-indigo-600 text-white rounded"
-               className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+              // className="px-4 py-2 bg-indigo-600 text-white rounded"
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
               disabled={saving}
             >
               {saving ? "Saving..." : "Save"}

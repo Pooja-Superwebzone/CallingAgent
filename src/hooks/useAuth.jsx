@@ -2,6 +2,8 @@ import Cookies from "js-cookie";
 import service from "../api/axios";
 import axios from "axios";
 
+const SIGNUP_TWILLIO_USER_URL = "https://api-main.ibcrm.in/api/twillio-create-user-signup";
+
 export function login(formData) {
   return service
     .post(`login`, formData)
@@ -235,7 +237,7 @@ export function translateTextAPI(text, targetLang) {
 
 export function signupTwillioUser(payload) {
   return service
-    .post("twillio-create-user-signup", payload)
+    .post(SIGNUP_TWILLIO_USER_URL, payload)
     .then((res) => res.data)
     .catch((error) => {
       let errorMessage = "Signup failed.";

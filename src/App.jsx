@@ -50,12 +50,46 @@ function App() {
 
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    const email = params.get('email');
+    const role = params.get('role');
+    const twilioUser = params.get('twilio_user');
+    const emailVerified = params.get('email_verified');
+
+    if (!token) return;
+
+    Cookies.set('CallingAgent', token, { expires: 365, sameSite: 'Strict' });
+    localStorage.setItem('ibcrmtoken', token);
+
+    if (email) {
+      Cookies.set('email', email, { expires: 365, sameSite: 'Strict' });
+      localStorage.setItem('userEmail', email);
+    }
+
+    if (role) {
+      Cookies.set('role', role, { expires: 365, sameSite: 'Strict' });
+    }
+
+    if (twilioUser) {
+      Cookies.set('twilio_user', twilioUser, { expires: 365, sameSite: 'Strict' });
+    }
+
+    if (emailVerified) {
+      Cookies.set('email_verified', emailVerified, { expires: 365, sameSite: 'Strict' });
+    }
+
+    const cleanUrl = `${location.pathname}${location.hash || ''}`;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }, [location.pathname, location.search, location.hash]);
+
+  useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1000);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    const token = Cookies.get('CallingAgent');
+    const token = Cookies.get('CallingAgent') || localStorage.getItem('ibcrmtoken');
     const role = Cookies.get('role');
     const twilioUser = Cookies.get('twilio_user');
     const emailVerified = Cookies.get('email_verified') === 'true';

@@ -4,6 +4,11 @@ import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
 import { signupTwillioUser } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
+import {
+  addSubscription,
+  createPaymentOrder,
+  updateSubscriptionPaymentStatus,
+} from "../../api/payment";
 
 export const plans = [
   {
@@ -145,6 +150,34 @@ const getStoredToken = (planId) => {
   return planToken || genericToken || "";
 };
 
+const normalizeEmail = (email = "") => String(email).trim().toLowerCase();
+
+const getSignupRoleForPlan = (planId = "") =>
+  planId === "become_channel_partner" ? "channelpartner" : "admin";
+
+const resolveStoredPlanIdFromRole = (role = "") =>
+  role === "channelpartner" ? 18 : 8;
+
+const resolveSubscriptionPlanIdFromRole = (role = "", fallbackPlanId = 8) =>
+  role === "channelpartner" ? 8 : fallbackPlanId;
+
+const getResolvedStoredPlanId = (role = "") => {
+  if (typeof window === "undefined") {
+    return resolveStoredPlanIdFromRole(role);
+  }
+
+  const cookiePlan = document.cookie.match(/(?:^|;\s*)user_plan=([^;]+)/)?.[1];
+  const storedPlan =
+    localStorage.getItem("user_plan") ||
+    (cookiePlan ? decodeURIComponent(cookiePlan) : "") ||
+    "";
+
+  const parsedStoredPlan = Number(storedPlan);
+  return Number.isFinite(parsedStoredPlan) && parsedStoredPlan > 0
+    ? parsedStoredPlan
+    : resolveStoredPlanIdFromRole(role);
+};
+
 // Calculate discount percentage for a plan
 export const calculateDiscountPercentage = (plan) => {
   if (!plan.original) return null;
@@ -209,8 +242,10 @@ export default function LandingPage() {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [signupError, setSignupError] = useState("");
   const [storedToken, setStoredToken] = useState("");
+  const [showChannelPartnerPricing, setShowChannelPartnerPricing] = useState(false);
 
   const getCookie = (name) => {
     if (typeof document === "undefined") return "";
@@ -251,11 +286,20 @@ export default function LandingPage() {
     if (plan) {
       setSelectedPlan(plan);
       setStoredToken(getStoredToken(plan.id));
+      setShowChannelPartnerPricing(false);
       setShowSignup(true);
       // Optional: Remove the plan parameter from URL after opening modal
       // setSearchParams({});
     }
   }, [location.pathname, searchParams]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Cashfree) {
+      window.cashfree = window.Cashfree({
+        mode: "production",
+      });
+    }
+  }, []);
 
   const queenPlan = plans.find((p) => p.link === "richa-queen-pack");
   const kingPlan = plans.find((p) => p.link === "richa-king-pack");
@@ -264,7 +308,141 @@ export default function LandingPage() {
     if (!plan) return;
     setSelectedPlan(plan);
     setStoredToken(getStoredToken(plan.id));
+    setShowChannelPartnerPricing(false);
     setShowSignup(true);
+  };
+
+  const closeSignupModal = () => {
+    setShowSignup(false);
+    setShowChannelPartnerPricing(false);
+  };
+
+  const persistSelectedPlan = (plan, token = "") => {
+    if (typeof window === "undefined" || !plan) return;
+    const storedPlanId = resolveStoredPlanIdFromRole(
+      getSignupRoleForPlan(plan.id)
+    );
+    localStorage.setItem("user_plan", storedPlanId);
+    localStorage.setItem("user_plan_title", plan.title);
+    document.cookie = `user_plan=${encodeURIComponent(
+      storedPlanId
+    )}; path=/; max-age=31536000; SameSite=Strict`;
+    document.cookie = `user_plan_title=${encodeURIComponent(
+      plan.title
+    )}; path=/; max-age=31536000; SameSite=Strict`;
+
+    if (token) {
+      localStorage.setItem("signup_token", token);
+      localStorage.setItem(`plan_token_${plan.id}`, token);
+      document.cookie = `token=${encodeURIComponent(
+        token
+      )}; path=/; max-age=31536000; SameSite=Strict`;
+      document.cookie = `CallingAgent=${encodeURIComponent(
+        token
+      )}; path=/; max-age=31536000; SameSite=Strict`;
+      setStoredToken(token);
+    }
+  };
+
+  const handleChannelPartnerBuyNow = async () => {
+    if (!selectedPlan) return;
+
+    const tokenToUse =
+      storedToken ||
+      getStoredToken(selectedPlan.id) ||
+      getCookie("token") ||
+      getCookie("CallingAgent");
+
+    const role = getSignupRoleForPlan(selectedPlan.id);
+    const selectedPlanId = getResolvedStoredPlanId(role);
+    const subscriptionPlanId = resolveSubscriptionPlanIdFromRole(
+      role,
+      selectedPlanId
+    );
+    const customerName = formValues.name || getCookie("name") || "Customer";
+    const customerEmail = formValues.email || getCookie("email") || "";
+    const customerPhone = formValues.contact_no || getCookie("contact_no") || "";
+
+    if (!customerEmail) {
+      toast.error("Email not found. Please sign up again.");
+      return;
+    }
+
+    if (!customerPhone) {
+      toast.error("Contact number not found. Please sign up again.");
+      return;
+    }
+
+    if (!window.cashfree) {
+      toast.error("Payment service is not ready. Please refresh and try again.");
+      return;
+    }
+
+    persistSelectedPlan(selectedPlan, tokenToUse);
+    setPaymentLoading(true);
+
+    try {
+      const response = await createPaymentOrder({
+        name: customerName,
+        email: customerEmail,
+        phoneNumber: customerPhone,
+        totalPayment: 101250,
+        orderDesc: "7500 channel partner minutes purchase",
+      });
+
+      const paymentSessionId = response?.payment_id || "";
+      const addSubscriptionResponse = await addSubscription({
+        email: customerEmail,
+        planId: subscriptionPlanId,
+      });
+      const resolvedSubscriptionPlanId =
+        Number(
+          addSubscriptionResponse?.plan_id ||
+          addSubscriptionResponse?.data?.plan_id ||
+          addSubscriptionResponse?.resolvedPlanId
+        ) || subscriptionPlanId;
+
+      if (!paymentSessionId) {
+        throw new Error("Payment session id was not returned from create order API.");
+      }
+
+      if (!addSubscriptionResponse?.status) {
+        throw new Error("Add subscription API failed.");
+      }
+
+      const checkoutOptions = {
+        paymentSessionId,
+        redirectTarget: "_self",
+      };
+
+      const result = await window.cashfree.checkout(checkoutOptions);
+
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed. Please try again.");
+      }
+
+      const isPaymentSuccessful =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!isPaymentSuccessful) {
+        return;
+      }
+
+      await updateSubscriptionPaymentStatus(resolvedSubscriptionPlanId);
+      toast.success("Payment successful and subscription updated.");
+      closeSignupModal();
+      navigate("/minutes");
+    } catch (err) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Unable to start payment. Please try again.";
+      toast.error(message);
+    } finally {
+      setPaymentLoading(false);
+    }
   };
 
   return (
@@ -401,9 +579,9 @@ export default function LandingPage() {
 
           <section className="pb-16">
             <div className="mx-auto px-4 flex gap-12 justify-between">
-             <div className=" flex items-center justify-center">
+              <div className=" flex items-center justify-center">
                 <div className="max-w-4xl w-full rounded-3xl bg-white pT-6 text-center ">
-                  
+
                   <h2 className="text-5xl md:text-5xl font-extrabold bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent">
                     Welcome to the world of AI
                   </h2>
@@ -460,7 +638,7 @@ export default function LandingPage() {
                           </div>
                         </th>
                       </tr>
-                     
+
                     </thead>
 
                     <tbody>
@@ -509,25 +687,25 @@ export default function LandingPage() {
                           </td>
                         </tr>
                       ))}
-                       <tr>
+                      <tr>
                         <th className="px-6 pb-5 pt-0 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          
+
                         </th>
                         <th className="px-6 pb-5 pt-0 text-center">
                           <button
                             type="button"
                             onClick={() => {
-                            navigate({
-                              pathname: "/login",
-                              search: "?tab=signup",
-                              hash: "#top"
-                            });
+                              navigate({
+                                pathname: "/login",
+                                search: "?tab=signup",
+                                hash: "#top"
+                              });
 
-                            window.scrollTo({
-                              top: 0,
-                              behavior: "smooth"
-                            });
-                          }}
+                              window.scrollTo({
+                                top: 0,
+                                behavior: "smooth"
+                              });
+                            }}
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
                           >
                             <span>♕</span>
@@ -684,146 +862,205 @@ export default function LandingPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowSignup(false)}
+                  onClick={closeSignupModal}
                   className="text-slate-400 hover:text-slate-600"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="mt-4 space-y-3">
-                <div>
-                  <label className="text-sm font-semibold text-slate-700">Business Name</label>
-                  <input
-                    type="text"
-                    value={formValues.name}
-                    onChange={(e) => setFormValues((v) => ({ ...v, name: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
-                    placeholder="Your name"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-slate-700">Contact No</label>
-                  <input
-                    type="text"
-                    value={formValues.contact_no}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\\D/g, "");
-                      if (value.length <= 10) setFormValues((v) => ({ ...v, contact_no: value }));
-                    }}
-                    maxLength={10}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
-                    placeholder="Enter contact number"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-slate-700">Email</label>
-                  <input
-                    type="email"
-                    value={formValues.email}
-                    onChange={(e) => setFormValues((v) => ({ ...v, email: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
-                    placeholder="you@example.com"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-slate-700">Password</label>
-                  <input
-                    type="password"
-                    value={formValues.password}
-                    onChange={(e) => setFormValues((v) => ({ ...v, password: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
-                    placeholder="Enter password"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-slate-700">Confirm Password</label>
-                  <input
-                    type="password"
-                    value={formValues.confirmPassword}
-                    onChange={(e) => setFormValues((v) => ({ ...v, confirmPassword: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
-                    placeholder="Re-enter password"
-                  />
-                </div>
-                {signupError ? (
-                  <div className="text-sm text-rose-600 font-medium">{signupError}</div>
-                ) : null}
-              </div>
+              {selectedPlan.id === "become_channel_partner" && showChannelPartnerPricing ? (
+                <div className="mt-6">
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-slate-900">Total Minutes</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        You will get <span className="font-semibold text-slate-900">7,500 minutes</span>.
+                      </p>
+                    </div>
 
-              <div className="mt-6 flex items-center justify-between">
-                <div className="text-sm text-slate-600">
-                  Price: <span className="font-semibold text-slate-900">{selectedPlan.price}</span>{" "}
-                  <span className="text-xs text-slate-500">{selectedPlan.price == "Free" ? "": "(+GST)"} </span>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-slate-900">Rate Per Minute</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Base rate is <span className="font-semibold text-slate-900">Rs. 11.44</span> per minute, plus
+                        <span className="font-semibold text-slate-900"> 9% CGST</span> and
+                        <span className="font-semibold text-slate-900"> 9% SGST</span>.
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-slate-900">Total Amount</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Base amount <span className="font-semibold text-slate-900">Rs. 85,805</span> +
+                        CGST <span className="font-semibold text-slate-900">Rs. 7,722.50</span> +
+                        SGST <span className="font-semibold text-slate-900">Rs. 7,722.50</span> =
+                        <span className="font-semibold text-slate-900"> Rs. 1,01,250</span>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={paymentLoading}
+                    onClick={handleChannelPartnerBuyNow}
+                    className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {paymentLoading ? "Processing..." : "Buy Now"}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  disabled={
-                    submitting ||
-                    !formValues.email ||
-                    !formValues.name ||
-                    !formValues.contact_no ||
-                    formValues.contact_no.length !== 10 ||
-                    !formValues.password ||
-                    formValues.password !== formValues.confirmPassword
-                  }
-                  onClick={async () => {
-                    try {
-                      setSignupError("");
-                      setSubmitting(true);
-                      const payload = {
-                        name: formValues.name,
-                        email: formValues.email,
-                        contact_no: formValues.contact_no,
-                        password: formValues.password,
-                        confirmPassword: formValues.confirmPassword,
-                        minute: "10",
-                      };
+              ) : (
+                <>
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700">Business Name</label>
+                      <input
+                        type="text"
+                        value={formValues.name}
+                        onChange={(e) => setFormValues((v) => ({ ...v, name: e.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        placeholder="Your name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700">Contact No</label>
+                      <input
+                        type="text"
+                        value={formValues.contact_no}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "");
+                          if (value.length <= 10) setFormValues((v) => ({ ...v, contact_no: value }));
+                        }}
+                        maxLength={10}
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        placeholder="Enter contact number"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700">Email</label>
+                      <input
+                        type="email"
+                        value={formValues.email}
+                        onChange={(e) => setFormValues((v) => ({ ...v, email: e.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        placeholder="you@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700">Password</label>
+                      <input
+                        type="password"
+                        value={formValues.password}
+                        onChange={(e) => setFormValues((v) => ({ ...v, password: e.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        placeholder="Enter password"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-slate-700">Confirm Password</label>
+                      <input
+                        type="password"
+                        value={formValues.confirmPassword}
+                        onChange={(e) => setFormValues((v) => ({ ...v, confirmPassword: e.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        placeholder="Re-enter password"
+                      />
+                    </div>
+                    {signupError ? (
+                      <div className="text-sm text-rose-600 font-medium">{signupError}</div>
+                    ) : null}
+                  </div>
 
-                      const data = await signupTwillioUser(payload);
-                      const tokenRaw = extractToken(data);
-                      const tokenFromStorage = storedToken || getStoredToken(selectedPlan.id);
-                      const tokenToUse = tokenRaw || tokenFromStorage || getCookie("token") || getCookie("CallingAgent");
-
-                      if (!tokenToUse) {
-                        console.warn("Token missing in signup response", data);
-                        toast.error("Token missing from signup response");
-                        setSubmitting(false);
-                        return;
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="text-sm text-slate-600">
+                      Price: <span className="font-semibold text-slate-900">{selectedPlan.price}</span>{" "}
+                      <span className="text-xs text-slate-500">{selectedPlan.price == "Free" ? "" : "(+GST)"} </span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={
+                        submitting ||
+                        !formValues.email ||
+                        !formValues.name ||
+                        !formValues.contact_no ||
+                        formValues.contact_no.length !== 10 ||
+                        !formValues.password ||
+                        formValues.password !== formValues.confirmPassword
                       }
+                      onClick={async () => {
+                        try {
+                          setSignupError("");
+                          setSubmitting(true);
+                          const payload = {
+                            name: formValues.name,
+                            email: formValues.email,
+                            contact_no: formValues.contact_no,
+                            password: formValues.password,
+                            confirmPassword: formValues.confirmPassword,
+                            minute: "10",
+                            role: getSignupRoleForPlan(selectedPlan.id),
+                          };
 
-                      if (typeof window !== "undefined") {
-                        localStorage.setItem("signup_token", tokenToUse);
-                        localStorage.setItem(`plan_token_${selectedPlan.id}`, tokenToUse);
-                        setStoredToken(tokenToUse);
-                        document.cookie = `token=${encodeURIComponent(
-                          tokenToUse
-                        )}; path=/; max-age=31536000; SameSite=Strict`;
-                        document.cookie = `CallingAgent=${encodeURIComponent(
-                          tokenToUse
-                        )}; path=/; max-age=31536000; SameSite=Strict`;
-                      }
-                      const url = new URL(`https://ibcrm.in/`);
-                      url.searchParams.set("plan", selectedPlan.id);
-                      url.searchParams.set("price", selectedPlan.price);
-                      url.searchParams.set("planTitle", selectedPlan.title);
-                      if (tokenToUse) url.searchParams.set("token", tokenToUse);
-                      setTimeout(() => {
-                        window.location.href = `https://ibcrm.in/${selectedPlan.link}?email="${formValues.email}"`;
-                      }, 50);
-                    } catch (err) {
-                      const message = err?.message || "Signup failed. Please try again.";
-                      setSignupError(message);
-                      toast.error(message);
-                    } finally {
-                      setSubmitting(false);
-                    }
-                  }}
-                  className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {submitting ? "Submitting..." : "Signup & Continue"}
-                </button>
-              </div>
+                          const data = await signupTwillioUser(payload);
+                          const tokenRaw = extractToken(data);
+                          const tokenFromStorage = storedToken || getStoredToken(selectedPlan.id);
+                          const tokenToUse = tokenRaw || tokenFromStorage || getCookie("token") || getCookie("CallingAgent");
+
+                          if (!tokenToUse) {
+                            console.warn("Token missing in signup response", data);
+                            toast.error("Token missing from signup response");
+                            setSubmitting(false);
+                            return;
+                          }
+
+                          if (typeof window !== "undefined") {
+                            const normalizedEmail = normalizeEmail(formValues.email);
+                            const signupRole = getSignupRoleForPlan(selectedPlan.id);
+                            persistSelectedPlan(selectedPlan, tokenToUse);
+                            document.cookie = `role=${encodeURIComponent(
+                              signupRole
+                            )}; path=/; max-age=31536000; SameSite=Strict`;
+                            document.cookie = `email=${encodeURIComponent(
+                              formValues.email
+                            )}; path=/; max-age=31536000; SameSite=Strict`;
+                            document.cookie = `name=${encodeURIComponent(
+                              formValues.name
+                            )}; path=/; max-age=31536000; SameSite=Strict`;
+                            document.cookie = `contact_no=${encodeURIComponent(
+                              formValues.contact_no
+                            )}; path=/; max-age=31536000; SameSite=Strict`;
+                            if (normalizedEmail) {
+                              const storedPlanId = resolveStoredPlanIdFromRole(
+                                signupRole
+                              );
+                              localStorage.setItem(`user_plan_${normalizedEmail}`, storedPlanId);
+                              localStorage.setItem(`user_plan_title_${normalizedEmail}`, selectedPlan.title);
+                            }
+                          }
+                          if (selectedPlan.id === "become_channel_partner") {
+                            setShowChannelPartnerPricing(true);
+                            return;
+                          }
+                          const url = new URL(`https://ibcrm.in/${selectedPlan.link}`);
+                          url.searchParams.set("email", formValues.email);
+                          if (tokenToUse) url.searchParams.set("token", tokenToUse);
+                          setTimeout(() => {
+                            window.location.href = url.toString();
+                          }, 50);
+                        } catch (err) {
+                          const message = err?.message || "Signup failed. Please try again.";
+                          setSignupError(message);
+                          toast.error(message);
+                        } finally {
+                          setSubmitting(false);
+                        }
+                      }}
+                      className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {submitting ? "Submitting..." : "Signup & Continue"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -120,7 +120,7 @@ export default function DemoCallPackPage() {
             </h1>
 
             <p className="mt-4 max-w-xl text-lg text-slate-600">
-              Experience the power of AI-powered calling for just ₹99. Get a live demo call 
+              Experience the power of AI-powered calling for just ₹99. Get a live demo call
               and see how Richa AI can transform your sales process and customer engagement.
             </p>
 
@@ -185,7 +185,7 @@ export default function DemoCallPackPage() {
                 <div className="text-3xl mb-3">📞</div>
                 <h3 className="font-semibold text-gray-800 mb-2">Live Demo Call</h3>
                 <p className="text-sm text-gray-700">
-                  Experience a real AI-powered call with Richa AI. See how it handles conversations, 
+                  Experience a real AI-powered call with Richa AI. See how it handles conversations,
                   answers questions, and engages with customers naturally.
                 </p>
               </div>
@@ -193,7 +193,7 @@ export default function DemoCallPackPage() {
                 <div className="text-3xl mb-3">🎯</div>
                 <h3 className="font-semibold text-gray-800 mb-2">Full Feature Access</h3>
                 <p className="text-sm text-gray-700">
-                  Get access to all Richa AI features during your demo. Test voice calling, 
+                  Get access to all Richa AI features during your demo. Test voice calling,
                   WhatsApp automation, and see the complete platform capabilities.
                 </p>
               </div>
@@ -201,7 +201,7 @@ export default function DemoCallPackPage() {
                 <div className="text-3xl mb-3">📊</div>
                 <h3 className="font-semibold text-gray-800 mb-2">Performance Insights</h3>
                 <p className="text-sm text-gray-700">
-                  Receive detailed analytics and insights from your demo call. See call quality, 
+                  Receive detailed analytics and insights from your demo call. See call quality,
                   conversation flow, and AI performance metrics.
                 </p>
               </div>
@@ -209,7 +209,7 @@ export default function DemoCallPackPage() {
                 <div className="text-3xl mb-3">💡</div>
                 <h3 className="font-semibold text-gray-800 mb-2">Expert Consultation</h3>
                 <p className="text-sm text-gray-700">
-                  Get personalized consultation on how Richa AI can fit your business needs. 
+                  Get personalized consultation on how Richa AI can fit your business needs.
                   Learn best practices and implementation strategies.
                 </p>
               </div>
