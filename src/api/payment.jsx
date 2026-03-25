@@ -2,7 +2,7 @@ import axios from "axios";
 
 const PAYMENT_ORDER_URL = "https://payment.ibdelight.in/api/createOrder";
 const CASHFREE_API_BASE_URL = "https://api.cashfree.com/pg/orders";
-const CASHFREE_WEBSITE_URL = "https://www.shreemahalakshmikrupa.com";
+const CASHFREE_WEBSITE_URL = "https://richa.infinitybrains.com";
 const CASHFREE_RETURN_URL = `${CASHFREE_WEBSITE_URL}/result?order_id=`;
 const ADD_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/add-subscription";
 const UPDATE_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/update-subscription";

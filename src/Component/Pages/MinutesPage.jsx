@@ -27,7 +27,7 @@ export default function MinutesPage() {
   const [twoWayMinutes, setTwoWayMinutes] = useState(10);
   const [userPlan, setUserPlan] = useState("");
   const [userPlanTitle, setUserPlanTitle] = useState("");
-  const [purchaseMinutesInput, setPurchaseMinutesInput] = useState("10");
+  const [purchaseMinutesInput, setPurchaseMinutesInput] = useState("1");
   const [profileDetails, setProfileDetails] = useState({
     name: "",
     email: "",
@@ -37,7 +37,6 @@ export default function MinutesPage() {
   const isChannelPartnerPlan = String(userPlan) === "18";
   const displayedPlanTitle = userPlanTitle || "Become Channel Partner";
 
-  const MIN_PURCHASE_MINUTES = isChannelPartnerPlan ? 1 : 10;
   const MINUTES_PER_PACKAGE = isChannelPartnerPlan ? 1000 : 100;
   const RATE_UP_TO_THRESHOLD = isChannelPartnerPlan ? 11.44 : 15;
   const CGST_RATE = 0.09;
@@ -81,8 +80,8 @@ export default function MinutesPage() {
       ? "Enter minutes to purchase."
       : !Number.isFinite(parsedPurchaseMinutes)
         ? "Enter a valid number."
-        : purchasePackages < MIN_PURCHASE_MINUTES
-          ? `Minimum purchase is ${MIN_PURCHASE_MINUTES} packs.`
+        : purchasePackages < 1
+          ? "Enter at least 1 pack."
           : "";
   const quote =
     purchaseValidation !== ""
@@ -339,10 +338,10 @@ export default function MinutesPage() {
                   ₹{formatRate(RATE_UP_TO_THRESHOLD)}/min
                 </span>
                 . GST extra (
-                <span className="font-semibold">9% CGST + 9% SGST</span>). Minimum
-                purchase:{" "}
+                <span className="font-semibold">9% CGST + 9% SGST</span>). Each
+                pack includes{" "}
                 <span className="font-semibold">
-                  {MIN_PURCHASE_MINUTES} packs ({MINUTES_PER_PACKAGE} minutes per pack)
+                  {MINUTES_PER_PACKAGE} minutes
                 </span>.
               </div>
             </div>
@@ -357,7 +356,7 @@ export default function MinutesPage() {
                 <span className="self-center text-slate-400">x</span>
                 <input
                   type="number"
-                  min={MIN_PURCHASE_MINUTES}
+                  min="1"
                   step="1"
                   value={purchaseMinutesInput}
                   onChange={(e) => setPurchaseMinutesInput(e.target.value)}
@@ -372,9 +371,6 @@ export default function MinutesPage() {
                   {purchaseValidation ? "-" : purchaseMinutes}
                 </span>
               </div>
-              {purchaseValidation && (
-                <div className="mt-2 text-sm text-rose-600">{purchaseValidation}</div>
-              )}
             </div>
           </div>
 

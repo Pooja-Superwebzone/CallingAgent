@@ -210,7 +210,7 @@ const Sidebar = () => {
             </>
           )}
 
-          {twilioUser === 1 && role === "admin" && (
+          {twilioUser === 1 && (role === "admin" || role === "channelpartner") && (
             <>
              
               <li>
