@@ -4,11 +4,6 @@ import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
 import { signupTwillioUser } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
-import {
-  addSubscription,
-  createPaymentOrder,
-  updateSubscriptionPaymentStatus,
-} from "../../api/payment";
 
 export const plans = [
   {
@@ -242,10 +237,8 @@ export default function LandingPage() {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [paymentLoading, setPaymentLoading] = useState(false);
   const [signupError, setSignupError] = useState("");
   const [storedToken, setStoredToken] = useState("");
-  const [showChannelPartnerPricing, setShowChannelPartnerPricing] = useState(false);
 
   const getCookie = (name) => {
     if (typeof document === "undefined") return "";
@@ -269,6 +262,13 @@ export default function LandingPage() {
     getCookie("CallingAgent") ||
     "";
 
+  const extractSignupUser = (data) =>
+    data?.data?.data ||
+    data?.data?.user ||
+    data?.data ||
+    data?.user ||
+    null;
+
   // Handle URL-based plan selection
   useEffect(() => {
     const planQuery = searchParams.get("plan");
@@ -286,7 +286,6 @@ export default function LandingPage() {
     if (plan) {
       setSelectedPlan(plan);
       setStoredToken(getStoredToken(plan.id));
-      setShowChannelPartnerPricing(false);
       setShowSignup(true);
       // Optional: Remove the plan parameter from URL after opening modal
       // setSearchParams({});
@@ -308,13 +307,11 @@ export default function LandingPage() {
     if (!plan) return;
     setSelectedPlan(plan);
     setStoredToken(getStoredToken(plan.id));
-    setShowChannelPartnerPricing(false);
     setShowSignup(true);
   };
 
   const closeSignupModal = () => {
     setShowSignup(false);
-    setShowChannelPartnerPricing(false);
   };
 
   const persistSelectedPlan = (plan, token = "") => {
@@ -341,107 +338,6 @@ export default function LandingPage() {
         token
       )}; path=/; max-age=31536000; SameSite=Strict`;
       setStoredToken(token);
-    }
-  };
-
-  const handleChannelPartnerBuyNow = async () => {
-    if (!selectedPlan) return;
-
-    const tokenToUse =
-      storedToken ||
-      getStoredToken(selectedPlan.id) ||
-      getCookie("token") ||
-      getCookie("CallingAgent");
-
-    const role = getSignupRoleForPlan(selectedPlan.id);
-    const selectedPlanId = getResolvedStoredPlanId(role);
-    const subscriptionPlanId = resolveSubscriptionPlanIdFromRole(
-      role,
-      selectedPlanId
-    );
-    const customerName = formValues.name || getCookie("name") || "Customer";
-    const customerEmail = formValues.email || getCookie("email") || "";
-    const customerPhone = formValues.contact_no || getCookie("contact_no") || "";
-
-    if (!customerEmail) {
-      toast.error("Email not found. Please sign up again.");
-      return;
-    }
-
-    if (!customerPhone) {
-      toast.error("Contact number not found. Please sign up again.");
-      return;
-    }
-
-    if (!window.cashfree) {
-      toast.error("Payment service is not ready. Please refresh and try again.");
-      return;
-    }
-
-    persistSelectedPlan(selectedPlan, tokenToUse);
-    setPaymentLoading(true);
-
-    try {
-      const response = await createPaymentOrder({
-        name: customerName,
-        email: customerEmail,
-        phoneNumber: customerPhone,
-        totalPayment: 101250,
-        orderDesc: "7500 channel partner minutes purchase",
-      });
-
-      const paymentSessionId = response?.payment_id || "";
-      const addSubscriptionResponse = await addSubscription({
-        email: customerEmail,
-        planId: subscriptionPlanId,
-      });
-      const resolvedSubscriptionPlanId =
-        Number(
-          addSubscriptionResponse?.plan_id ||
-          addSubscriptionResponse?.data?.plan_id ||
-          addSubscriptionResponse?.resolvedPlanId
-        ) || subscriptionPlanId;
-
-      if (!paymentSessionId) {
-        throw new Error("Payment session id was not returned from create order API.");
-      }
-
-      if (!addSubscriptionResponse?.status) {
-        throw new Error("Add subscription API failed.");
-      }
-
-      const checkoutOptions = {
-        paymentSessionId,
-        redirectTarget: "_self",
-      };
-
-      const result = await window.cashfree.checkout(checkoutOptions);
-
-      if (result?.error) {
-        throw new Error(result.error?.message || "Payment failed. Please try again.");
-      }
-
-      const isPaymentSuccessful =
-        result?.paymentDetails ||
-        result?.order?.order_status === "PAID" ||
-        result?.transaction?.txStatus === "SUCCESS";
-
-      if (!isPaymentSuccessful) {
-        return;
-      }
-
-      await updateSubscriptionPaymentStatus(resolvedSubscriptionPlanId);
-      toast.success("Payment successful and subscription updated.");
-      closeSignupModal();
-      navigate("/minutes");
-    } catch (err) {
-      const message =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Unable to start payment. Please try again.";
-      toast.error(message);
-    } finally {
-      setPaymentLoading(false);
     }
   };
 
@@ -869,48 +765,8 @@ export default function LandingPage() {
                 </button>
               </div>
 
-              {selectedPlan.id === "become_channel_partner" && showChannelPartnerPricing ? (
-                <div className="mt-6">
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-sm font-semibold text-slate-900">Total Minutes</p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        You will get <span className="font-semibold text-slate-900">7,500 minutes</span>.
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-sm font-semibold text-slate-900">Rate Per Minute</p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Base rate is <span className="font-semibold text-slate-900">Rs. 11.44</span> per minute, plus
-                        <span className="font-semibold text-slate-900"> 9% CGST</span> and
-                        <span className="font-semibold text-slate-900"> 9% SGST</span>.
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-sm font-semibold text-slate-900">Total Amount</p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Base amount <span className="font-semibold text-slate-900">Rs. 85,805</span> +
-                        CGST <span className="font-semibold text-slate-900">Rs. 7,722.50</span> +
-                        SGST <span className="font-semibold text-slate-900">Rs. 7,722.50</span> =
-                        <span className="font-semibold text-slate-900"> Rs. 1,01,250</span>.
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={paymentLoading}
-                    onClick={handleChannelPartnerBuyNow}
-                    className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {paymentLoading ? "Processing..." : "Buy Now"}
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="mt-4 space-y-3">
+              <>
+                <div className="mt-4 space-y-3">
                     <div>
                       <label className="text-sm font-semibold text-slate-700">Business Name</label>
                       <input
@@ -1002,6 +858,7 @@ export default function LandingPage() {
 
                           const data = await signupTwillioUser(payload);
                           const tokenRaw = extractToken(data);
+                          const signupUser = extractSignupUser(data);
                           const tokenFromStorage = storedToken || getStoredToken(selectedPlan.id);
                           const tokenToUse = tokenRaw || tokenFromStorage || getCookie("token") || getCookie("CallingAgent");
 
@@ -1015,9 +872,28 @@ export default function LandingPage() {
                           if (typeof window !== "undefined") {
                             const normalizedEmail = normalizeEmail(formValues.email);
                             const signupRole = getSignupRoleForPlan(selectedPlan.id);
+                            const resolvedTwilioUser = String(
+                              signupUser?.twilio_user ??
+                              signupUser?.twilioUser ??
+                              (selectedPlan.id === "become_channel_partner" ? 1 : 0)
+                            );
+                            const resolvedEmailVerified =
+                              signupUser?.email_verified_at
+                                ? "true"
+                                : (selectedPlan.id === "become_channel_partner" ? "true" : "false");
                             persistSelectedPlan(selectedPlan, tokenToUse);
+                            localStorage.setItem("ibcrmtoken", tokenToUse);
                             document.cookie = `role=${encodeURIComponent(
                               signupRole
+                            )}; path=/; max-age=31536000; SameSite=Strict`;
+                            document.cookie = `CallingAgent=${encodeURIComponent(
+                              tokenToUse
+                            )}; path=/; max-age=31536000; SameSite=Strict`;
+                            document.cookie = `twilio_user=${encodeURIComponent(
+                              resolvedTwilioUser
+                            )}; path=/; max-age=31536000; SameSite=Strict`;
+                            document.cookie = `email_verified=${encodeURIComponent(
+                              resolvedEmailVerified
                             )}; path=/; max-age=31536000; SameSite=Strict`;
                             document.cookie = `email=${encodeURIComponent(
                               formValues.email
@@ -1037,7 +913,15 @@ export default function LandingPage() {
                             }
                           }
                           if (selectedPlan.id === "become_channel_partner") {
-                            setShowChannelPartnerPricing(true);
+                            toast.success("Signup successful");
+                            closeSignupModal();
+                            navigate("/minutes", {
+                              replace: true,
+                              state: {
+                                showWelcome: true,
+                                trialMinutes: "10",
+                              },
+                            });
                             return;
                           }
                           const url = new URL(`https://ibcrm.in/${selectedPlan.link}`);
@@ -1059,8 +943,7 @@ export default function LandingPage() {
                       {submitting ? "Submitting..." : "Signup & Continue"}
                     </button>
                   </div>
-                </>
-              )}
+              </>
             </div>
           </div>
         )}

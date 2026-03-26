@@ -129,13 +129,23 @@ const Sidebar = () => {
   const handleLogout = () => {
     setLoading(true);
     Cookies.remove("CallingAgent");
+    Cookies.remove("token");
     Cookies.remove("role");
     Cookies.remove("twilio_user");
+    Cookies.remove("email");
+    Cookies.remove("email_verified");
+    Cookies.remove("user_plan");
+    Cookies.remove("user_plan_title");
 
+    localStorage.removeItem("ibcrmtoken");
+    localStorage.removeItem("signup_token");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("user_plan");
+    localStorage.removeItem("user_plan_title");
     localStorage.removeItem("userRemainingMinutes");
     localStorage.removeItem("isSignupUser");
     toast.success("Logged out successfully");
-    navigate({ pathname: "/login", search: "?tab=login" });
+    navigate({ pathname: "/login", search: "?tab=login" }, { replace: true });
     setLoading(false);
   };
 
@@ -181,6 +191,25 @@ const Sidebar = () => {
               >
                 <FiClock size={18} className="flex-shrink-0" />
                 <span className="whitespace-nowrap">Add Talktime</span>
+              </button>
+            </li>
+          )}
+
+          {role === "channelpartner" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/channel-partner-users");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/channel-partner-users"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FaUsers size={18} />
+                Users
               </button>
             </li>
           )}

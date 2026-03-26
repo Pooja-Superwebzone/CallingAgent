@@ -15,6 +15,7 @@ import Callschedule from './Component/Pages/Callschedule';
 
 import ConversationCall from './Component/Pages/ConversationCall';
 import ChannelPartner from "./Component/Pages/ChannelPartner";
+import ChannelPartnerUsers from "./Component/Pages/ChannelPartnerUsers";
 import AgentsPage from './Component/Pages/AgentsPage';
 import SendOmniCall from './Component/Pages/SendOmniCall';
 import AgentCreatePage from './Component/Pages/AgentCreatePage';
@@ -179,6 +180,7 @@ function App() {
             <Route path="/upgrade-minutes" element={<UpgradeMinutesPage />} />
             <Route path="/call-logs" element={<CallLogs />} />
             <Route path="/channel-partner" element={<ChannelPartner />} />
+            <Route path="/channel-partner-users" element={<ChannelPartnerUsers />} />
           </Route>
         )}
         {/* Catch-all */}

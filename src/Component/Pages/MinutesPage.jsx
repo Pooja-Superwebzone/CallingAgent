@@ -29,6 +29,7 @@ export default function MinutesPage() {
   const [userPlanTitle, setUserPlanTitle] = useState("");
   const [purchaseMinutesInput, setPurchaseMinutesInput] = useState("1");
   const [profileDetails, setProfileDetails] = useState({
+    userId: "",
     name: "",
     email: "",
     phoneNumber: "",
@@ -167,6 +168,7 @@ export default function MinutesPage() {
           addSubscriptionResponse?.resolvedPlanId
         ) || subscriptionPlanId;
       console.log("Resolved Plan ID:", resolvedSubscriptionPlanId);
+      console.log("createPaymentOrder response.data:", response);
       await new Promise((resolve) => setTimeout(resolve, 5000));
       if (!paymentSessionId) {
         throw new Error("Payment session id was not returned from create order API.");
@@ -180,34 +182,41 @@ export default function MinutesPage() {
         redirectTarget: "_self"
       };
 
-      window.cashfree.checkout(checkoutOptions)
-        .then(async (result) => {
-          if (result.error) {
-            console.log(result.error);
-          }
-          const isPaymentSuccessful =
-            result?.paymentDetails ||
-            result?.order?.order_status === "PAID" ||
-            result?.transaction?.txStatus === "SUCCESS";
+      const result = await window.cashfree.checkout(checkoutOptions);
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed.");
+      }
 
-          if (isPaymentSuccessful) {
-            try {
-              await updateSubscriptionPaymentStatus(resolvedSubscriptionPlanId);
-              toast.success("Payment successful and subscription updated.");
-              fetchMinutes();
-            } catch (updateError) {
-              const updateMessage =
-                updateError?.response?.data?.message ||
-                updateError?.message ||
-                "Payment succeeded, but subscription update failed.";
-              setError(updateMessage);
-              toast.error(updateMessage);
-            }
-          }
-          if (result.redirect) {
-            console.log("Redirecting to payment page...");
-          }
-        });
+      const isPaymentSuccessful =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!isPaymentSuccessful) {
+        if (result?.redirect) {
+          console.log("Redirecting to payment page...");
+          return;
+        }
+        throw new Error("Payment was not completed.");
+      }
+
+      const addMinutePayload = {
+        minute: purchaseMinutes,
+        user_id: profileDetails.userId,
+      };
+      await updateSubscriptionPaymentStatus(resolvedSubscriptionPlanId);
+      const addMinuteResponse = await service.post(
+        "add-minute",
+        addMinutePayload,
+        {
+          headers: {
+            Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
+          },
+        }
+      );
+      console.log("add-minute response.data:", addMinuteResponse?.data);
+      toast.success("Subscription added and minutes updated.");
+      fetchMinutes();
 
     } catch (e) {
       const rawMessage =
@@ -237,6 +246,11 @@ export default function MinutesPage() {
       setOneWayMinutes(one);
       setTwoWayMinutes(Number.isFinite(two) && two > 0 ? two : 10);
       setProfileDetails({
+        userId:
+          profile?.id ||
+          profile?.user_id ||
+          profile?.twilio_create_id ||
+          "",
         name:
           profile?.name ||
           profile?.emp_name ||
