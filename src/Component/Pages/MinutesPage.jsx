@@ -27,7 +27,7 @@ export default function MinutesPage() {
   const [twoWayMinutes, setTwoWayMinutes] = useState(10);
   const [userPlan, setUserPlan] = useState("");
   const [userPlanTitle, setUserPlanTitle] = useState("");
-  const [purchaseMinutesInput, setPurchaseMinutesInput] = useState("1");
+  const [purchaseMinutesInput, setPurchaseMinutesInput] = useState("");
   const [profileDetails, setProfileDetails] = useState({
     userId: "",
     name: "",
@@ -40,6 +40,7 @@ export default function MinutesPage() {
 
   const MINUTES_PER_PACKAGE = isChannelPartnerPlan ? 1000 : 100;
   const RATE_UP_TO_THRESHOLD = isChannelPartnerPlan ? 11.44 : 15;
+  const purchasePlaceholder = isChannelPartnerPlan ? "1000, 2000, 3000..." : "100, 200, 300...";
   const CGST_RATE = 0.09;
   const SGST_RATE = 0.09;
   const roundToTwo = (amount) => Number(amount.toFixed(2));
@@ -71,19 +72,20 @@ export default function MinutesPage() {
   const formatRate = (amount) => amount.toFixed(2);
 
   const parsedPurchaseMinutes = Number(purchaseMinutesInput);
-  const purchasePackages = Number.isFinite(parsedPurchaseMinutes)
+  const purchaseMinutes = Number.isFinite(parsedPurchaseMinutes)
     ? Math.floor(parsedPurchaseMinutes)
     : 0;
-  const purchaseMinutes = MINUTES_PER_PACKAGE * purchasePackages;
 
   const purchaseValidation =
     purchaseMinutesInput.trim() === ""
-      ? "Enter minutes to purchase."
+      ? "Enter minutes to add."
       : !Number.isFinite(parsedPurchaseMinutes)
         ? "Enter a valid number."
-        : purchasePackages < 1
-          ? "Enter at least 1 pack."
-          : "";
+        : purchaseMinutes < MINUTES_PER_PACKAGE
+          ? `Enter at least ${MINUTES_PER_PACKAGE} minutes.`
+          : purchaseMinutes % MINUTES_PER_PACKAGE !== 0
+            ? `Enter minutes in multiples of ${MINUTES_PER_PACKAGE}.`
+            : "";
   const quote =
     purchaseValidation !== ""
       ? {
@@ -292,7 +294,7 @@ export default function MinutesPage() {
               Usage & Billing
             </div>
             <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-              Minutes
+              Talktime
             </h1>
             {isChannelPartnerPlan ? (
               <p className="mt-2 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -327,13 +329,6 @@ export default function MinutesPage() {
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-sm font-semibold text-slate-600">One-way Minutes</div>
-            <div className="mt-2 text-3xl font-extrabold text-slate-900">
-              {loading ? "..." : oneWayMinutes}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="text-sm font-semibold text-slate-600">Two-way Minutes</div>
             <div className="mt-2 text-3xl font-extrabold text-slate-900">
               {loading ? "..." : twoWayMinutes}
@@ -343,89 +338,130 @@ export default function MinutesPage() {
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="text-lg font-bold text-slate-900">Buy Minutes</div>
-
-              <div className="text-sm text-slate-600 mt-1">
-                Pricing:{" "}
-                <span className="font-semibold">
-                  ₹{formatRate(RATE_UP_TO_THRESHOLD)}/min
-                </span>
-                . GST extra (
-                <span className="font-semibold">9% CGST + 9% SGST</span>). Each
-                pack includes{" "}
-                <span className="font-semibold">
-                  {MINUTES_PER_PACKAGE} minutes
-                </span>.
-              </div>
+            <div className="text-lg font-bold text-slate-900">Buy Talktime</div>
+          </div>
+          <div className="w-full">
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              {isChannelPartnerPlan
+                ? "Mintues to Add 11.44 * add mintues in inpute ( below input type eg.1000,2000,3000 ...)"
+                : "Mintues to Add 15 * add mintues in inpute ( below input type eg.100,200,300 ...)"}
+            </label>
+            <div className="grid w-full max-w-[28rem] grid-cols-[auto_auto_minmax(0,1fr)] gap-2 sm:grid-cols-[auto_auto_minmax(9rem,1fr)_auto_auto] sm:items-center">
+              <span className="self-center text-base font-semibold text-slate-900">
+                {formatRate(RATE_UP_TO_THRESHOLD)}
+              </span>
+              <span className="self-center text-slate-400">x</span>
+              <input
+                type="number"
+                min={MINUTES_PER_PACKAGE}
+                step={MINUTES_PER_PACKAGE}
+                value={purchaseMinutesInput}
+                onChange={(e) => setPurchaseMinutesInput(e.target.value)}
+                className="col-span-1 w-full  rounded-xl bg-white border border-slate-300 px-3 py-2 text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder={purchasePlaceholder}
+              />
+              <span className="self-center text-slate-400 sm:block hidden">=</span>
+              <span className="col-span-3 text-sm text-slate-500 sm:hidden">
+                Subtotal
+              </span>
+              <span className="self-center text-base font-semibold text-slate-900">
+                {purchaseValidation ? "-" : formatINR(quote.firstSlabAmount)}
+              </span>
             </div>
-            <div className="w-full lg:max-w-sm lg:min-w-[19rem]">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">
-                Minutes to purchase
-              </label>
-              <div className="grid grid-cols-[auto_auto_minmax(0,1fr)] gap-2 sm:grid-cols-[auto_auto_minmax(7rem,1fr)_auto_auto] sm:items-center">
-                <span className="self-center text-base font-semibold text-slate-900">
-                  {MINUTES_PER_PACKAGE}
-                </span>
-                <span className="self-center text-slate-400">x</span>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={purchaseMinutesInput}
-                  onChange={(e) => setPurchaseMinutesInput(e.target.value)}
-                  className="col-span-1 w-full rounded-xl bg-white border border-slate-300 px-3 py-2 text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Enter packs"
-                />
-                <span className="self-center text-slate-400 sm:block hidden">=</span>
-                <span className="col-span-3 text-sm text-slate-500 sm:hidden">
-                  Total minutes
-                </span>
-                <span className="self-center text-base font-semibold text-slate-900">
-                  {purchaseValidation ? "-" : purchaseMinutes}
-                </span>
-              </div>
+            <div className="mt-2 text-xs text-slate-500">
+              {isChannelPartnerPlan
+                ? "Talk time can be purchased in multiples of 1000 only."
+                : "Talk time can be purchased in multiples of 100 only."}
             </div>
           </div>
+          <div className="mt-5 max-w-2xl">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Payment Details
+                </div>
+                <div className="mt-1 text-lg font-bold text-slate-900">
+                  {purchaseValidation
+                    ? "Your amount summary will appear here"
+                    : `Amount summary for ${purchaseMinutes} minutes`}
+                </div>
+              </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="text-xs uppercase tracking-wide text-slate-500">
-                Subtotal
-              </div>
-              <div className="mt-1 text-slate-900 font-semibold">
-                {purchaseMinutes} x Rs. {formatRate(RATE_UP_TO_THRESHOLD)}
-              </div>
-              <div className="mt-1 text-slate-600 text-sm">{formatINR(quote.firstSlabAmount)}</div>
-            </div>
+              <div className="space-y-4 px-5 py-5">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">
+                        Talktime Charges
+                      </div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        Rs. {formatRate(RATE_UP_TO_THRESHOLD)} x {purchaseValidation ? 0 : purchaseMinutes} minutes
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs uppercase tracking-wide text-slate-500">
+                        Amount
+                      </div>
+                      <div className="mt-1 text-base font-semibold text-slate-900">
+                        {purchaseValidation ? "-" : formatINR(quote.firstSlabAmount)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="text-xs uppercase tracking-wide text-slate-500">Total</div>
-              <div className="mt-1 text-sm text-slate-600">
-                {purchaseValidation
-                  ? "Subtotal + 9% CGST + 9% SGST"
-                  : `Subtotal ${formatINR(quote.total)} + CGST 9% ${formatINR(quote.cgstAmount)} + SGST 9% ${formatINR(quote.sgstAmount)}`}
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4">
+                  <div className="flex items-center justify-between text-sm text-slate-600">
+                    <span>Subtotal</span>
+                    <span className="font-semibold text-slate-900">
+                      {purchaseValidation ? "-" : formatINR(quote.total)}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
+                    <span>CGST (9%)</span>
+                    <span className="font-semibold text-slate-900">
+                      {purchaseValidation ? "-" : formatINR(quote.cgstAmount)}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
+                    <span>SGST (9%)</span>
+                    <span className="font-semibold text-slate-900">
+                      {purchaseValidation ? "-" : formatINR(quote.sgstAmount)}
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-slate-200 pt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-semibold text-slate-900">Total Payable</span>
+                      <span className="text-2xl font-extrabold text-slate-900">
+                        {purchaseValidation ? "-" : formatINR(quote.totalWithTax)}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-sm text-slate-600">
+                      {purchaseValidation
+                        ? "Enter a valid amount to see your bill."
+                        : `Final payable amount for ${purchaseMinutes} minutes including GST.`}
+                    </div>
+                  </div>
+                </div>
+
+                {purchaseValidation ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                    {purchaseValidation}
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  disabled={!!purchaseValidation || paymentLoading}
+                  className={`w-full rounded-2xl px-6 py-3 font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${purchaseValidation
+                    || paymentLoading
+                    ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                    }`}
+                >
+                  {paymentLoading ? "Processing..." : "Purchase Now"}
+                </button>
               </div>
-              <div className="mt-1 text-2xl font-extrabold text-slate-900">
-                {purchaseValidation ? "-" : formatINR(quote.totalWithTax)}
-              </div>
-              <div className="mt-2 text-sm text-slate-600">
-                {purchaseValidation
-                  ? "Enter a valid amount to see total."
-                  : `Final amount for ${purchaseMinutes} minutes`}
-              </div>
-              <button
-                type="button"
-                onClick={handleBuyNow}
-                disabled={!!purchaseValidation || paymentLoading}
-                className={`mt-4 w-auto min-w-[10rem] rounded-xl px-6 py-2.5 font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${purchaseValidation
-                  || paymentLoading
-                  ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                  }`}
-              >
-                {paymentLoading ? "Processing..." : "Buy Now"}
-              </button>
             </div>
           </div>
         </div>

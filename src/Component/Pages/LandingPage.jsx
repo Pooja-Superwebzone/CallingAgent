@@ -73,7 +73,7 @@ export const plans = [
   {
     id: "become_channel_partner",
     title: "Become Channel Partner",
-    subtitle: "only mintues to be purchase",
+    subtitle: "Only Talktime to be Purchased",
     price: "Free",
     // original: "Rs. 98,000/-",
     link: "become-channel-partner"
@@ -725,7 +725,7 @@ export default function LandingPage() {
 
                     <div className="mt-5 flex items-center gap-2 text-sm text-slate-600">
                       <span className="h-2 w-2 rounded-full bg-indigo-500" />
-                      <span>Unlock Benefits Pay Now!</span>
+                      <span>Unlock Benefits</span>
                     </div>
                     <div className="mt-auto">
                       <div className="inline-flex w-full justify-center rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-indigo-700">
