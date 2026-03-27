@@ -489,12 +489,13 @@ export function generateSpeech(payload) {
     });
 }
 
-export function getCallLogss() {
+export function getCallLogss(page = 1) {
   return service
     .get("calls-logs", {
+      params: { page },
       headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
     })
-    .then((res) => Array.isArray(res.data) ? res.data : [])
+    .then((res) => res.data)
     .catch((error) => {
       console.error("❌ Failed to fetch Call Logs:", error);
       let errorMessage = "Failed to fetch Call Logs";
