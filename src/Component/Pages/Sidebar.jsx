@@ -59,7 +59,7 @@ const Sidebar = () => {
 
   // ONE-WAY and TWO-WAY minutes
   const [oneWayMinutes, setOneWayMinutes] = useState(0);
-  const [twoWayMinutes, setTwoWayMinutes] = useState(10);
+  const [twoWayMinutes, setTwoWayMinutes] = useState(0);
   const [loadingMinutes, setLoadingMinutes] = useState(false);
 
   const onClose = () => setShowContactForm(false);
@@ -111,7 +111,16 @@ const Sidebar = () => {
         const mins = res?.data?.data?.twilio_user_minute || {};
 
         const one = Number(mins.one_way ?? mins.minute ?? 0);
-        const two = Number(mins.two_way ?? 10);
+        const two = Number(
+          mins.two_way ??
+            mins.twoWay ??
+            mins.two_way_minute ??
+            mins.twoWayMinute ??
+            mins.inbound ??
+            mins.inbound_minute ??
+            mins.minute ??
+            0
+        );
         setOneWayMinutes(one);
         setTwoWayMinutes(two);
         setRemainingMinutes(one);
@@ -516,6 +525,26 @@ const Sidebar = () => {
               >
                 <FaUsers size={18} />
                 channel partner
+              </button>
+            </li>
+          )}
+
+          {/* Channel partner minute transactions (admin & twilioUser===0) */}
+          {twilioUser === 0 && role === "admin" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/channel-partner-minute-transactions");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/channel-partner-minute-transactions"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FiClock size={18} />
+                Minute Transactions
               </button>
             </li>
           )}

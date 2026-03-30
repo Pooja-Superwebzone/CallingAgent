@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
 import { signupTwillioUser } from "../../hooks/useAuth";
+import service from "../../api/axios";
 import toast from "react-hot-toast";
 
 export const plans = [
@@ -913,6 +914,28 @@ export default function LandingPage() {
                             }
                           }
                           if (selectedPlan.id === "become_channel_partner") {
+                            try {
+                              const profileRes = await service.get("Profile", {
+                                headers: { Authorization: `Bearer ${tokenToUse}` },
+                              });
+                              const profile = profileRes?.data?.data || {};
+                              const userId =
+                                profile?.id ||
+                                profile?.user_id ||
+                                profile?.twilio_create_id ||
+                                signupUser?.id ||
+                                "";
+
+                              if (userId) {
+                                await service.post(
+                                  "add-minute",
+                                  { minute: "10", user_id: userId },
+                                  { headers: { Authorization: `Bearer ${tokenToUse}` } }
+                                );
+                              }
+                            } catch (e) {
+                              console.warn("add-minute after signup failed:", e);
+                            }
                             toast.success("Signup successful");
                             closeSignupModal();
                             navigate("/minutes", {

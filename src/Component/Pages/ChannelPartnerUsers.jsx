@@ -37,6 +37,7 @@ export default function ChannelPartnerUsers() {
   const [twilioUsers, setTwilioUsers] = useState([]);
   const [availableMinutes, setAvailableMinutes] = useState(0);
   const [profileUserId, setProfileUserId] = useState("");
+  const [profileName, setProfileName] = useState("");
 
   const [donatingFrom, setDonatingFrom] = useState(null);
   const [donateUserId, setDonateUserId] = useState("");
@@ -128,15 +129,9 @@ export default function ChannelPartnerUsers() {
   const selectedDonateUser = filteredTwilioUsers.find(
     (user) => isMatchingDonateUser(user)
   ) || twilioUsers.find((user) => isMatchingDonateUser(user));
-  const availableMinutesToUse =
-    currentRole === "channelpartner"
-      ? Number.isFinite(donationSourceMinutes)
-        ? donationSourceMinutes
-        : 0
-      : Math.min(
-        Number.isFinite(channelPartnerMinutes) ? channelPartnerMinutes : 0,
-        Number.isFinite(donationSourceMinutes) ? donationSourceMinutes : 0
-      );
+  const availableMinutesToUse = Number.isFinite(channelPartnerMinutes)
+    ? channelPartnerMinutes
+    : 0;
 
   useEffect(() => {
     setBaseProfileMinutes(Number(matchedProfileTwoWayMinutes ?? 0));
@@ -159,17 +154,18 @@ export default function ChannelPartnerUsers() {
       const storedRemainingMinutes = getStoredRemainingMinutes();
       const mappedRows = (Array.isArray(list) ? list : []).map((row, index) => {
         const rowId = row.id ?? index + 1;
-        const apiMinute =
+        const apiMinuteRaw =
+          row?.omni_minute?.minute ??
           row.minute ??
           row.minutes ??
           row?.twilio_user_minute?.minute ??
           row?.twilio_user_minute ??
-          "";
-        const parsedStoredMinute = Number(storedRemainingMinutes[String(rowId)]);
-        const minute =
-          Number.isFinite(parsedStoredMinute) && parsedStoredMinute >= 0
-            ? parsedStoredMinute
-            : apiMinute;
+          0;
+        const parsedApiMinute = Number(apiMinuteRaw);
+        const apiMinute = Number.isFinite(parsedApiMinute) ? parsedApiMinute : 0;
+        const storedMinuteRaw = storedRemainingMinutes[String(rowId)];
+        const parsedStoredMinute = Number(storedMinuteRaw);
+        const minute = Number.isFinite(parsedStoredMinute) ? parsedStoredMinute : apiMinute;
 
         return {
           id: rowId,
@@ -221,9 +217,11 @@ export default function ChannelPartnerUsers() {
         response?.data?.id ??
         "";
       setProfileUserId(String(resolvedUserId || ""));
+      setProfileName(String(profile?.name || response?.data?.name || ""));
     } catch (error) {
       console.error("Failed to load profile user id:", error);
       setProfileUserId("");
+      setProfileName("");
     }
   };
 
@@ -296,7 +294,7 @@ export default function ChannelPartnerUsers() {
       name,
       email,
       phone_no: phoneNo,
-      ...(minute !== null ? { minute } : {}),
+      ...(minute !== null ? { minute, minute_amount: minute } : {}),
     };
 
     if (editing?.isDonationHistory) {
@@ -322,6 +320,30 @@ export default function ChannelPartnerUsers() {
         0,
         (Number.isFinite(currentAvailableMinutes) ? currentAvailableMinutes : 0) - minuteDelta
       );
+
+      const channelPartnerIdForUpdate = activeRow?.id || profileUserId || "";
+      if (!channelPartnerIdForUpdate) {
+        toast.error("Channel partner id missing for update");
+        return;
+      }
+
+      try {
+        // Keep payload aligned with values currently set in the edit form.
+        const partnerUpdatePayload = {
+          name,
+          email,
+          phone_no: phoneNo,
+          ...(minute !== null
+            ? { minute, minute_amount: minute }
+            : { minute: Number(existingDonation?.minute ?? 0) }),
+        };
+        await updateChannelPartner(channelPartnerIdForUpdate, {
+          ...partnerUpdatePayload,
+        });
+      } catch (error) {
+        toast.error(error.message || "Failed to update channel partner minutes");
+        return;
+      }
 
       setDonationHistory(updatedHistory);
       setAvailableMinutes(nextAvailableMinutes);
@@ -350,6 +372,8 @@ export default function ChannelPartnerUsers() {
       if (activeRow?.id) {
         setStoredRemainingMinutes(activeRow.id, nextAvailableMinutes);
       }
+      // Refresh from channel-partner API so UI always reflects latest backend state.
+      await loadRows();
       toast.success("Donated user updated");
       closeEdit();
       return;
@@ -421,12 +445,16 @@ export default function ChannelPartnerUsers() {
       const parsedUserId = Number(donateUserId);
       const userId = Number.isFinite(parsedUserId) ? parsedUserId : donateUserId;
       await donateChannelPartnerMinute({
+        // Pass channel-partner table id (e.g. 6), not profile user_id.
+        channel_partner_id: donatingFrom?.id || profileUserId,
         user_id: userId,
         minute: parsedMinute,
+        channel_partner_name: profileName || donatingFrom?.name || "",
         role: currentRole,
       });
       const newDonation = {
         id: `${donatingFrom.id}-${userId}-${Date.now()}`,
+        channel_partner_id: donatingFrom?.id || profileUserId || "",
         name: selectedDonateUser?.name || "User",
         email: selectedDonateUser?.email || "",
         phone_no:
@@ -437,34 +465,12 @@ export default function ChannelPartnerUsers() {
         donatedAt: new Date().toISOString(),
       };
       const updatedHistory = [newDonation, ...donationHistory];
-      const nextAvailableMinutes = Math.max(
-        0,
-        Number(availableMinutes ?? donatingFrom?.minute ?? 0) - parsedMinute
-      );
 
       setDonationHistory(updatedHistory);
-      setAvailableMinutes(nextAvailableMinutes);
-      setDonatingFrom((prev) =>
-        prev ? { ...prev, minute: nextAvailableMinutes } : prev
-      );
-      setRows((prev) =>
-        prev.map((row) =>
-          String(row.id) === String(donatingFrom.id)
-            ? { ...row, minute: nextAvailableMinutes }
-            : row
-        )
-      );
-      setAllRows((prev) =>
-        prev.map((row) =>
-          String(row.id) === String(donatingFrom.id)
-            ? { ...row, minute: nextAvailableMinutes }
-            : row
-        )
-      );
       if (typeof window !== "undefined") {
         localStorage.setItem(donationStorageKey, JSON.stringify(updatedHistory));
       }
-      setStoredRemainingMinutes(donatingFrom.id, nextAvailableMinutes);
+      await loadRows();
       toast.success("Minutes donated successfully");
       closeDonate();
     } catch (error) {
@@ -486,6 +492,12 @@ export default function ChannelPartnerUsers() {
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                 Manage your profile, donate minutes to users, and track donated user data.
               </p>
+              <div className="mt-3 inline-flex items-center rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-800">
+                Remaining minutes:{" "}
+                <span className="ml-1 font-semibold">
+                  {Number.isFinite(Number(activeRow?.minute)) ? Number(activeRow?.minute) : 0}
+                </span>
+              </div>
             </div>
 
             <div className="flex justify-start md:w-auto md:flex-shrink-0 md:justify-end">
@@ -540,7 +552,9 @@ export default function ChannelPartnerUsers() {
                         <td className="px-3 py-3 align-middle font-medium sm:px-4">{row.name}</td>
                         <td className="px-3 py-3 align-middle break-words sm:px-4">{row.email || "-"}</td>
                         <td className="px-3 py-3 align-middle sm:px-4">{row.phone_no || "-"}</td>
-                        <td className="px-3 py-3 align-middle sm:px-4">{availableMinutes}</td>
+                        <td className="px-3 py-3 align-middle sm:px-4">
+                          {Number.isFinite(Number(row.minute)) ? Number(row.minute) : 0}
+                        </td>
                         <td className="px-3 py-3 align-middle sm:px-4">
                           <div className="flex flex-wrap items-center gap-2">
                             <button
@@ -550,19 +564,7 @@ export default function ChannelPartnerUsers() {
                             >
                               Edit
                             </button>
-                            {Number(availableMinutes ?? 0) > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => openDonate(row)}
-                                className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
-                              >
-                                Users
-                              </button>
-                            ) : (
-                              <span className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-500">
-                                No minutes to donate
-                              </span>
-                            )}
+
                           </div>
                         </td>
                       </tr>
@@ -785,8 +787,8 @@ export default function ChannelPartnerUsers() {
 
             <div className="space-y-4 px-4 py-5 sm:px-5">
               <div className="rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                Available profile matched two-way minutes:{" "}
-                <span className="font-semibold">{donationSourceMinutes}</span>
+                Available remaining minutes : {" "}
+                <span className="font-semibold">{availableMinutesToUse}</span>
               </div>
 
               <div>

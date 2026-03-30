@@ -168,6 +168,7 @@ export default function ChannelPartner() {
         channel_partner_id: donatingFrom.id,
         user_id,
         minute: n,
+        channel_partner_name: donatingFrom?.name || "",
       });
       toast.success("Minutes donated successfully");
       closeDonate();

@@ -24,7 +24,7 @@ export default function MinutesPage() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [error, setError] = useState("");
   const [oneWayMinutes, setOneWayMinutes] = useState(0);
-  const [twoWayMinutes, setTwoWayMinutes] = useState(10);
+  const [twoWayMinutes, setTwoWayMinutes] = useState(0);
   const [userPlan, setUserPlan] = useState("");
   const [userPlanTitle, setUserPlanTitle] = useState("");
   const [purchaseMinutesInput, setPurchaseMinutesInput] = useState("");
@@ -219,7 +219,6 @@ export default function MinutesPage() {
       console.log("add-minute response.data:", addMinuteResponse?.data);
       toast.success("Subscription added and minutes updated.");
       fetchMinutes();
-
     } catch (e) {
       const rawMessage =
         e?.response?.data?.message ||
@@ -243,10 +242,21 @@ export default function MinutesPage() {
       const profile = res?.data?.data || {};
       const mins = res?.data?.data?.twilio_user_minute || {};
       const one = Number(mins.one_way ?? mins.minute ?? 0);
-      const two = Number(mins.two_way ?? 0);
+      // `twilio_user_minute` may return different key casing depending on backend response.
+      const two = Number(
+        mins.two_way ??
+        mins.twoWay ??
+        mins.two_way_minute ??
+        mins.twoWayMinute ??
+        mins.inbound ??
+        mins.inbound_minute ??
+        mins.minute ??
+        0
+      );
 
       setOneWayMinutes(one);
-      setTwoWayMinutes(Number.isFinite(two) && two > 0 ? two : 10);
+      // Do not force a default trial value here; show actual backend minutes.
+      setTwoWayMinutes(Number.isFinite(two) ? two : 0);
       setProfileDetails({
         userId:
           profile?.id ||

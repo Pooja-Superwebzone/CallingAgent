@@ -146,7 +146,7 @@ export function sendWhatsappPersonalMessage(payload) {
 
 export function sendPerplexityMessage(payload) {
   return service
-    .post("outbound-call", payload)
+    .post("omni/call", payload)
     .then(res => res.data)
     .catch(error => {
       console.error("❌ Failed to send Perplexity message:", error);
@@ -285,7 +285,7 @@ export function resendTwillioOtp(payload) {
 export function getWhatsappTemplates() {
   return service
     .get("twilio/wa/templates")
-   .then((res) => res.data?.data || res.data)
+    .then((res) => res.data?.data || res.data)
 
     .catch((error) => {
       let msg = "Failed to fetch WhatsApp templates";
@@ -311,7 +311,7 @@ export function submitWhatsappTemplate({ static_script, template_name }) {
 export function getCallSchedule() {
   return service
     .get("twilio/set-call")
-    .then((res) => res.data?.data || res.data) 
+    .then((res) => res.data?.data || res.data)
     .catch((error) => {
       let msg = "Failed to fetch call schedules";
       if (error.response?.data?.message) msg = error.response.data.message;
@@ -332,25 +332,25 @@ export function submitCallSchedule({ day, static_script, calling_script, email_s
 }
 
 
-    export function sendConversationCall(payload) {
-      return service
-        .post("omni/call", payload)
-        .then((res) => res.data)
-        .catch((error) => {
-          console.error("❌ omni/call failed:", error);
-          let errorMessage = "Failed to trigger conversation call.";
-          if (error.response?.data?.message) {
-            errorMessage = error.response.data.message;
-          }
-          throw new Error(errorMessage);
-        });
-    }
+export function sendConversationCall(payload) {
+  return service
+    .post("omni/call", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ omni/call failed:", error);
+      let errorMessage = "Failed to trigger conversation call.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
 
 export function getChannelPartners() {
   return service
     .get("channel-partner")
     .then((res) => {
-    
+
       const out = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
       return out;
     })
@@ -366,8 +366,8 @@ export function createChannelPartner(payload) {
   return service
     .post("channel-partner", payload)
     .then((res) => {
-      console.log(" API Response:", res.data);  
-      return res.data;  
+      console.log(" API Response:", res.data);
+      return res.data;
     })
     .catch((error) => {
       throw new Error(error.response?.data?.message || "Failed to create channel partner");
@@ -392,6 +392,64 @@ export function donateChannelPartnerMinute(payload) {
     .then((res) => res.data)
     .catch((error) => {
       throw new Error(error.response?.data?.message || "Failed to donate minutes");
+    });
+}
+
+export function getChannelPartnerMinuteTransactions() {
+  return service
+    .get("channel-partner-minute-transactions")
+    .then((res) => {
+      const d = res?.data;
+      const candidates = [
+        d,
+        d?.data,
+        d?.data?.data,
+        d?.minute_transactions,
+        d?.transactions,
+        d?.results,
+        d?.records,
+        d?.data?.minute_transactions,
+        d?.data?.transactions,
+        d?.data?.results,
+        d?.data?.records,
+      ];
+      const raw = candidates.find((x) => Array.isArray(x)) || [];
+
+      // Some responses return partner list with nested minute_transactions.
+      const hasNestedTransactions = raw.some(
+        (item) => Array.isArray(item?.minute_transactions)
+      );
+      if (!hasNestedTransactions) return raw;
+
+      return raw.flatMap((partner) => {
+        const txList = Array.isArray(partner?.minute_transactions)
+          ? partner.minute_transactions
+          : [];
+        return txList.map((tx) => ({
+          ...tx,
+          // Attach remaining minute info from channel-partner response
+          // so UI can show correct minutes without extra joins.
+          omni_minute: partner?.omni_minute ?? tx?.omni_minute ?? tx?.omniMinute ?? undefined,
+          // Preserve partner identity for UI fallback when tx lacks nested user object
+          created_by_user: tx?.created_by_user || {
+            id: partner?.user_id ?? partner?.id,
+            name: partner?.name ?? "",
+            email: partner?.email ?? "",
+            contact_no: partner?.phone_no ?? "",
+          },
+          channel_partner_id:
+            tx?.channel_partner_id ?? partner?.user_id ?? partner?.id ?? "",
+          channel_partner_name:
+            tx?.channel_partner_name ?? partner?.name ?? "",
+        }));
+      });
+    })
+    .catch((error) => {
+      throw new Error(
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to fetch channel partner minute transactions"
+      );
     });
 }
 
@@ -460,7 +518,7 @@ export function downloadTemplateExcel() {
   return service
     .get("email-template-twillio-sample-excel", { responseType: "blob" })
     .then((res) => {
-      
+
       const contentDisposition = res.headers["content-disposition"] || "";
       let filename = "call_template_demo.xlsx";
       const match = /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i.exec(contentDisposition);
@@ -480,7 +538,7 @@ export function downloadTemplateExcel() {
 export function generateSpeech(payload) {
   return service
     .post("elevenlabs/generate-speech", payload)
-    .then((res) => res.data) 
+    .then((res) => res.data)
     .catch((error) => {
       console.error("❌ generateSpeech failed:", error);
       let msg = "Failed to generate speech/text.";
@@ -522,10 +580,10 @@ export function getCallTranscript(callId) {
 
 export function generateExcelSheet(callSids) {
   return service
-    .post("generate-excel-sheet", 
+    .post("generate-excel-sheet",
       { call_sids: callSids },
       {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
           'Content-Type': 'application/json'
         }
@@ -674,7 +732,7 @@ export function updateEmailTemplate(id, payload) {
   return service
     .post(`email-template-twilio/${id}`, payload)
     .then((res) => {
-      
+
       if (res?.data?.data) return res.data.data;
       return res?.data ?? res;
     })

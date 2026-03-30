@@ -9,6 +9,7 @@ import {
   verifyEmailOtp,
   resendTwillioOtp,
 } from "../../hooks/useAuth";
+import service from "../../api/axios";
 import CustomerCareCall from "../../components/ui/CustomerCareCall";
 
 const normalizeEmail = (email = "") => String(email).trim().toLowerCase();
@@ -226,6 +227,28 @@ export default function LoginSignup() {
         } else {
           ensureDefaultPlanForEmail(user?.email || signupData.email);
         }
+
+        if (signupPlanId === "become_channel_partner") {
+          try {
+            const profileRes = await service.get("Profile", {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const profile = profileRes?.data?.data || {};
+            const userId =
+              profile?.id || profile?.user_id || profile?.twilio_create_id || user?.id || "";
+
+            if (userId) {
+              await service.post(
+                "add-minute",
+                { minute: "10", user_id: userId },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+            }
+          } catch (e) {
+            console.warn("add-minute after signup failed:", e);
+          }
+        }
+
         setShowOtpModal(true);
       } else {
         if (!signupPlanId) {

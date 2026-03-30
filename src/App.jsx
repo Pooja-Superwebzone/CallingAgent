@@ -37,6 +37,7 @@ import DemoCallPackPage from './Component/Pages/DemoCallPackPage';
 import TutorialPage from './Component/Pages/TutorialPage';
 import MinutesPage from "./Component/Pages/MinutesPage";
 import UpgradeMinutesPage from "./Component/Pages/UpgradeMinutesPage";
+import ChannelPartnerMinuteTransactions from "./Component/Pages/ChannelPartnerMinuteTransactions";
 
 function App() {
   const location = useLocation();
@@ -181,6 +182,10 @@ function App() {
             <Route path="/call-logs" element={<CallLogs />} />
             <Route path="/channel-partner" element={<ChannelPartner />} />
             <Route path="/channel-partner-users" element={<ChannelPartnerUsers />} />
+            <Route
+              path="/channel-partner-minute-transactions"
+              element={<ChannelPartnerMinuteTransactions />}
+            />
           </Route>
         )}
         {/* Catch-all */}

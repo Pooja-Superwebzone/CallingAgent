@@ -3,6 +3,8 @@ import { toast } from "react-hot-toast";
 import { sendPerplexityMessage } from "../../hooks/useAuth";
 import { PhoneNumberUtil, PhoneNumberFormat } from "google-libphonenumber";
 
+const STATIC_AGENT_ID = "38339";
+
 export default function Perplexity() {
   const phoneUtil = PhoneNumberUtil.getInstance();
   const PNF = PhoneNumberFormat;
@@ -14,7 +16,6 @@ export default function Perplexity() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Build countries list from google-libphonenumber metadata
   useEffect(() => {
     try {
       const regions = Array.from(phoneUtil.getSupportedRegions ? phoneUtil.getSupportedRegions() : []);
@@ -40,10 +41,10 @@ export default function Perplexity() {
       setCountries([{ code: "IN", name: "India", countryCode: 91, label: "India (+91)" }]);
       setCountryCode("IN");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, []);
 
-  // Helper: parse and validate a raw number (string). Returns E.164 string or null.
+
   const parseAndValidateToE164 = (rawNumber, defaultRegion) => {
     if (!rawNumber || typeof rawNumber !== "string") return null;
     const trimmed = rawNumber.trim();
@@ -62,7 +63,7 @@ export default function Perplexity() {
     }
   };
 
-  // Validate form
+
   const validate = () => {
     if (!mobile.trim()) {
       setError("Please enter a mobile number.");
@@ -83,7 +84,6 @@ export default function Perplexity() {
     return true;
   };
 
-  // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -105,6 +105,7 @@ export default function Perplexity() {
       }
 
       const payload = {
+        agent_id: STATIC_AGENT_ID,
         to: toNumber,
         message: message.trim(),
       };
@@ -112,8 +113,6 @@ export default function Perplexity() {
       const res = await sendPerplexityMessage(payload);
       console.log("outbound-call response:", res);
       toast.success("Call initiated successfully!");
-
-      // Clear form
       setMobile("");
       setMessage("Hi, I'm Richa AI, India's first AI Business Assistant. How can I help you today?");
       setError("");
