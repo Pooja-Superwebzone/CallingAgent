@@ -19,6 +19,56 @@ const resolvePlanIdFromRole = (role = "") =>
 const resolveSubscriptionPlanIdFromRole = (role = "", fallbackPlanId = 8) =>
   role === "channelpartner" ? 8 : fallbackPlanId;
 
+const DEFAULT_NORMAL_MINUTE_RATE = 15;
+
+const normalizeUserId = (v) =>
+  v === undefined || v === null ? "" : String(v).trim();
+
+const extractDynamicMinuteRows = (payload) => {
+  const raw = payload?.data !== undefined ? payload.data : payload;
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.data)) return raw.data;
+  if (raw && typeof raw === "object") return [raw];
+  return [];
+};
+
+const pickDisplayPriceForUserId = (rows, userId) => {
+  const uid = normalizeUserId(userId);
+  if (!uid || !Array.isArray(rows)) return null;
+  for (const row of rows) {
+    const rowUid = normalizeUserId(row?.user_id ?? row?.userId ?? row?.userid);
+    if (!rowUid || rowUid !== uid) continue;
+    const price =
+      row?.price ??
+      row?.display_price ??
+      row?.displayPrice ??
+      row?.minute_price ??
+      row?.rate;
+    const n = Number(price);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+};
+
+const pickDisplayPriceForNullUserId = (rows) => {
+  if (!Array.isArray(rows)) return null;
+  for (const row of rows) {
+    const rowUid = normalizeUserId(row?.user_id ?? row?.userId ?? row?.userid);
+    if (rowUid) continue;
+    const price =
+      row?.price ??
+      row?.display_price ??
+      row?.displayPrice ??
+      row?.minute_price ??
+      row?.rate;
+    const n = Number(price);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  
+  return null;
+};
+const DYNAMIC_MINUTE_RATE_CACHE = new Map();
+
 export default function MinutesPage() {
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -34,12 +84,17 @@ export default function MinutesPage() {
     email: "",
     phoneNumber: "",
   });
+  const [dynamicNormalMinuteRate, setDynamicNormalMinuteRate] = useState(
+    DEFAULT_NORMAL_MINUTE_RATE
+  );
   const userEmail = Cookies.get("email") || "";
   const isChannelPartnerPlan = String(userPlan) === "18";
   const displayedPlanTitle = userPlanTitle || "Become Channel Partner";
 
   const MINUTES_PER_PACKAGE = isChannelPartnerPlan ? 1000 : 100;
-  const RATE_UP_TO_THRESHOLD = isChannelPartnerPlan ? 11.44 : 15;
+  const RATE_UP_TO_THRESHOLD = isChannelPartnerPlan
+    ? 11.44
+    : dynamicNormalMinuteRate;
   const purchasePlaceholder = isChannelPartnerPlan ? "1000, 2000, 3000..." : "100, 200, 300...";
   const CGST_RATE = 0.09;
   const SGST_RATE = 0.09;
@@ -241,9 +296,17 @@ export default function MinutesPage() {
       });
       const profile = res?.data?.data || {};
       const mins = res?.data?.data?.twilio_user_minute || {};
+      const twoWayMinsObj = res?.data?.data?.twilio_two_way_user_minute || {};
       const one = Number(mins.one_way ?? mins.minute ?? 0);
-      // `twilio_user_minute` may return different key casing depending on backend response.
+
       const two = Number(
+        twoWayMinsObj?.two_way ??
+        twoWayMinsObj?.twoWay ??
+        twoWayMinsObj?.two_way_minute ??
+        twoWayMinsObj?.twoWayMinute ??
+        twoWayMinsObj?.inbound ??
+        twoWayMinsObj?.inbound_minute ??
+        twoWayMinsObj?.minute ??
         mins.two_way ??
         mins.twoWay ??
         mins.two_way_minute ??
@@ -255,14 +318,18 @@ export default function MinutesPage() {
       );
 
       setOneWayMinutes(one);
-      // Do not force a default trial value here; show actual backend minutes.
       setTwoWayMinutes(Number.isFinite(two) ? two : 0);
+      const resolvedUserId =
+
+        twoWayMinsObj?.user_id ||
+        mins?.user_id ||
+        profile?.id ||
+        profile?.user_id ||
+        profile?.twilio_create_id ||
+        "";
+
       setProfileDetails({
-        userId:
-          profile?.id ||
-          profile?.user_id ||
-          profile?.twilio_create_id ||
-          "",
+        userId: resolvedUserId,
         name:
           profile?.name ||
           profile?.emp_name ||
@@ -284,6 +351,34 @@ export default function MinutesPage() {
       });
       syncPlanDetails(profile?.email || profile?.emp_email || userEmail);
       localStorage.setItem("userRemainingMinutes", String(one));
+
+      const role = Cookies.get("role") || "";
+      const planCookie = resolvePlanId(Cookies.get("user_plan") || "");
+      const isChannelPartnerUser =
+        role === "channelpartner" || String(planCookie) === "18";
+      if (isChannelPartnerUser) {
+        setDynamicNormalMinuteRate(DEFAULT_NORMAL_MINUTE_RATE);
+      } else {
+        let normalRate = DEFAULT_NORMAL_MINUTE_RATE;
+        const normalizedUserId = normalizeUserId(resolvedUserId);
+        const cacheKey = normalizedUserId || "__null_user__";
+        if (DYNAMIC_MINUTE_RATE_CACHE.has(cacheKey)) {
+          normalRate = DYNAMIC_MINUTE_RATE_CACHE.get(cacheKey);
+        } else {
+          try {
+            const dmRes = await service.get("dynamic-minute");
+            const rows = extractDynamicMinuteRows(dmRes?.data);
+            const fromApi = normalizedUserId
+              ? pickDisplayPriceForUserId(rows, normalizedUserId)
+              : pickDisplayPriceForNullUserId(rows);
+            if (fromApi != null) normalRate = fromApi;
+          } catch {
+
+          }
+          DYNAMIC_MINUTE_RATE_CACHE.set(cacheKey, normalRate);
+        }
+        setDynamicNormalMinuteRate(normalRate);
+      }
     } catch {
       setError("Could not load minutes. Please try again.");
     } finally {
@@ -354,7 +449,9 @@ export default function MinutesPage() {
             <label className="block text-sm font-semibold text-slate-700 mb-1">
               {isChannelPartnerPlan
                 ? "Mintues to Add 11.44 * add mintues in inpute ( below input type eg.1000,2000,3000 ...)"
-                : "Mintues to Add 15 * add mintues in inpute ( below input type eg.100,200,300 ...)"}
+                : `Mintues to Add ${formatRate(
+                  dynamicNormalMinuteRate
+                )} * add mintues in inpute ( below input type eg.100,200,300 ...)`}
             </label>
             <div className="grid w-full max-w-[28rem] grid-cols-[auto_auto_minmax(0,1fr)] gap-2 sm:grid-cols-[auto_auto_minmax(9rem,1fr)_auto_auto] sm:items-center">
               <span className="self-center text-base font-semibold text-slate-900">

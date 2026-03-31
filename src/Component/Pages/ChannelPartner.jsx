@@ -12,7 +12,7 @@ export default function ChannelPartner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [editing, setEditing] = useState(null); // currently editing row
+  const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -23,7 +23,7 @@ export default function ChannelPartner() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [twilioUsers, setTwilioUsers] = useState([]);
 
-  const [donatingFrom, setDonatingFrom] = useState(null); // channel partner row
+  const [donatingFrom, setDonatingFrom] = useState(null); 
   const [donateUserId, setDonateUserId] = useState("");
   const [donateMinute, setDonateMinute] = useState("");
 
@@ -104,7 +104,7 @@ export default function ChannelPartner() {
       name,
       email,
       phone_no,
-      ...(minute !== null ? { minute } : {}),
+      ...(minute !== null ? { minute_amount: minute } : {}),
     };
 
     setSaving(true);

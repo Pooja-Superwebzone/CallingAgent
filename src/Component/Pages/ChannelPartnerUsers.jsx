@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import Cookies from "js-cookie";
 import {
   getChannelPartners,
-  updateChannelPartner,
   getAllTwillioUsers,
   donateChannelPartnerMinute,
+  getChannelPartnerMinuteTransactions,
   getUserProfile,
 } from "../../hooks/useAuth";
 import { toast } from "react-hot-toast";
@@ -14,9 +14,6 @@ export default function ChannelPartnerUsers() {
   const currentEmail = String(Cookies.get("email") || "").trim().toLowerCase();
   const currentPhone = String(Cookies.get("contact_no") || "").trim();
   const currentName = String(Cookies.get("name") || "").trim().toLowerCase();
-  const donationStorageKey = currentEmail
-    ? `channel_partner_donations_${currentEmail}`
-    : "channel_partner_donations";
   const remainingMinutesStorageKey = currentEmail
     ? `channel_partner_remaining_minutes_${currentEmail}`
     : "channel_partner_remaining_minutes";
@@ -24,48 +21,43 @@ export default function ChannelPartnerUsers() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone_no: "",
-    minute: "",
-  });
-
   const [usersLoading, setUsersLoading] = useState(false);
   const [twilioUsers, setTwilioUsers] = useState([]);
   const [availableMinutes, setAvailableMinutes] = useState(0);
   const [profileUserId, setProfileUserId] = useState("");
   const [profileName, setProfileName] = useState("");
-
   const [donatingFrom, setDonatingFrom] = useState(null);
   const [donateUserId, setDonateUserId] = useState("");
   const [donateMinute, setDonateMinute] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [donationHistory, setDonationHistory] = useState([]);
   const [baseProfileMinutes, setBaseProfileMinutes] = useState(0);
-
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  const resolveUserTwoWayMinutes = (user) => {
-    if (!user) return 0;
+  const resolveRowOmniMinute = (row) => {
+    if (!row) return null;
+    const om = row?.omni_minute ?? row?.omniMinute;
+    if (om == null) return null;
+    if (typeof om === "number") return Number.isFinite(om) ? om : null;
+    if (typeof om !== "object") return null;
+    const raw =
+      om.minute ?? om.minutes ?? om.remaining_minute ?? om.remainingMinute ?? om.two_way;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  };
 
-    const minuteSources = [
-      user?.twilio_two_way_user_minute?.minute,
-      user?.twilio_user_minute?.two_way,
-      user?.twilio_user_minute?.twoWay,
-      user?.twilio_user_minute?.inbound,
-      user?.twilio_user_minute?.inbound_minute,
-    ];
-
-    const matchedMinute = minuteSources.find((value) => {
-      const parsedValue = Number(value);
-      return Number.isFinite(parsedValue);
-    });
-
-    return Number.isFinite(Number(matchedMinute)) ? Number(matchedMinute) : 0;
+  const resolveOmniMinuteValue = (omniMinute) => {
+    if (omniMinute == null) return null;
+    if (typeof omniMinute === "number") return Number.isFinite(omniMinute) ? omniMinute : null;
+    if (typeof omniMinute !== "object") return null;
+    const raw =
+      omniMinute?.minute ??
+      omniMinute?.minutes ??
+      omniMinute?.remaining_minute ??
+      omniMinute?.remainingMinute;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
   };
 
   const calculateRemainingProfileMinutes = (baseMinutes, history) => {
@@ -119,8 +111,6 @@ export default function ChannelPartnerUsers() {
     String(user?.twilio_user_minute?.user_id) === String(donateUserId) ||
     String(user?.twilio_two_way_user_minute?.user_id) === String(donateUserId);
   const activeRow = rows[0] || allRows[0] || null;
-  const matchedProfileTwilioUser = twilioUsers.find((user) => isMatchingProfileUser(user));
-  const matchedProfileTwoWayMinutes = resolveUserTwoWayMinutes(matchedProfileTwilioUser);
   const donationSourceMinutes = calculateRemainingProfileMinutes(
     baseProfileMinutes,
     donationHistory
@@ -133,19 +123,129 @@ export default function ChannelPartnerUsers() {
     ? channelPartnerMinutes
     : 0;
 
-  useEffect(() => {
-    setBaseProfileMinutes(Number(matchedProfileTwoWayMinutes ?? 0));
-  }, [matchedProfileTwoWayMinutes]);
+  const extractTxMinuteAmount = (tx) => {
+    const raw =
+      tx?.minute_amount ??
+      tx?.minuteAmount ??
+      tx?.minute ??
+      tx?.minutes ??
+      tx?.amount ??
+      tx?.minute_value;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  };
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !currentEmail) return;
+  const extractTxToUserFields = (tx) => {
+    const toUser = tx?.to_user ?? tx?.toUser ?? tx?.recipient_user ?? tx?.recipientUser ?? {};
+    const toUserIdRaw =
+      tx?.to_user_id ??
+      tx?.toUserId ??
+      tx?.user_id ??
+      tx?.userId ??
+      tx?.recipient_user_id ??
+      tx?.recipientUserId ??
+      tx?.to_user?.user_id ??
+      tx?.toUser?.user_id ??
+      "";
+
+    const toUserName =
+      tx?.to_user_name ??
+      tx?.toUserName ??
+      tx?.user_name ??
+      tx?.userName ??
+      tx?.recipient_user_name ??
+      tx?.recipientUserName ??
+      toUser?.name ??
+      toUser?.full_name ??
+      toUser?.fullName ??
+      toUser?.username ??
+      "";
+
+    const email = tx?.to_user?.email ?? tx?.toUser?.email ?? tx?.user?.email ?? toUser?.email ?? "";
+    const phone_no =
+      toUser?.phone_no ??
+      toUser?.contact_no ??
+      toUser?.contactNo ??
+      toUser?.phoneNo ??
+      tx?.to_user?.phone_no ??
+      tx?.toUser?.phoneNo ??
+      tx?.user?.phone_no ??
+      tx?.user?.contact_no ??
+      "";
+
+    const donatedAtRaw =
+      tx?.created_at ??
+      tx?.createdAt ??
+      tx?.donated_at ??
+      tx?.donatedAt ??
+      tx?.timestamp ??
+      "";
+
+    return {
+      toUserId: String(toUserIdRaw || ""),
+      name: String(toUserName || ""),
+      email: String(email || ""),
+      phone_no: String(phone_no || ""),
+      donatedAt: donatedAtRaw ? String(donatedAtRaw) : "",
+    };
+  };
+
+  const loadDonationsFromApi = async (channelPartnerId, profileUserIdFallback) => {
+    if (!channelPartnerId && !profileUserIdFallback) {
+      setDonationHistory([]);
+      return;
+    }
+
     try {
-      const storedHistory = localStorage.getItem(donationStorageKey);
-      setDonationHistory(storedHistory ? JSON.parse(storedHistory) : []);
-    } catch {
+      const txList = await getChannelPartnerMinuteTransactions();
+      const list = Array.isArray(txList) ? txList : [];
+
+      const cpIdStr = String(channelPartnerId);
+      const fallbackCpIdStr = profileUserIdFallback ? String(profileUserIdFallback) : "";
+      const filtered = list.filter((tx) => {
+        const cpId =
+          tx?.channel_partner_id ??
+          tx?.channelPartnerId ??
+          tx?.from_channel_partner_id ??
+          tx?.fromChannelPartnerId ??
+          tx?.partner_id ??
+          tx?.partnerId ??
+          tx?.from_channel_partner?.id ??
+          tx?.fromChannelPartner?.id ??
+          tx?.channel_partner?.id ??
+          tx?.channelPartner?.id ??
+          "";
+        const cpIdResolved = String(cpId);
+        return cpIdResolved === cpIdStr || (fallbackCpIdStr && cpIdResolved === fallbackCpIdStr);
+      });
+
+      const mapped = filtered.map((tx, index) => {
+        const { toUserId, name, email, phone_no, donatedAt } = extractTxToUserFields(tx);
+        const minute = extractTxMinuteAmount(tx);
+        const id =
+          tx?.id ??
+          tx?._id ??
+          `${cpIdStr}-${toUserId || "user"}-${minute}-${donatedAt || index}`;
+        return {
+          id,
+          name,
+          email,
+          phone_no,
+          minute,
+          donatedAt,
+        };
+      });
+
+      setDonationHistory(mapped);
+    } catch (error) {
+      toast.error(error.message || "Failed to load donated minutes");
       setDonationHistory([]);
     }
-  }, [currentEmail, donationStorageKey]);
+  };
+
+  useEffect(() => {
+    loadDonationsFromApi(activeRow?.id, profileUserId);
+  }, [activeRow?.id, profileUserId]);
 
   const loadRows = async () => {
     setLoading(true);
@@ -154,18 +254,25 @@ export default function ChannelPartnerUsers() {
       const storedRemainingMinutes = getStoredRemainingMinutes();
       const mappedRows = (Array.isArray(list) ? list : []).map((row, index) => {
         const rowId = row.id ?? index + 1;
+        const omniMinute = resolveRowOmniMinute(row);
         const apiMinuteRaw =
-          row?.omni_minute?.minute ??
-          row.minute ??
-          row.minutes ??
-          row?.twilio_user_minute?.minute ??
-          row?.twilio_user_minute ??
-          0;
+          omniMinute != null
+            ? omniMinute
+            : row.minute ??
+            row.minutes ??
+            row?.twilio_user_minute?.minute ??
+            row?.twilio_user_minute ??
+            0;
         const parsedApiMinute = Number(apiMinuteRaw);
         const apiMinute = Number.isFinite(parsedApiMinute) ? parsedApiMinute : 0;
         const storedMinuteRaw = storedRemainingMinutes[String(rowId)];
         const parsedStoredMinute = Number(storedMinuteRaw);
-        const minute = Number.isFinite(parsedStoredMinute) ? parsedStoredMinute : apiMinute;
+        const minute =
+          omniMinute != null
+            ? omniMinute
+            : Number.isFinite(parsedStoredMinute)
+              ? parsedStoredMinute
+              : apiMinute;
 
         return {
           id: rowId,
@@ -218,10 +325,17 @@ export default function ChannelPartnerUsers() {
         "";
       setProfileUserId(String(resolvedUserId || ""));
       setProfileName(String(profile?.name || response?.data?.name || ""));
+      const profileOmniMinute = resolveOmniMinuteValue(
+        profile?.omni_minute ?? profile?.omniMinute
+      );
+      setBaseProfileMinutes(
+        Number.isFinite(Number(profileOmniMinute)) ? Number(profileOmniMinute) : 0
+      );
     } catch (error) {
       console.error("Failed to load profile user id:", error);
       setProfileUserId("");
       setProfileName("");
+      setBaseProfileMinutes(0);
     }
   };
 
@@ -234,163 +348,6 @@ export default function ChannelPartnerUsers() {
     const resolvedMinutes = Number(activeRow?.minute ?? 0);
     setAvailableMinutes(Number.isFinite(resolvedMinutes) ? resolvedMinutes : 0);
   }, [activeRow]);
-
-  const openEdit = (row) => {
-    setEditing(row);
-    setForm({
-      name: row?.name ?? "",
-      email: row?.email ?? "",
-      phone_no: row?.phone_no ?? "",
-      minute: row?.minute ?? "",
-    });
-  };
-
-  const openDonatedUserEdit = (item) => {
-    setEditing({
-      id: item.id,
-      isDonationHistory: true,
-    });
-    setForm({
-      name: item?.name ?? "",
-      email: item?.email ?? "",
-      phone_no: item?.phone_no ?? "",
-      minute: item?.minute ?? "",
-    });
-  };
-
-  const closeEdit = () => {
-    setEditing(null);
-    setForm({ name: "", email: "", phone_no: "", minute: "" });
-  };
-
-  const onChange = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleUpdate = async () => {
-    if (!editing?.id) return;
-
-    const name = String(form.name || "").trim();
-    const email = String(form.email || "").trim();
-    const phoneNo = String(form.phone_no || "").trim();
-    const minuteRaw = String(form.minute ?? "").trim();
-
-    if (!name) return toast.error("Name is required");
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return toast.error("Enter a valid email");
-    }
-    if (!phoneNo) return toast.error("Phone number is required");
-
-    let minute = null;
-    if (minuteRaw !== "") {
-      const parsedMinute = Number(minuteRaw);
-      if (!Number.isFinite(parsedMinute) || parsedMinute < 0) {
-        return toast.error("Minute must be a valid number");
-      }
-      minute = parsedMinute;
-    }
-
-    const payload = {
-      name,
-      email,
-      phone_no: phoneNo,
-      ...(minute !== null ? { minute, minute_amount: minute } : {}),
-    };
-
-    if (editing?.isDonationHistory) {
-      const existingDonation = donationHistory.find((item) => item.id === editing.id);
-      const previousMinute = Number(existingDonation?.minute ?? 0);
-      const nextMinute = Number(minute !== null ? minute : existingDonation?.minute ?? 0);
-      const minuteDelta =
-        (Number.isFinite(nextMinute) ? nextMinute : 0) -
-        (Number.isFinite(previousMinute) ? previousMinute : 0);
-      const updatedHistory = donationHistory.map((item) =>
-        item.id === editing.id
-          ? {
-            ...item,
-            name,
-            email,
-            phone_no: phoneNo,
-            minute: minute !== null ? minute : item.minute,
-          }
-          : item
-      );
-      const currentAvailableMinutes = Number(activeRow?.minute ?? availableMinutes ?? 0);
-      const nextAvailableMinutes = Math.max(
-        0,
-        (Number.isFinite(currentAvailableMinutes) ? currentAvailableMinutes : 0) - minuteDelta
-      );
-
-      const channelPartnerIdForUpdate = activeRow?.id || profileUserId || "";
-      if (!channelPartnerIdForUpdate) {
-        toast.error("Channel partner id missing for update");
-        return;
-      }
-
-      try {
-        // Keep payload aligned with values currently set in the edit form.
-        const partnerUpdatePayload = {
-          name,
-          email,
-          phone_no: phoneNo,
-          ...(minute !== null
-            ? { minute, minute_amount: minute }
-            : { minute: Number(existingDonation?.minute ?? 0) }),
-        };
-        await updateChannelPartner(channelPartnerIdForUpdate, {
-          ...partnerUpdatePayload,
-        });
-      } catch (error) {
-        toast.error(error.message || "Failed to update channel partner minutes");
-        return;
-      }
-
-      setDonationHistory(updatedHistory);
-      setAvailableMinutes(nextAvailableMinutes);
-      setDonatingFrom((prev) =>
-        prev && activeRow && String(prev.id) === String(activeRow.id)
-          ? { ...prev, minute: nextAvailableMinutes }
-          : prev
-      );
-      setRows((prev) =>
-        prev.map((row) =>
-          activeRow && String(row.id) === String(activeRow.id)
-            ? { ...row, minute: nextAvailableMinutes }
-            : row
-        )
-      );
-      setAllRows((prev) =>
-        prev.map((row) =>
-          activeRow && String(row.id) === String(activeRow.id)
-            ? { ...row, minute: nextAvailableMinutes }
-            : row
-        )
-      );
-      if (typeof window !== "undefined" && currentEmail) {
-        localStorage.setItem(donationStorageKey, JSON.stringify(updatedHistory));
-      }
-      if (activeRow?.id) {
-        setStoredRemainingMinutes(activeRow.id, nextAvailableMinutes);
-      }
-      // Refresh from channel-partner API so UI always reflects latest backend state.
-      await loadRows();
-      toast.success("Donated user updated");
-      closeEdit();
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await updateChannelPartner(editing.id, payload);
-      toast.success("User updated");
-      closeEdit();
-      await loadRows();
-    } catch (error) {
-      toast.error(error.message || "Failed to update user");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const ensureUsersLoaded = async () => {
     if (twilioUsers.length > 0) return;
@@ -445,7 +402,6 @@ export default function ChannelPartnerUsers() {
       const parsedUserId = Number(donateUserId);
       const userId = Number.isFinite(parsedUserId) ? parsedUserId : donateUserId;
       await donateChannelPartnerMinute({
-        // Pass channel-partner table id (e.g. 6), not profile user_id.
         channel_partner_id: donatingFrom?.id || profileUserId,
         user_id: userId,
         minute: parsedMinute,
@@ -465,12 +421,8 @@ export default function ChannelPartnerUsers() {
         donatedAt: new Date().toISOString(),
       };
       const updatedHistory = [newDonation, ...donationHistory];
-
-      setDonationHistory(updatedHistory);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(donationStorageKey, JSON.stringify(updatedHistory));
-      }
       await loadRows();
+      await loadDonationsFromApi(donatingFrom?.id || profileUserId, profileUserId);
       toast.success("Minutes donated successfully");
       closeDonate();
     } catch (error) {
@@ -495,7 +447,9 @@ export default function ChannelPartnerUsers() {
               <div className="mt-3 inline-flex items-center rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-800">
                 Remaining minutes:{" "}
                 <span className="ml-1 font-semibold">
-                  {Number.isFinite(Number(activeRow?.minute)) ? Number(activeRow?.minute) : 0}
+                  {Number.isFinite(Number(donationSourceMinutes))
+                    ? Number(donationSourceMinutes)
+                    : 0}
                 </span>
               </div>
             </div>
@@ -525,19 +479,18 @@ export default function ChannelPartnerUsers() {
                     <th className="px-3 py-3 font-semibold sm:px-4">Email</th>
                     <th className="px-3 py-3 font-semibold sm:px-4">Phone No</th>
                     <th className="px-3 py-3 font-semibold sm:px-4">Minute</th>
-                    <th className="px-3 py-3 font-semibold sm:px-4">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                      <td colSpan={5} className="py-8 text-center text-slate-500">
                         Loading...
                       </td>
                     </tr>
                   ) : rows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-500">
+                      <td colSpan={5} className="py-12 text-center text-slate-500">
                         <div className="flex flex-col items-center gap-4 px-4">
                           <span className="text-sm sm:text-base">
                             No channel partner data found for this account
@@ -554,18 +507,6 @@ export default function ChannelPartnerUsers() {
                         <td className="px-3 py-3 align-middle sm:px-4">{row.phone_no || "-"}</td>
                         <td className="px-3 py-3 align-middle sm:px-4">
                           {Number.isFinite(Number(row.minute)) ? Number(row.minute) : 0}
-                        </td>
-                        <td className="px-3 py-3 align-middle sm:px-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => openEdit(row)}
-                              className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
-                            >
-                              Edit
-                            </button>
-
-                          </div>
                         </td>
                       </tr>
                     ))
@@ -643,7 +584,6 @@ export default function ChannelPartnerUsers() {
                     <th className="px-3 py-3 font-semibold sm:px-4">Phone No</th>
                     <th className="px-3 py-3 font-semibold sm:px-4">Minutes</th>
                     <th className="px-3 py-3 font-semibold sm:px-4">Donated At</th>
-                    <th className="px-3 py-3 font-semibold sm:px-4">Action</th>
                   </tr>
                 </thead>
 
@@ -658,15 +598,6 @@ export default function ChannelPartnerUsers() {
                       <td className="px-3 py-3 align-middle  sm:px-4">
                         {item.donatedAt ? new Date(item.donatedAt).toLocaleString() : "-"}
                       </td>
-                      <td className="px-3 py-3 align-top sm:px-4">
-                        <button
-                          type="button"
-                          onClick={() => openDonatedUserEdit(item)}
-                          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
-                        >
-                          Edit
-                        </button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -675,95 +606,6 @@ export default function ChannelPartnerUsers() {
           </div>
         ) : null}
       </div>
-
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-3 py-4 sm:px-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-5">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Edit User</h2>
-                <p className="text-sm text-slate-500">Update user details and minute balance.</p>
-              </div>
-              <button
-                type="button"
-                onClick={closeEdit}
-                className="text-slate-500 transition hover:text-slate-600"
-                disabled={saving}
-              >
-                X
-              </button>
-            </div>
-
-            <div className="space-y-4 px-4 py-5 sm:px-5">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Name</label>
-                <input
-                  value={form.name}
-                  onChange={(event) => onChange("name", event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  placeholder="Name"
-                  disabled={saving}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => onChange("email", event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  placeholder="Email"
-                  disabled={saving}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Phone No</label>
-                <input
-                  value={form.phone_no}
-                  onChange={(event) => onChange("phone_no", event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  placeholder="Phone number"
-                  disabled={saving}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Minute</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.minute}
-                  onChange={(event) => onChange("minute", event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  placeholder="Minutes"
-                  disabled={saving}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col-reverse gap-2 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-5">
-              <button
-                type="button"
-                onClick={closeEdit}
-                className="w-full rounded-xl border border-slate-200 px-4 py-2 hover:bg-slate-50 sm:w-auto"
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleUpdate}
-                className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-60 sm:w-auto"
-                disabled={saving}
-              >
-                {saving ? "Updating..." : "Update"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {donatingFrom && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-3 py-4 sm:px-4">
