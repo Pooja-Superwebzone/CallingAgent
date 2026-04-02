@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { getAgents, sendOmniCall } from "../../hooks/useAuth";
+import { getAgents, getAgentsCategory, sendOmniCall } from "../../hooks/useAuth";
 import * as XLSX from "xlsx";
 import Cookies from "js-cookie";
 import service from "../../api/axios";
@@ -18,6 +18,11 @@ export default function SendOmniCall() {
 
   const [agents, setAgents] = useState([]);
   const [selectedAgentId, setSelectedAgentId] = useState("");
+
+  const [needAssistant, setNeedAssistant] = useState(false);
+  const [assistantAgents, setAssistantAgents] = useState([]);
+  const [assistantFetching, setAssistantFetching] = useState(false);
+  const [selectedAssistantAgentId, setSelectedAssistantAgentId] = useState("");
   const [countries, setCountries] = useState([]);
   const [countryCode, setCountryCode] = useState("IN"); 
   const [mobile, setMobile] = useState("");
@@ -49,6 +54,27 @@ export default function SendOmniCall() {
     };
     loadAgents();
   }, []);
+
+  // Load assistant agents (agents-category) only when needed
+  useEffect(() => {
+    if (!needAssistant) return;
+
+    const loadAssistantAgents = async () => {
+      setAssistantFetching(true);
+      try {
+        const list = await getAgentsCategory();
+        setAssistantAgents(Array.isArray(list) ? list : []);
+      } catch (err) {
+        console.error("Failed to load assistant agents:", err);
+        toast.error(err?.message || "Failed to load assistant agents");
+        setAssistantAgents([]);
+      } finally {
+        setAssistantFetching(false);
+      }
+    };
+
+    loadAssistantAgents();
+  }, [needAssistant]);
 
   // Fetch minutes
   useEffect(() => {
@@ -150,8 +176,9 @@ export default function SendOmniCall() {
 
   // Validate form (manual input)
   const validate = () => {
-    if (!selectedAgentId) {
-      setError("Please select an agent.");
+    const activeAgentId = needAssistant ? selectedAssistantAgentId : selectedAgentId;
+    if (!activeAgentId) {
+      setError(needAssistant ? "Please select an assistant." : "Please select an agent.");
       return false;
     }
     if (!mobile && uploadedNumbers.length === 0) {
@@ -287,8 +314,9 @@ export default function SendOmniCall() {
             }
             toNumber = e164;
           }
+          const activeAgentId = needAssistant ? selectedAssistantAgentId : selectedAgentId;
           const payload = {
-            agent_id: String(selectedAgentId),
+            agent_id: String(activeAgentId),
             to: toNumber,
             from_number_id: FROM_NUMBER_ID,
           };
@@ -308,6 +336,8 @@ export default function SendOmniCall() {
       setMobile("");
       setUploadedNumbers([]);
       setSelectedAgentId("");
+      setSelectedAssistantAgentId("");
+      setNeedAssistant(false);
       setError("");
       setFileError("");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -364,24 +394,80 @@ export default function SendOmniCall() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Agent</label>
-            <select
-              value={selectedAgentId}
-              onChange={(e) => setSelectedAgentId(e.target.value)}
-              className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                error && !selectedAgentId ? "border-red-400 focus:ring-red-300" : "focus:ring-indigo-200"
+          <div className="flex items-center justify-between gap-3">
+            <label className="block text-sm font-medium text-gray-700">Agent</label>
+            <button
+              type="button"
+              onClick={() => {
+                setNeedAssistant((prev) => {
+                  const next = !prev;
+                  // clear selection when switching modes
+                  setError("");
+                  if (next) {
+                    setSelectedAgentId("");
+                  } else {
+                    setSelectedAssistantAgentId("");
+                  }
+                  return next;
+                });
+              }}
+              className={`px-3 py-1.5 rounded-lg text-sm border ${
+                needAssistant
+                  ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
               }`}
-              disabled={fetching}
-              required
             >
-              <option value="">{fetching ? "Loading agents..." : "-- Select an agent --"}</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.agent_id}>
-                  {a.agent_id} — {a.name || `Agent ${a.agent_id}`}
+              Need Assistant?
+            </button>
+          </div>
+
+          <div>
+            {needAssistant ? (
+              <select
+                value={selectedAssistantAgentId}
+                onChange={(e) => setSelectedAssistantAgentId(e.target.value)}
+                className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                  error && !selectedAssistantAgentId
+                    ? "border-red-400 focus:ring-red-300"
+                    : "focus:ring-emerald-200"
+                }`}
+                disabled={assistantFetching}
+                required
+              >
+                <option value="">
+                  {assistantFetching ? "Loading assistants..." : "-- Select an assistant --"}
                 </option>
-              ))}
-            </select>
+                {assistantAgents.map((a) => {
+                  const value = a.agent_id ?? a.id ?? "";
+                  const labelLeft = a.agent_id ?? a.id ?? "";
+                  const labelRight = a.name || a.category_name || a.category || `Assistant ${labelLeft}`;
+                  return (
+                    <option key={a.id ?? value} value={value}>
+                      {labelLeft ? `${labelLeft} — ${labelRight}` : labelRight}
+                    </option>
+                  );
+                })}
+              </select>
+            ) : (
+              <select
+                value={selectedAgentId}
+                onChange={(e) => setSelectedAgentId(e.target.value)}
+                className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                  error && !selectedAgentId
+                    ? "border-red-400 focus:ring-red-300"
+                    : "focus:ring-indigo-200"
+                }`}
+                disabled={fetching}
+                required
+              >
+                <option value="">{fetching ? "Loading agents..." : "-- Select an agent --"}</option>
+                {agents.map((a) => (
+                  <option key={a.id} value={a.agent_id}>
+                    {a.agent_id} — {a.name || `Agent ${a.agent_id}`}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {uploadedNumbers.length === 0 && (
@@ -446,6 +532,8 @@ export default function SendOmniCall() {
               onClick={() => {
                 setMobile("");
                 setSelectedAgentId("");
+                setSelectedAssistantAgentId("");
+                setNeedAssistant(false);
                 setError("");
                 setUploadedNumbers([]);
                 setFileError("");

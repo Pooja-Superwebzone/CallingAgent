@@ -468,6 +468,20 @@ export function getAgents() {
     });
 }
 
+export function getAgentsCategory() {
+  return service
+    .get("agents-category")
+    .then((res) => {
+      const out = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
+      return out;
+    })
+    .catch((error) => {
+      let msg = "Failed to fetch agents category.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
 export function getAgentsUsers() {
   return service
     .get("agents-users")
