@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import service from "../../api/axios";
 import Cookies from "js-cookie";
+import toast from "react-hot-toast";
+import { createPaymentOrder } from "../../api/payment";
 import dashboardImage from "../../assets/dashboard.png";
 
 const plans = [
@@ -98,6 +100,7 @@ const plans = [
 export default function ExamInfo() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const EXAM_FEE = 9999;
   
   // Clean email from URL parameter (remove quotes if present)
   const email = useMemo(() => {
@@ -113,6 +116,14 @@ export default function ExamInfo() {
       navigate("/", { replace: true });
     }
   }, [email, navigate]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Cashfree) {
+      window.cashfree = window.Cashfree({
+        mode: "production",
+      });
+    }
+  }, []);
   
   // Don't render content if email is not present (will redirect)
   if (!email || email === "") {
@@ -147,6 +158,48 @@ export default function ExamInfo() {
   const [scheduledDate, setScheduledDate] = useState(null);
   const FIXED_TIME = "10:00";
 
+  const loginAndNavigateToExam = async () => {
+    const response = await service.post("login", {
+      email,
+      password: "12345678",
+    });
+
+    if (response.data) {
+      const data = response.data;
+
+      if (data.token) {
+        Cookies.set("CallingAgent", data.token, {
+          expires: 365,
+          secure: true,
+          sameSite: "Strict",
+        });
+        localStorage.setItem("ibcrmtoken", data.token);
+      }
+
+      if (data.data?.role) {
+        Cookies.set("role", data.data.role, {
+          expires: 365,
+          secure: true,
+          sameSite: "Strict",
+        });
+      }
+
+      if (data.data?.twilio_user !== undefined) {
+        Cookies.set("twilio_user", String(data.data.twilio_user || "0"), {
+          expires: 365,
+          secure: true,
+          sameSite: "Strict",
+        });
+      }
+
+      if (data.data?.name) {
+        localStorage.setItem("userName", data.data.name);
+      }
+
+      navigate(`/exam-start?email=${encodeURIComponent(email)}`);
+    }
+  };
+
   // Handle Schedule Submit
   const handleScheduleSubmit = async () => {
     if (!selectedDate || !email) {
@@ -179,60 +232,69 @@ export default function ExamInfo() {
     }
   };
 
-  // Handle Start Exam button click - login and navigate
+  // Handle Start Exam button click - complete payment, then login and navigate
   const handleStartExam = async () => {
     if (!email) return;
-    
+
     setIsLoading(true);
     try {
-      // Call login API with email and static password (email is already cleaned)
-      const response = await service.post("login", {
-        email: email,
-        password: "12345678"
+      const customerName =
+        localStorage.getItem("userName") ||
+        Cookies.get("name") ||
+        "Exam Candidate";
+      const customerPhone = Cookies.get("contact_no") || "";
+
+      if (!customerPhone) {
+        throw new Error("Phone number not found. Please sign up again before starting the exam.");
+      }
+
+      if (!window.cashfree) {
+        throw new Error("Payment gateway is not ready yet. Please refresh and try again.");
+      }
+
+      const response = await createPaymentOrder({
+        name: customerName,
+        email,
+        phoneNumber: customerPhone,
+        totalPayment: EXAM_FEE,
+        orderDesc: "Certified AI Training Exam Fee",
+      });
+      const paymentSessionId = response?.payment_id || "";
+
+      if (!paymentSessionId) {
+        throw new Error("Payment session id was not returned from create order API.");
+      }
+
+      const result = await window.cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: "_self",
       });
 
-      // Store authentication data in cookies and localStorage
-      if (response.data) {
-        const data = response.data;
-        
-        if (data.token) {
-          // Store in cookies (existing functionality)
-          Cookies.set("CallingAgent", data.token, {
-            expires: 365,
-            secure: true,
-            sameSite: "Strict",
-          });
-          
-          // Store in localStorage as ibcrmtoken for ibcrm API calls
-          localStorage.setItem("ibcrmtoken", data.token);
-        }
-
-        if (data.data?.role) {
-          Cookies.set("role", data.data.role, {
-            expires: 365,
-            secure: true,
-            sameSite: "Strict",
-          });
-        }
-
-        if (data.data?.twilio_user !== undefined) {
-          Cookies.set("twilio_user", String(data.data.twilio_user || "0"), {
-            expires: 365,
-            secure: true,
-            sameSite: "Strict",
-          });
-        }
-
-        
-        if (data.data?.name) {
-          localStorage.setItem("userName", data.data.name);
-        }
-
-        // Navigate to exam page with email parameter (email is already cleaned)
-        navigate(`/exam-start?email=${encodeURIComponent(email)}`);
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed.");
       }
+
+      const isPaymentSuccessful =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!isPaymentSuccessful) {
+        if (result?.redirect) {
+          return;
+        }
+        throw new Error("Payment was not completed.");
+      }
+
+      toast.success("Payment successful. Starting your exam...");
+      await loginAndNavigateToExam();
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Exam start error:", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to start exam. Please try again.";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -970,6 +1032,9 @@ export default function ExamInfo() {
                     <p className="text-lg">
                       Start using Richa AI today and transform how you learn, work, and create.
                     </p>
+                    <p className="text-base font-semibold">
+                      If you want to get the certificate, just pay Rs. {EXAM_FEE.toLocaleString("en-IN")}/-. After the examination, you will get your certificate.
+                    </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                       <a
                         href="https://www.richa.infinitybrains.com"
@@ -996,14 +1061,14 @@ export default function ExamInfo() {
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                               </svg>
-                              <span>Logging in...</span>
+                              <span>Processing Payment...</span>
                             </>
                           ) : (
                             <>
                               <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                               </svg>
-                              <span>Start Exam</span>
+                              <span>Pay Rs. {EXAM_FEE.toLocaleString("en-IN")} & Start Exam</span>
                               <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
@@ -1183,4 +1248,3 @@ export default function ExamInfo() {
     </div>
   );
 }
-

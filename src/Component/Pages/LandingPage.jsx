@@ -27,7 +27,7 @@ export const plans = [
     id: "certified_ai_training",
     title: "Certified AI Training",
     subtitle: "",
-    price: "₹5,999/-",
+    price: "Free",
     original: "Rs. 9,999/-",
     link: "become-ai-certified-by-richa",
   },
@@ -947,6 +947,14 @@ export default function LandingPage() {
                             });
                             return;
                           }
+                          if (selectedPlan.id === "certified_ai_training") {
+                            closeSignupModal();
+                            navigate(`/exam-info?email=${encodeURIComponent(formValues.email)}`, {
+                              replace: true,
+                            });
+                            return;
+                          }
+
                           const url = new URL(`https://ibcrm.in/${selectedPlan.link}`);
                           url.searchParams.set("email", formValues.email);
                           if (tokenToUse) url.searchParams.set("token", tokenToUse);

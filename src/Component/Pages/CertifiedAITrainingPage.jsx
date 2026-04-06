@@ -9,21 +9,12 @@ const plan = {
   id: "certified_ai_training",
   title: "Certified AI Training",
   subtitle: "Complete Generative AI Training Program",
-  price: "₹5,999/-",
+  price: "Free",
   original: "Rs. 9,999/-",
   link: "become-ai-certified-by-richa",
 };
 
-// Calculate discount percentage
-const calculateDiscountPercentage = () => {
-  const originalPrice = 9999;
-  const currentPrice = 5999;
-  const discount = originalPrice - currentPrice;
-  const percentage = Math.round((discount / originalPrice) * 100);
-  return percentage;
-};
-
-const discountPercentage = calculateDiscountPercentage();
+const CERTIFICATE_FEE = 9999;
 
 const getStoredToken = (planId) => {
   if (typeof window === "undefined") return "";
@@ -121,7 +112,7 @@ export default function CertifiedAITrainingPage() {
 
             <p className="mt-4 max-w-xl text-lg text-slate-600">
               Master Generative AI with our comprehensive training program. Learn AI fundamentals, 
-              practical applications, and get certified to advance your career.
+              practical applications, and build practical AI skills for real-world use. This training is free, and you only need to pay if you want the certificate after the examination.
             </p>
 
             <div className="mt-6 flex items-center gap-4">
@@ -143,11 +134,17 @@ export default function CertifiedAITrainingPage() {
 
             <div className="mt-8">
               <div className="flex items-center gap-3 mb-3">
-                <span className="bg-red-500 text-white px-4 py-1 rounded-full text-sm font-bold">
-                  {discountPercentage}% OFF
+                <span className="bg-emerald-500 text-white px-4 py-1 rounded-full text-sm font-bold">
+                  Free Training
                 </span>
                 <span className="text-sm text-slate-600">
-                  <span className="line-through text-slate-400">{plan.original}</span>{" "}
+                  Certificate fee:{" "}
+                  <span className="text-emerald-600 font-semibold">
+                    Rs. {CERTIFICATE_FEE.toLocaleString("en-IN")}/- after the examination
+                  </span>
+                </span>
+                <span className="hidden text-sm text-slate-600">
+                  Certificate fee: 
                   <span className="text-emerald-600 font-semibold">Save ₹4,000</span>
                 </span>
               </div>
@@ -156,7 +153,7 @@ export default function CertifiedAITrainingPage() {
                 onClick={() => setShowSignup(true)}
                 className="rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-fuchsia-200/60 transition hover:opacity-95"
               >
-                Buy Now - {plan.price}
+                Start Free Training
               </button>
             </div>
           </div>
@@ -218,7 +215,7 @@ export default function CertifiedAITrainingPage() {
                   <span className="text-green-600 mr-2 text-xl">✓</span>
                   <div>
                     <strong className="text-gray-800">Course Completion Certificate</strong>
-                    <p className="text-sm text-gray-600">Get a recognized certificate upon completion</p>
+                    <p className="text-sm text-gray-600">Get a recognized certificate after passing the exam and paying the certificate fee</p>
                   </div>
                 </div>
                 <div className="flex items-start">
@@ -247,8 +244,8 @@ export default function CertifiedAITrainingPage() {
 
             <div className="text-center">
               <div className="mb-4">
-                <span className="bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold inline-block">
-                  {discountPercentage}% OFF
+                <span className="bg-emerald-500 text-white px-4 py-2 rounded-full text-sm font-bold inline-block">
+                  Free Training
                 </span>
               </div>
               <button
@@ -256,7 +253,7 @@ export default function CertifiedAITrainingPage() {
                 onClick={() => setShowSignup(true)}
                 className="rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 px-10 py-4 text-lg font-semibold text-white shadow-lg shadow-fuchsia-200/60 transition hover:opacity-95"
               >
-                Enroll Now - {plan.price}
+                Join Free Training
               </button>
             </div>
           </div>
@@ -407,17 +404,17 @@ export default function CertifiedAITrainingPage() {
           <div className="bg-gradient-to-r from-indigo-600 to-fuchsia-600 rounded-3xl p-12 text-center text-white shadow-2xl">
             <h2 className="text-4xl font-bold mb-4">Ready to Become AI Certified?</h2>
             <p className="text-xl mb-8 opacity-90">
-              Join thousands of students and professionals learning AI with Richa AI
+              Join the free training program today. If you want the certificate, you can pay after the examination.
             </p>
             <div className="flex items-center justify-center gap-6 mb-8">
               <div>
                 <div className="text-3xl font-bold">{plan.price}</div>
-                <div className="text-sm opacity-80 line-through">{plan.original}</div>
+                <div className="text-sm opacity-80">Training Access</div>
               </div>
               <div className="text-2xl">→</div>
               <div>
-                <div className="text-3xl font-bold">{discountPercentage}% OFF</div>
-                <div className="text-sm opacity-80">Save ₹4,000 - Limited Time Offer</div>
+                <div className="text-3xl font-bold">Rs. {CERTIFICATE_FEE.toLocaleString("en-IN")}/-</div>
+                <div className="text-sm opacity-80">Certificate Fee After Exam</div>
               </div>
             </div>
             <button
@@ -425,7 +422,7 @@ export default function CertifiedAITrainingPage() {
               onClick={() => setShowSignup(true)}
               className="bg-white text-indigo-600 px-10 py-4 rounded-2xl text-lg font-semibold shadow-lg hover:bg-gray-100 transition"
             >
-              Enroll Now - {plan.price}
+              Start Free Training
             </button>
           </div>
         </section>
@@ -447,7 +444,7 @@ export default function CertifiedAITrainingPage() {
                 <p className="text-sm font-semibold text-indigo-600">Sign up to continue</p>
                 <h3 className="text-xl font-bold text-slate-900 mt-1">{plan.title}</h3>
                 <p className="text-sm text-slate-600">
-                  {plan.subtitle || "Complete signup to proceed to payment."}
+                  {plan.subtitle || "Complete signup to start the free training."}
                 </p>
               </div>
               <button
@@ -522,7 +519,7 @@ export default function CertifiedAITrainingPage() {
             <div className="mt-6 flex items-center justify-between">
               <div className="text-sm text-slate-600">
                 Price: <span className="font-semibold text-slate-900">{plan.price}</span>{" "}
-                <span className="text-xs text-slate-500">(+GST)</span>
+                <span className="text-xs text-slate-500">Certificate fee applies only if needed</span>
               </div>
               <button
                 type="button"

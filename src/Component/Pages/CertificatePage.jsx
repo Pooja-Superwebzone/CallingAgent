@@ -5,6 +5,7 @@ import service from "../../api/axios";
 
 export default function CertificatePage() {
   const navigate = useNavigate();
+  const EXAM_FEE = 9999;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [examResults, setExamResults] = useState([]);
@@ -140,11 +141,15 @@ export default function CertificatePage() {
                 Exam Results & Certificates
               </h1>
               <p className="text-slate-600 mt-1">
-                View all exam attempts and results
+                Pay Rs. {EXAM_FEE.toLocaleString("en-IN")}/- for the certification exam. After successful payment and passing the exam, your certificate will be issued.
               </p>
             </div>
           </div>
         </header>
+
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4 text-sm text-indigo-900">
+          If you want a certificate, you need to pay the exam fee of Rs. {EXAM_FEE.toLocaleString("en-IN")}/-. Once your payment is completed and you pass the examination, your certificate will be generated and shared with you.
+        </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -258,4 +263,3 @@ export default function CertificatePage() {
     </div>
   );
 }
-
