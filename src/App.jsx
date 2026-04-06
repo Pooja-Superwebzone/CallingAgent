@@ -38,6 +38,7 @@ import TutorialPage from './Component/Pages/TutorialPage';
 import MinutesPage from "./Component/Pages/MinutesPage";
 import UpgradeMinutesPage from "./Component/Pages/UpgradeMinutesPage";
 import ChannelPartnerMinuteTransactions from "./Component/Pages/ChannelPartnerMinuteTransactions";
+import AgentsCategoryPage from "./Component/Pages/AgentsCategoryPage";
 
 function App() {
   const location = useLocation();
@@ -186,6 +187,7 @@ function App() {
               path="/channel-partner-minute-transactions"
               element={<ChannelPartnerMinuteTransactions />}
             />
+            <Route path="/agents-category" element={<AgentsCategoryPage />} />
           </Route>
         )}
         {/* Catch-all */}

@@ -31,7 +31,6 @@ export default function ChannelPartnerUsers() {
   const [donateMinute, setDonateMinute] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [donationHistory, setDonationHistory] = useState([]);
-  const [baseProfileMinutes, setBaseProfileMinutes] = useState(0);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -45,28 +44,6 @@ export default function ChannelPartnerUsers() {
       om.minute ?? om.minutes ?? om.remaining_minute ?? om.remainingMinute ?? om.two_way;
     const n = Number(raw);
     return Number.isFinite(n) ? n : null;
-  };
-
-  const resolveOmniMinuteValue = (omniMinute) => {
-    if (omniMinute == null) return null;
-    if (typeof omniMinute === "number") return Number.isFinite(omniMinute) ? omniMinute : null;
-    if (typeof omniMinute !== "object") return null;
-    const raw =
-      omniMinute?.minute ??
-      omniMinute?.minutes ??
-      omniMinute?.remaining_minute ??
-      omniMinute?.remainingMinute;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : null;
-  };
-
-  const calculateRemainingProfileMinutes = (baseMinutes, history) => {
-    const donatedTotal = history.reduce((sum, item) => {
-      const parsedMinute = Number(item?.minute ?? 0);
-      return sum + (Number.isFinite(parsedMinute) ? parsedMinute : 0);
-    }, 0);
-
-    return Math.max(0, Number(baseMinutes ?? 0) - donatedTotal);
   };
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -83,13 +60,6 @@ export default function ChannelPartnerUsers() {
       return {};
     }
   };
-  const setStoredRemainingMinutes = (rowId, minute) => {
-    if (typeof window === "undefined" || !rowId) return;
-
-    const storedMinutes = getStoredRemainingMinutes();
-    storedMinutes[String(rowId)] = minute;
-    localStorage.setItem(remainingMinutesStorageKey, JSON.stringify(storedMinutes));
-  };
   const filteredTwilioUsers = useMemo(() => {
     const search = userSearch.trim().toLowerCase();
     if (!search) return [];
@@ -100,21 +70,12 @@ export default function ChannelPartnerUsers() {
       return name.includes(search) || email.includes(search) || phone.includes(search);
     });
   }, [twilioUsers, userSearch]);
-  const isMatchingProfileUser = (user) =>
-    String(user?.id) === String(profileUserId) ||
-    String(user?.user_id) === String(profileUserId) ||
-    String(user?.twilio_user_minute?.user_id) === String(profileUserId) ||
-    String(user?.twilio_two_way_user_minute?.user_id) === String(profileUserId);
   const isMatchingDonateUser = (user) =>
     String(user?.id) === String(donateUserId) ||
     String(user?.user_id) === String(donateUserId) ||
     String(user?.twilio_user_minute?.user_id) === String(donateUserId) ||
     String(user?.twilio_two_way_user_minute?.user_id) === String(donateUserId);
   const activeRow = rows[0] || allRows[0] || null;
-  const donationSourceMinutes = calculateRemainingProfileMinutes(
-    baseProfileMinutes,
-    donationHistory
-  );
   const channelPartnerMinutes = Number(donatingFrom?.minute ?? activeRow?.minute ?? 0);
   const selectedDonateUser = filteredTwilioUsers.find(
     (user) => isMatchingDonateUser(user)
@@ -325,17 +286,10 @@ export default function ChannelPartnerUsers() {
         "";
       setProfileUserId(String(resolvedUserId || ""));
       setProfileName(String(profile?.name || response?.data?.name || ""));
-      const profileOmniMinute = resolveOmniMinuteValue(
-        profile?.omni_minute ?? profile?.omniMinute
-      );
-      setBaseProfileMinutes(
-        Number.isFinite(Number(profileOmniMinute)) ? Number(profileOmniMinute) : 0
-      );
     } catch (error) {
       console.error("Failed to load profile user id:", error);
       setProfileUserId("");
       setProfileName("");
-      setBaseProfileMinutes(0);
     }
   };
 
@@ -408,19 +362,6 @@ export default function ChannelPartnerUsers() {
         channel_partner_name: profileName || donatingFrom?.name || "",
         role: currentRole,
       });
-      const newDonation = {
-        id: `${donatingFrom.id}-${userId}-${Date.now()}`,
-        channel_partner_id: donatingFrom?.id || profileUserId || "",
-        name: selectedDonateUser?.name || "User",
-        email: selectedDonateUser?.email || "",
-        phone_no:
-          selectedDonateUser?.phone_no ||
-          selectedDonateUser?.contact_no ||
-          "",
-        minute: parsedMinute,
-        donatedAt: new Date().toISOString(),
-      };
-      const updatedHistory = [newDonation, ...donationHistory];
       await loadRows();
       await loadDonationsFromApi(donatingFrom?.id || profileUserId, profileUserId);
       toast.success("Minutes donated successfully");
@@ -444,14 +385,6 @@ export default function ChannelPartnerUsers() {
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                 Manage your profile, donate minutes to users, and track donated user data.
               </p>
-              <div className="mt-3 inline-flex items-center rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-800">
-                Remaining minutes:{" "}
-                <span className="ml-1 font-semibold">
-                  {Number.isFinite(Number(donationSourceMinutes))
-                    ? Number(donationSourceMinutes)
-                    : 0}
-                </span>
-              </div>
             </div>
 
             <div className="flex justify-start md:w-auto md:flex-shrink-0 md:justify-end">
@@ -466,6 +399,11 @@ export default function ChannelPartnerUsers() {
               ) : null}
             </div>
           </div>
+        </div>
+
+        <div className="mb-3 rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-800">
+          Available remaining minutes :{" "}
+          <span className="font-semibold">{availableMinutesToUse}</span>
         </div>
 
         {!hasDonations ? (

@@ -472,7 +472,20 @@ export function getAgentsCategory() {
   return service
     .get("agents-category")
     .then((res) => {
-      const out = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
+      const d = res?.data;
+      const candidates = [
+        d,
+        d?.data,
+        d?.data?.data,
+        d?.categories,
+        d?.agents_categories,
+        d?.agentsCategories,
+        d?.records,
+        d?.results,
+        d?.data?.categories,
+        d?.data?.agents_categories,
+      ];
+      const out = candidates.find((x) => Array.isArray(x)) || [];
       return out;
     })
     .catch((error) => {
