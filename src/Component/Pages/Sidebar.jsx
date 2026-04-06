@@ -31,7 +31,7 @@ import ContactFormModal from "./ContactFormModal";
 import { BiLogoWhatsapp } from "react-icons/bi";
 import { IoCallOutline } from "react-icons/io5";
 import { BiPhoneCall } from "react-icons/bi";
-import { FaCertificate, FaUsers } from "react-icons/fa";
+import { FaCertificate, FaUsers, FaLayerGroup } from "react-icons/fa";
 import { FaMagento } from "react-icons/fa6";
 import { MdCallMade } from "react-icons/md";
 import { MdCallReceived } from "react-icons/md";
@@ -182,6 +182,23 @@ const Sidebar = () => {
             >
               <BookOpen size={18} />
               Tutorial
+            </button>
+          </li>
+
+          <li>
+            <button
+              onClick={() => {
+                navigate("/agents-category");
+                setMobileOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                location.pathname === "/agents-category"
+                  ? "bg-gray-700 text-gray-300"
+                  : "hover:bg-gray-700 text-gray-300"
+              }`}
+            >
+              <FaLayerGroup size={18} />
+              Agents category
             </button>
           </li>
 
