@@ -10,7 +10,7 @@ const plan = {
   title: "Certified AI Training",
   subtitle: "Complete Generative AI Training Program",
   price: "Free",
-  original: "Rs. 9,999/-",
+  original: "Rs. 999/-",
   link: "become-ai-certified-by-richa",
 };
 

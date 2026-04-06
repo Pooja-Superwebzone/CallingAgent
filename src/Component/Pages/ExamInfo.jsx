@@ -19,8 +19,8 @@ const plans = [
     id: "certified_ai_training",
     title: "Certified AI Training",
     subtitle: "",
-    price: "₹5,999/-",
-    original: "Rs. 9,999/-",
+    price: "free",
+    original: "Rs. 999/-",
     link: "become-ai-certified-by-richa",
   },
   {
@@ -100,7 +100,7 @@ const plans = [
 export default function ExamInfo() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const EXAM_FEE = 9999;
+  const EXAM_FEE = 999;
   
   // Clean email from URL parameter (remove quotes if present)
   const email = useMemo(() => {
