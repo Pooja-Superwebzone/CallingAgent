@@ -394,7 +394,7 @@ export default function ChannelPartnerUsers() {
                   onClick={() => openDonate(activeRow)}
                   className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 md:min-w-[160px]"
                 >
-                  Donate More
+                  Sale Talktime
                 </button>
               ) : null}
             </div>
@@ -653,7 +653,7 @@ export default function ChannelPartnerUsers() {
                 className="w-full rounded-xl bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-60 sm:w-auto"
                 disabled={saving || usersLoading}
               >
-                {saving ? "Donating..." : "Donate"}
+                {saving ? "  Sale Talktime..." : "Sale Talktime"}
               </button>
             </div>
           </div>
