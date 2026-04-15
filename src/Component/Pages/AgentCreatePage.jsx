@@ -78,7 +78,7 @@ export default function AgentCreatePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Body</label>
+            <label className="block text-sm font-medium">FAQ</label>
             <CKEditor
               editor={ClassicEditor}
               data={bodyHtml}

@@ -5,6 +5,14 @@ import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { createPaymentOrder } from "../../api/payment";
 import dashboardImage from "../../assets/dashboard.png";
+import createAgentV1Image from "../../assets/tabs/create-agent-v1.png";
+import ownCreatedAgentImage from "../../assets/tabs/own-created-agent.png";
+import alreadyCreatedAgentImage from "../../assets/tabs/already-created.png";
+import callLogsImg from "../../assets/tabs/call_logs.png";
+import createAgentImg from "../../assets/tabs/create_agent.png";
+import emailTemplateImg from "../../assets/tabs/how_email_template_work.png";
+import whatsappSendImg from "../../assets/tabs/how_whatshapp_message_send.png";
+import whatsappLogImg from "../../assets/tabs/whatshapp_log.png";
 
 const plans = [
   {
@@ -151,7 +159,7 @@ export default function ExamInfo() {
   const [selectedDate, setSelectedDate] = useState(tomorrow);
   const scheduleRef = useRef(null);
   const [showSchedule, setShowSchedule] = useState(false);
-  const [showRichaInfo, setShowRichaInfo] = useState(true);
+  const [showRichaInfo, setShowRichaInfo] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
   const [showScheduleSuccess, setShowScheduleSuccess] = useState(false);
@@ -300,21 +308,480 @@ export default function ExamInfo() {
     }
   };
 
+  const tutorialTabs = [
+    {
+      id: "call-logs",
+      title: "Call Logs",
+      image: callLogsImg,
+      description:
+        "The Call Logs page provides a comprehensive view of all call records made by your AI sales agent. This section helps you track and monitor call activity.",
+      features: [
+        "View all call records in a structured table format",
+        "See recipient phone numbers with country codes",
+        "Monitor call status and duration for each call",
+        "Check timestamps to track when calls were made",
+      ],
+      howToUse: [
+        "Navigate to 'Call log' from the Dashboard sidebar",
+        "Click the 'View' button next to any call entry to see more details",
+        "Use pagination controls to browse historical call records",
+      ],
+      route: "/call-logs",
+    },
+    {
+      id: "create-agent",
+      title: "Create Agent",
+      image: createAgentImg,
+      description:
+        "The Create Agent page allows you to build and configure new AI sales agents. Each agent can be customized with specific messaging and behavior patterns.",
+      features: [
+        "Create new AI agents with custom names",
+        "Set a welcome message for first interaction",
+        "Configure body content using rich text editor",
+        "Save agents for future campaigns",
+      ],
+      howToUse: [
+        "Navigate to 'Agents' and click to create a new agent",
+        "Enter Name, Welcome Message, and Body content",
+        "Click Save and use the agent in calls/messages",
+      ],
+      route: "/agents/new",
+    },
+    {
+      id: "email-template",
+      title: "Email Template",
+      image: emailTemplateImg,
+      description:
+        "The Email Template section helps you manage email templates for your communications. Create, edit, and reuse templates with dynamic variables.",
+      features: [
+        "Create and edit templates quickly",
+        "Use dynamic variables like {{email}}",
+        "Preview content before sending",
+        "Organize templates by name",
+      ],
+      howToUse: [
+        "Open 'Email Template' from sidebar",
+        "Click Add Template and fill template details",
+        "Save and reuse for automated communication",
+      ],
+      route: "/email-template",
+    },
+    {
+      id: "whatsapp-send-message",
+      title: "Send WhatsApp Message",
+      image: whatsappSendImg,
+      description:
+        "This page enables individual or bulk WhatsApp messaging to contacts. You can use templates and monitor available messaging minutes.",
+      features: [
+        "Send individual or bulk WhatsApp messages",
+        "Select ready templates for messages",
+        "Upload Excel file for bulk contacts",
+        "Choose country code and send instantly",
+      ],
+      howToUse: [
+        "Navigate to 'Whatsapp Send Message'",
+        "Select template and country code",
+        "Add number/upload Excel and click Send Message",
+      ],
+      route: "/whatsapp-send-message",
+    },
+    {
+      id: "whatsapp-logs",
+      title: "WhatsApp Logs",
+      image: whatsappLogImg,
+      description:
+        "The WhatsApp Logs page provides a detailed record of all messages sent through the platform. Track delivery status and communication history.",
+      features: [
+        "View sender/recipient details",
+        "Track message status and timestamps",
+        "Filter logs by status",
+        "Monitor campaign performance",
+      ],
+      howToUse: [
+        "Open 'Whatsapp Logs' from sidebar",
+        "Use filters to check delivery status",
+        "Review history to identify performance issues",
+      ],
+      route: "/whatsapp-logs",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900 px-6 py-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-10">
-        <header className="space-y-3">
+        <header className="space-y-5">
           <p className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-            Exam & Query Scheduling
+            Digital Marketing + AI Training
           </p>
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
-            Prepare with confidence — pick your exam flow and get help fast.
+            1. What You Will Learn in This Training Program
           </h1>
-          <p className="max-w-3xl text-lg text-slate-600">
-            Review the exam description, start immediately, or schedule a 1:1 call.
-            Choose a date (no past days) and we’ll lock in a perfect 10:00 AM slot for you.
+          <p className="max-w-5xl text-lg text-slate-600 leading-relaxed">
+            This training program is designed to transform beginners into job-ready digital professionals.
+            By the end of this course, you will not only understand digital marketing concepts but also learn
+            how to apply AI tools to automate and scale real-world business tasks.
           </p>
-        
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900 mb-3">You will learn:</h2>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-700">
+              <li>How digital marketing works in real businesses</li>
+              <li>How to generate leads, sales, and traffic</li>
+              <li>How to use AI tools to automate marketing tasks</li>
+              <li>How to create and manage AI-powered agents</li>
+              <li>How to handle real client work and projects</li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+            <h2 className="text-xl font-bold text-slate-900 mb-3">Career Outcome:</h2>
+            <p className="text-slate-700 mb-2">
+              If you complete this training seriously, you will be able to:
+            </p>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-700">
+              <li>Work as a freelancer</li>
+              <li>Get a digital marketing job</li>
+              <li>Start your own online business</li>
+              <li>Offer AI automation services</li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-amber-300 bg-[#f7f0dc] p-6 shadow-[0_14px_30px_rgba(120,95,45,0.12)]">
+            <p className="text-xs tracking-[0.35em] text-amber-900/70 uppercase mb-2">Index</p>
+            <h2 className="text-4xl font-bold text-slate-900 mb-2 [font-family:Georgia,Times_New_Roman,serif]">
+              2. Table of Contents
+            </h2>
+            <p className="text-slate-700 mb-6 text-lg [font-family:Georgia,Times_New_Roman,serif]">
+              This course is structured step-by-step like a complete guide:
+            </p>
+
+            <div className="space-y-3 [font-family:Georgia,Times_New_Roman,serif]">
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">1.</span><span className="whitespace-nowrap">Introduction</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">2.</span><span className="whitespace-nowrap">Basics of Artificial Intelligence</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">3.</span><span className="whitespace-nowrap">Understanding Generative AI</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">4.</span><span className="whitespace-nowrap">Introduction to Richa AI Platform</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">5.</span><span className="whitespace-nowrap">Features and Capabilities of Richa AI</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">6.</span><span className="whitespace-nowrap">Categories and Use Cases</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">7.</span><span className="whitespace-nowrap">Account Setup (Signup Process)</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">8.</span><span className="whitespace-nowrap">Creating Your First AI Agent</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">9.</span><span className="whitespace-nowrap">Two-Way Calling System</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+              <div className="flex items-end gap-3 text-slate-900"><span className="w-8 font-semibold">10.</span><span className="whitespace-nowrap">Complete Dashboard &amp; Button Explanation</span><span className="flex-1 border-b border-dotted border-slate-500/60 mb-1"></span></div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6 shadow-sm">
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
+              3. What is AI (Artificial Intelligence)?
+            </h2>
+            <p className="text-slate-700 text-lg leading-relaxed mb-4">
+              Artificial Intelligence (AI) refers to machines or software that can think, learn, and make decisions like humans.
+            </p>
+
+            <p className="text-slate-800 font-semibold mb-2">Instead of manually doing tasks, AI can:</p>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-700 mb-5">
+              <li>Analyze data</li>
+              <li>Understand language</li>
+              <li>Automate processes</li>
+              <li>Provide smart responses</li>
+            </ul>
+
+            <p className="text-slate-800 font-semibold mb-2">Example:</p>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-700 mb-5">
+              <li>Chatbots answering customer questions</li>
+              <li>AI tools writing content</li>
+              <li>Voice assistants handling calls</li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-purple-200 bg-purple-50 p-6 shadow-sm">
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
+              4. What is Richa AI (Generative AI)?
+            </h2>
+            <p className="text-slate-700 text-lg leading-relaxed mb-5">
+              Richa AI is a Generative AI platform that allows users to create smart AI agents capable of performing tasks automatically.
+            </p>
+
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">What is Generative AI?</h3>
+            <p className="text-slate-800 font-semibold mb-2">Generative AI is a type of AI that can:</p>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-700">
+              <li>Generate text</li>
+              <li>Create responses</li>
+              <li>Simulate human conversation</li>
+              <li>Produce content automatically</li>
+            </ul>
+
+          </div>
+
+          <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 via-cyan-50 to-sky-50 p-6 shadow-sm">
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
+              5. What Richa AI Can Do
+            </h2>
+            <p className="text-slate-700 text-lg leading-relaxed mb-4">
+              Richa AI is designed to handle multiple business tasks without human effort.
+            </p>
+
+            <div className="rounded-2xl border border-teal-200 bg-white/80 p-5 shadow-sm">
+              <p className="text-slate-900 font-bold text-xl mb-4">Key Capabilities:</p>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
+                  <p className="text-slate-900 font-semibold text-lg">📞 Handle customer calls automatically</p>
+                </div>
+                <div className="rounded-xl border border-teal-100 bg-cyan-50 px-4 py-3">
+                  <p className="text-slate-900 font-semibold text-lg">💬 Respond to queries like a human</p>
+                </div>
+                <div className="rounded-xl border border-teal-100 bg-sky-50 px-4 py-3">
+                  <p className="text-slate-900 font-semibold text-lg">🧠 Understand user intent</p>
+                </div>
+                <div className="rounded-xl border border-teal-100 bg-blue-50 px-4 py-3">
+                  <p className="text-slate-900 font-semibold text-lg">📊 Collect and manage leads</p>
+                </div>
+                <div className="rounded-xl border border-teal-100 bg-indigo-50 px-4 py-3">
+                  <p className="text-slate-900 font-semibold text-lg">📅 Book appointments</p>
+                </div>
+                <div className="rounded-xl border border-teal-100 bg-purple-50 px-4 py-3">
+                  <p className="text-slate-900 font-semibold text-lg">🔁 Automate repetitive tasks</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-rose-50 to-orange-50 p-6 shadow-sm">
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
+              6. Which Categories It Is Used In
+            </h2>
+            <p className="text-slate-700 text-lg leading-relaxed mb-5">
+              Richa AI can be used across multiple industries:
+            </p>
+
+            <div className="my-5 h-px bg-gradient-to-r from-transparent via-fuchsia-300 to-transparent" />
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="rounded-xl border border-fuchsia-200 bg-white p-4 shadow-sm border-l-4 border-l-fuchsia-500">
+                <p className="text-lg font-bold text-slate-900 mb-2">🔹 Business &amp; Sales</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Lead generation</li>
+                  <li>Customer follow-ups</li>
+                  <li>Sales automation</li>
+                  <li>Deal pipeline updates</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-fuchsia-200 bg-white p-4 shadow-sm border-l-4 border-l-rose-500">
+                <p className="text-lg font-bold text-slate-900 mb-2">🔹 Customer Support</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Answering queries</li>
+                  <li>Complaint handling</li>
+                  <li>Support automation</li>
+                  <li>Ticket pre-classification</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-fuchsia-200 bg-white p-4 shadow-sm border-l-4 border-l-orange-500">
+                <p className="text-lg font-bold text-slate-900 mb-2">🔹 Marketing</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Campaign management</li>
+                  <li>Engagement automation</li>
+                  <li>Funnel optimization</li>
+                  <li>Auto follow-up messaging</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-fuchsia-200 bg-white p-4 shadow-sm border-l-4 border-l-violet-500">
+                <p className="text-lg font-bold text-slate-900 mb-2">🔹 Education</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Student interaction</li>
+                  <li>Course guidance</li>
+                  <li>Admission support</li>
+                  <li>FAQ automation</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-fuchsia-200 bg-white p-4 shadow-sm border-l-4 border-l-emerald-500">
+                <p className="text-lg font-bold text-slate-900 mb-2">🔹 Healthcare</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Appointment booking</li>
+                  <li>Patient queries</li>
+                  <li>Reminder notifications</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-fuchsia-200 bg-white p-4 shadow-sm border-l-4 border-l-sky-500">
+                <p className="text-lg font-bold text-slate-900 mb-2">🔹 Real Estate</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Property inquiry handling</li>
+                  <li>Lead qualification</li>
+                  <li>Site visit scheduling</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-fuchsia-200 bg-white p-4 shadow-sm border-l-4 border-l-indigo-500">
+                <p className="text-lg font-bold text-slate-900 mb-2">🔹 E-commerce</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Order status replies</li>
+                  <li>Cart recovery messaging</li>
+                  <li>Post-purchase support</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-fuchsia-200 bg-white p-4 shadow-sm border-l-4 border-l-pink-500">
+                <p className="text-lg font-bold text-slate-900 mb-2">🔹 Finance &amp; Insurance</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Policy/service assistance</li>
+                  <li>Payment reminders</li>
+                  <li>Document follow-ups</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-fuchsia-200 bg-white p-4 shadow-sm border-l-4 border-l-amber-500">
+                <p className="text-lg font-bold text-slate-900 mb-2">🔹 Travel &amp; Hospitality</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Booking inquiries</li>
+                  <li>Itinerary assistance</li>
+                  <li>Customer service automation</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="my-5 h-px bg-gradient-to-r from-transparent via-fuchsia-300 to-transparent" />
+
+            <p className="text-slate-700">
+              Through these categories, Richa AI supports faster communication, better lead conversion,
+              and continuous customer engagement across industries.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50 p-6 shadow-sm">
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
+              7. Signup Process
+            </h2>
+            <p className="text-slate-700 text-lg leading-relaxed mb-4">
+              To start using Richa AI, you need to create an account.
+            </p>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-xl border border-blue-200 bg-white p-4 shadow-sm">
+                <img
+                  src="/dist/assets/richa_signup.png"
+                  alt="Richa AI Signup Screenshot"
+                  className="w-full rounded-lg border border-slate-200"
+                />
+                <div className="mt-3 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-800">
+                  Signup link:{" "}
+                  <a
+                    href="/login?tab=signup"
+                    className="font-semibold underline hover:text-blue-900"
+                  >
+                    /login?tab=signup
+                  </a>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
+                <p className="text-slate-900 font-bold text-xl mb-3">Steps:</p>
+                <ol className="list-decimal list-inside space-y-2 text-slate-700">
+                  <li>Visit the platform website.</li>
+                  <li>Click on <span className="font-semibold">Sign Up</span>.</li>
+                  <li>Enter your details:</li>
+                </ol>
+                <ul className="mt-2 ml-5 list-disc space-y-1 text-slate-700">
+                  <li>Name</li>
+                  <li>Email</li>
+                  <li>Password</li>
+                  <li>Contact No</li>
+                </ul>
+                <ol className="mt-3 list-decimal list-inside space-y-2 text-slate-700" start={4}>
+                  <li>Verify your email.</li>
+                  <li>Login to your dashboard.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-indigo-50 to-sky-50 p-6 shadow-sm">
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
+              8. Create Agent
+            </h2>
+            <p className="text-slate-700 text-lg leading-relaxed mb-4">
+              An AI Agent is your automated assistant.
+            </p>
+
+            <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+              <div className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm">
+                <img
+                  src={createAgentV1Image}
+                  alt="Create Agent screen"
+                  className="w-full rounded-lg border border-slate-200"
+                />
+              </div>
+
+              <div className="rounded-xl border border-violet-200 bg-white p-5 shadow-sm">
+                <p className="text-slate-900 font-bold text-xl mb-3">Steps to Create an Agent:</p>
+                <ol className="list-decimal list-inside space-y-2 text-slate-700">
+                  <li>Go to Dashboard.</li>
+                  <li>Click on Create Agent.</li>
+                  <li>Enter agent details:</li>
+                </ol>
+                <ul className="mt-2 ml-5 list-disc space-y-1 text-slate-700">
+                  <li>Agent Name</li>
+                  <li>Welcome message</li>
+                  <li>Faq content</li>
+                </ul>
+                <ol className="mt-3 list-decimal list-inside space-y-2 text-slate-700" start={4}>
+                  <li>Add instructions (what the agent should do).</li>
+                  <li>Save and go to two way call section.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-6 shadow-sm">
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
+              9. Two-Way Calls
+            </h2>
+            <p className="text-slate-700 text-lg leading-relaxed mb-4">
+              Two-way calling allows the AI agent to talk and listen like a human on a phone call.
+            </p>
+
+            <div className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm mb-6">
+              <p className="text-slate-900 font-bold text-xl mb-3">Features:</p>
+              <ul className="list-disc list-inside space-y-1.5 text-slate-700">
+                <li>AI can call customers</li>
+                <li>Customers can respond</li>
+                <li>AI understands replies</li>
+                <li>Conversation flows naturally</li>
+              </ul>
+              <p className="mt-4 text-slate-800">
+                <span className="font-semibold">Example:</span> AI calls a customer → explains offer → answers questions → books appointment
+              </p>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <div className="rounded-xl border border-emerald-200 bg-white p-4 shadow-sm">
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Use Created Agent via "Need Assistance?"</h3>
+                <p className="text-slate-700 mb-3">
+                  If you want to call directly with an already created agent, click the <span className="font-semibold">Need Assistance?</span> button.
+                </p>
+                <img
+                  src={alreadyCreatedAgentImage}
+                  alt="Need Assistance button for created agents"
+                  className="w-full rounded-lg border border-slate-200"
+                />
+              </div>
+
+              <div className="rounded-xl border border-emerald-200 bg-white p-4 shadow-sm">
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Use Your Own Created Agent Directly</h3>
+                <p className="text-slate-700 mb-3">
+                  If you have created your own agent, directly select it from the <span className="font-semibold">Agent</span> dropdown and start the call.
+                </p>
+                <img
+                  src={ownCreatedAgentImage}
+                  alt="Select own created agent in two-way call"
+                  className="w-full rounded-lg border border-slate-200"
+                />
+              </div>
+            </div>
+          </div>
         </header>
 
 
@@ -383,385 +850,84 @@ export default function ExamInfo() {
           )}
 
         <section className="flex flex-col gap-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm w-full">
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">Dashboard Tutorial Tabs Explanation</h2>
+              <p className="text-gray-600">
+                Same tutorial-style display as the Tutorial page with tab-wise explanation.
+              </p>
+            </div>
+
+            <div className="space-y-8">
+              {tutorialTabs.map((tutorial, index) => (
+                <div
+                  key={tutorial.id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200"
+                >
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-2xl font-semibold text-gray-800">
+                        {index + 1}. {tutorial.title}
+                      </h3>
+                      <button
+                        onClick={() => navigate(tutorial.route)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        Try It Now
+                      </button>
+                    </div>
+
+                    <div className="mb-6">
+                      <img
+                        src={tutorial.image}
+                        alt={tutorial.title}
+                        className="w-full rounded-lg border border-gray-300 shadow-sm"
+                      />
+                    </div>
+
+                    <p className="text-gray-700 text-lg mb-6 leading-relaxed">
+                      {tutorial.description}
+                    </p>
+
+                    <div className="grid md:grid-cols-2 gap-6 mb-2">
+                      <div className="bg-blue-50 p-5 rounded-lg border border-blue-200">
+                        <h4 className="text-lg font-semibold text-blue-900 mb-3 flex items-center">
+                          <span className="mr-2">✨</span> Key Features
+                        </h4>
+                        <ul className="space-y-2 text-gray-700">
+                          {tutorial.features.map((feature, idx) => (
+                            <li key={idx} className="flex items-start">
+                              <span className="text-blue-600 mr-2 mt-1">•</span>
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="bg-green-50 p-5 rounded-lg border border-green-200">
+                        <h4 className="text-lg font-semibold text-green-900 mb-3 flex items-center">
+                          <span className="mr-2">📖</span> How to Use
+                        </h4>
+                        <ol className="space-y-2 text-gray-700 list-decimal list-inside">
+                          {tutorial.howToUse.map((step, idx) => (
+                            <li key={idx} className="pl-2">
+                              {step}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Richa AI Training Course Section */}
           {showRichaInfo && (
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm w-full">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-3xl font-extrabold text-slate-900 mb-2">
-                    Richa AI – Complete Generative AI Training Program
-                  </h2>
-                  <p className="text-xl font-bold text-indigo-600">Learn AI the Smart Way</p>
-                  <p className="text-sm text-slate-500 mt-1">Powered by Infinity Brains | www.richa.infinitybrains.com</p>
-                </div>
-                <button
-                  onClick={() => setShowRichaInfo(false)}
-                  className="text-slate-400 hover:text-slate-600 transition"
-                  aria-label="Close Richa information"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Richa Dashboard Image */}
-              <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200 shadow-lg">
-                <img
-                  src={dashboardImage}
-                  alt="Richa AI Dashboard"
-                  className="w-full h-auto object-cover"
-                />
-              </div>
-
               <div className="space-y-8 text-slate-700 leading-relaxed">
-                {/* Course Overview */}
-                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-200">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Course Overview</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-semibold text-slate-900 mb-2">What This Training Covers:</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
-                        <li>Understanding AI and Generative AI fundamentals</li>
-                        <li>Introduction to Richa AI platform</li>
-                        <li>Practical use cases and applications</li>
-                        <li>Hands-on learning and skill development</li>
-                        <li>Career opportunities and future prospects</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 mb-2">Who Should Attend:</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
-                        <li>College & university students</li>
-                        <li>Working professionals (IT, marketing, HR, operations)</li>
-                        <li>Educators & trainers</li>
-                        <li>Business owners & freelancers</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* What is AI */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-3">What is Artificial Intelligence (AI)?</h3>
-                  <p className="mb-3">
-                    Artificial Intelligence (AI) is technology that enables machines to learn, think, and make decisions like humans. It's the science of making computers smart enough to perform tasks that typically require human intelligence.
-                  </p>
-                  <div className="bg-slate-50 p-4 rounded-xl mb-3">
-                    <h4 className="font-semibold text-slate-900 mb-2">Examples of AI in Daily Life:</h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
-                      <li>Google Maps navigation and route optimization</li>
-                      <li>Netflix recommendations based on your preferences</li>
-                      <li>Chatbots on websites for customer support</li>
-                      <li>Voice assistants like Siri, Alexa, and Google Assistant</li>
-                      <li>Email spam filters and auto-correct features</li>
-                    </ul>
-                  </div>
-                  <p className="font-semibold text-slate-900">
-                    AI vs Human Intelligence: AI complements human capabilities by processing vast amounts of data quickly, while humans provide creativity, empathy, and strategic thinking.
-                  </p>
-                </div>
-
-                {/* Evolution of AI */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Evolution of AI</h3>
-                  <div className="grid md:grid-cols-4 gap-4">
-                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                      <h4 className="font-bold text-blue-900 mb-2">Traditional Software</h4>
-                      <p className="text-sm text-blue-700">
-                        Rule-based programs following fixed instructions
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100">
-                      <h4 className="font-bold text-indigo-900 mb-2">Machine Learning</h4>
-                      <p className="text-sm text-indigo-700">
-                        Systems that learn from data and improve over time
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-purple-50 border border-purple-100">
-                      <h4 className="font-bold text-purple-900 mb-2">Deep Learning</h4>
-                      <p className="text-sm text-purple-700">
-                        Neural networks that mimic the human brain
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-green-50 border border-green-100">
-                      <h4 className="font-bold text-green-900 mb-2">Generative AI</h4>
-                      <p className="text-sm text-green-700">
-                        AI that creates new content - text, images, videos, code
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* What is Generative AI */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-3">What is Generative AI?</h3>
-                  <p className="mb-3">
-                    Generative AI is a type of artificial intelligence that can create new, original content rather than just analyzing or processing existing data. It generates text, images, videos, code, and more based on patterns it has learned.
-                  </p>
-                  <div className="bg-slate-50 p-4 rounded-xl mb-3">
-                    <h4 className="font-semibold text-slate-900 mb-2">Types of Generation:</h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
-                      <li><strong>Text Generation:</strong> Articles, emails, stories, code</li>
-                      <li><strong>Image Generation:</strong> Art, designs, photos</li>
-                      <li><strong>Video Generation:</strong> Animated content, presentations</li>
-                      <li><strong>Code Generation:</strong> Programming code, scripts</li>
-                    </ul>
-                  </div>
-                  <p className="mb-3">
-                    <strong>Popular Examples:</strong> ChatGPT (text), DALL·E (images), Midjourney (art), GitHub Copilot (code)
-                  </p>
-                </div>
-
-                {/* Introduction to Richa AI */}
-                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-200">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Introduction to Richa AI</h3>
-                  <div className="space-y-3">
-                    <p className="mb-3">
-                      <strong>What is Richa AI:</strong> Richa AI is a comprehensive generative AI platform designed specifically for Indian users and businesses. It's an intelligent assistant that helps with learning, productivity, content creation, and business growth.
-                    </p>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="p-4 bg-white rounded-xl">
-                        <h4 className="font-semibold text-indigo-900 mb-2">Vision & Purpose</h4>
-                        <p className="text-sm text-slate-700">
-                          To make advanced AI accessible, affordable, and practical for everyone - from students to entrepreneurs
-                        </p>
-                      </div>
-                      <div className="p-4 bg-white rounded-xl">
-                        <h4 className="font-semibold text-purple-900 mb-2">Built for India</h4>
-                        <p className="text-sm text-slate-700">
-                          Designed with Indian context, languages, and business needs in mind. Localized solutions for local challenges
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Why Richa AI Was Created */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Why Richa AI Was Created</h3>
-                  <div className="grid md:grid-cols-2 gap-4 mb-4">
-                    <div className="p-4 rounded-xl bg-red-50 border border-red-100">
-                      <h4 className="font-bold text-red-900 mb-2">Problems with Existing AI Tools</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
-                        <li>High costs and subscription fees</li>
-                        <li>Language barriers and limited localization</li>
-                        <li>Complex interfaces difficult for beginners</li>
-                        <li>Limited focus on practical learning</li>
-                      </ul>
-                    </div>
-                    <div className="p-4 rounded-xl bg-green-50 border border-green-100">
-                      <h4 className="font-bold text-green-900 mb-2">How Richa AI Solves Them</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-green-700">
-                        <li>Affordable pricing for Indian market</li>
-                        <li>Multi-language support and Indian context</li>
-                        <li>Simple, user-friendly interface</li>
-                        <li>Focus on education and skill development</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* How Richa AI Works */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">How Richa AI Works</h3>
-                  <div className="bg-slate-50 p-6 rounded-xl mb-4">
-                    <div className="flex items-center justify-center gap-4 mb-4">
-                      <div className="text-center p-4 bg-white rounded-lg">
-                        <p className="font-semibold text-indigo-600">Input</p>
-                        <p className="text-sm text-slate-600 mt-1">Your question or request</p>
-                      </div>
-                      <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                      <div className="text-center p-4 bg-white rounded-lg">
-                        <p className="font-semibold text-purple-600">AI Processing</p>
-                        <p className="text-sm text-slate-600 mt-1">Advanced algorithms analyze</p>
-                      </div>
-                      <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                      <div className="text-center p-4 bg-white rounded-lg">
-                        <p className="font-semibold text-green-600">Output</p>
-                        <p className="text-sm text-slate-600 mt-1">Intelligent response</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-600 text-center">
-                      <strong>Data Security & Reliability:</strong> Your data is processed securely with privacy protection. Richa AI uses reliable infrastructure to ensure consistent performance.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Key Features of Richa AI */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Key Features of Richa AI</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100">
-                      <h4 className="font-bold text-indigo-900 mb-2">💬 Conversational AI</h4>
-                      <p className="text-sm text-indigo-700">
-                        Natural language conversations for learning, problem-solving, and assistance
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-purple-50 border border-purple-100">
-                      <h4 className="font-bold text-purple-900 mb-2">✍️ Content Creation</h4>
-                      <p className="text-sm text-purple-700">
-                        Generate articles, emails, social media posts, and creative content
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-green-50 border border-green-100">
-                      <h4 className="font-bold text-green-900 mb-2">📚 Learning & Productivity</h4>
-                      <p className="text-sm text-green-700">
-                        Study assistance, research help, and productivity tools for students and professionals
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-orange-50 border border-orange-100">
-                      <h4 className="font-bold text-orange-900 mb-2">💼 Business & Career</h4>
-                      <p className="text-sm text-orange-700">
-                        Business strategy, marketing ideas, career guidance, and professional development
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Use Cases of Richa AI */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Use Cases of Richa AI</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-5 rounded-xl bg-blue-50 border border-blue-200">
-                      <h4 className="font-bold text-blue-900 mb-3">👨‍🎓 For Students</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-blue-700">
-                        <li>Homework help and study assistance</li>
-                        <li>Essay and assignment writing</li>
-                        <li>Exam preparation and practice</li>
-                        <li>Research and information gathering</li>
-                        <li>Learning new concepts and subjects</li>
-                      </ul>
-                    </div>
-                    <div className="p-5 rounded-xl bg-indigo-50 border border-indigo-200">
-                      <h4 className="font-bold text-indigo-900 mb-3">💼 For Working Professionals</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-indigo-700">
-                        <li>Email drafting and communication</li>
-                        <li>Report writing and documentation</li>
-                        <li>Data analysis and insights</li>
-                        <li>Presentation creation</li>
-                        <li>Skill development and upskilling</li>
-                      </ul>
-                    </div>
-                    <div className="p-5 rounded-xl bg-purple-50 border border-purple-200">
-                      <h4 className="font-bold text-purple-900 mb-3">👩‍🏫 For Teachers & Trainers</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-purple-700">
-                        <li>Lesson plan creation</li>
-                        <li>Educational content development</li>
-                        <li>Assessment and quiz generation</li>
-                        <li>Student feedback and evaluation</li>
-                        <li>Teaching material preparation</li>
-                      </ul>
-                    </div>
-                    <div className="p-5 rounded-xl bg-green-50 border border-green-200">
-                      <h4 className="font-bold text-green-900 mb-3">🚀 For Entrepreneurs & Startups</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-green-700">
-                        <li>Business plan development</li>
-                        <li>Marketing content creation</li>
-                        <li>Customer communication</li>
-                        <li>Market research and analysis</li>
-                        <li>Productivity and automation</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Why Students Should Learn Richa AI */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Why Students Should Learn Richa AI</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100">
-                      <h4 className="font-bold text-indigo-900 mb-2">🎯 Skill Development</h4>
-                      <p className="text-sm text-indigo-700">
-                        Build future-ready skills that employers value. AI literacy is becoming essential in every field.
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-purple-50 border border-purple-100">
-                      <h4 className="font-bold text-purple-900 mb-2">💼 Career Readiness</h4>
-                      <p className="text-sm text-purple-700">
-                        Stand out in job applications. AI skills give you a competitive edge in the job market.
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-green-50 border border-green-100">
-                      <h4 className="font-bold text-green-900 mb-2">⚡ Productivity Improvement</h4>
-                      <p className="text-sm text-green-700">
-                        Complete assignments faster, learn more effectively, and manage time better with AI assistance.
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-orange-50 border border-orange-100">
-                      <h4 className="font-bold text-orange-900 mb-2">🔮 Future Job Relevance</h4>
-                      <p className="text-sm text-orange-700">
-                        AI is transforming industries. Learning AI now prepares you for tomorrow's job market.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Why Working Professionals Need Richa AI */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Why Working Professionals Need Richa AI</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                      <h4 className="font-bold text-blue-900 mb-2">⏱️ Time-Saving</h4>
-                      <p className="text-sm text-blue-700">
-                        Automate repetitive tasks, draft emails faster, and focus on high-value work that matters.
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100">
-                      <h4 className="font-bold text-indigo-900 mb-2">🧠 Smart Decision-Making</h4>
-                      <p className="text-sm text-indigo-700">
-                        Get data-driven insights and analysis to make better business decisions quickly.
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-purple-50 border border-purple-100">
-                      <h4 className="font-bold text-purple-900 mb-2">📈 Upskilling & Reskilling</h4>
-                      <p className="text-sm text-purple-700">
-                        Stay relevant in your career by learning AI tools and adapting to technological changes.
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-green-50 border border-green-100">
-                      <h4 className="font-bold text-green-900 mb-2">🏆 Competitive Advantage</h4>
-                      <p className="text-sm text-green-700">
-                        Use AI to outperform competitors, deliver better results, and advance your career faster.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Richa AI for Businesses & Startups */}
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Richa AI for Businesses & Startups</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100">
-                      <h4 className="font-bold text-indigo-900 mb-2">📢 Marketing & Content</h4>
-                      <p className="text-sm text-indigo-700">
-                        Create engaging social media posts, blog articles, and marketing campaigns without hiring expensive agencies.
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-purple-50 border border-purple-100">
-                      <h4 className="font-bold text-purple-900 mb-2">💬 Customer Support</h4>
-                      <p className="text-sm text-purple-700">
-                        Provide 24/7 customer assistance, answer queries instantly, and improve customer satisfaction.
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-green-50 border border-green-100">
-                      <h4 className="font-bold text-green-900 mb-2">⚙️ Operations & Automation</h4>
-                      <p className="text-sm text-green-700">
-                        Automate routine tasks, streamline workflows, and reduce manual work for your team.
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-orange-50 border border-orange-100">
-                      <h4 className="font-bold text-orange-900 mb-2">💰 Cost Efficiency</h4>
-                      <p className="text-sm text-orange-700">
-                        Reduce operational costs, minimize hiring needs, and maximize ROI with AI-powered solutions.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+            
 
                 {/* Pricing Plans of Richa AI */}
                 <div>
@@ -1097,14 +1263,14 @@ export default function ExamInfo() {
             once your passed exam your certificate will be generated and you will be sent you on email.
           </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              {/* <button
+              <button
                 type="button"
                 className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleStartExam}
                 disabled={isLoading}
               >
-                {isLoading ? "Logging in..." : "Start Exam"}
-              </button> */}
+                {isLoading ? "Processing Payment..." : `Pay Rs. ${EXAM_FEE.toLocaleString("en-IN")} & Start Exam`}
+              </button>
               <a
                 href="#schedule"
                 onClick={(e) => {
@@ -1116,14 +1282,6 @@ export default function ExamInfo() {
               >
                 Schedule a Query
               </a>
-              {!showRichaInfo && (
-                <button
-                  onClick={() => setShowRichaInfo(true)}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-                >
-                  View Richa Information
-                </button>
-              )}
             </div>
           </div>
           {/* Exam Description Section */}
