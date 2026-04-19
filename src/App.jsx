@@ -39,6 +39,7 @@ import MinutesPage from "./Component/Pages/MinutesPage";
 import UpgradeMinutesPage from "./Component/Pages/UpgradeMinutesPage";
 import ChannelPartnerMinuteTransactions from "./Component/Pages/ChannelPartnerMinuteTransactions";
 import AgentsCategoryPage from "./Component/Pages/AgentsCategoryPage";
+import CreateAgentTopicPage from "./Component/Pages/CreateAgentTopicPage";
 
 function App() {
   const location = useLocation();
@@ -167,6 +168,7 @@ function App() {
             <Route path="/whatsapp-temp" element={<WhatsappTemplatesPage />} />
             <Route path="/call-schedule" element={<Callschedule />} />
             <Route path='/call-coversation' element={<ConversationCall />} />
+            <Route path="/create-agent-topic" element={<CreateAgentTopicPage />} />
             <Route path="/" element={<Navigate to="/agents" replace />} />
             <Route path="/agents_page" element={<AgentsPage />} />
             <Route path="/agents/new" element={<AgentCreatePage />} />

@@ -521,6 +521,42 @@ export function createAgent(payload) {
     });
 }
 
+export function startAgentTopic(payload) {
+  return service
+    .post("start", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ start failed:", error);
+      let msg = "Failed to start topic.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+export function sendAgentChatMessage(payload) {
+  return service
+    .post("chat", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ chat failed:", error);
+      let msg = "Failed to send chat message.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
+export function generateAgentFaq(payload) {
+  return service
+    .post("generate", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ generate failed:", error);
+      let msg = "Failed to generate FAQ.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
 
 
 
