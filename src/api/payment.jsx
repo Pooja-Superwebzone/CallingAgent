@@ -8,6 +8,17 @@ const ADD_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/add-subscription";
 const UPDATE_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/update-subscription";
 const CASHFREE_APP_ID = import.meta.env.VITE_CASHFREE_APP_ID;
 const CASHFREE_SECRET_KEY = import.meta.env.VITE_CASHFREE_SECRET_KEY;
+// const CASHFREE_APP_ID = "6915 866f7f20bcb   60977 
+// 5864a9685196";
+// const CASHFREE_SECRET_KEY = "c
+// f
+// sk  _ma_ prod_  46
+// d7
+// 8ceada96539830a656518
+// 
+// 8abcd58_4c98
+// 137a";
+
 
 export async function createPaymentOrder({
   name,

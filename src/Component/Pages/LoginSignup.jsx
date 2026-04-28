@@ -11,6 +11,11 @@ import {
 } from "../../hooks/useAuth";
 import service from "../../api/axios";
 import CustomerCareCall from "../../components/ui/CustomerCareCall";
+import {
+  requestPasswordResetOtp,
+  resetPasswordWithOtp,
+} from "../../api/forgotPassword";
+import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 
 const normalizeEmail = (email = "") => String(email).trim().toLowerCase();
 const PLAN_ID_MAP = {
@@ -122,6 +127,19 @@ export default function LoginSignup() {
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otp, setOtp] = useState("");
   const [loginUnverified, setLoginUnverified] = useState(false);
+
+  const [showTrainingChoiceModal, setShowTrainingChoiceModal] = useState(false);
+
+  // Forgot password modal state
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState("email"); // "email" | "otp_reset"
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotPassword, setForgotPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [forgotShowPassword, setForgotShowPassword] = useState(false);
+  const [forgotShowConfirmPassword, setForgotShowConfirmPassword] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   useEffect(() => {
     const tab = new URLSearchParams(location.search).get("tab");
@@ -342,6 +360,77 @@ export default function LoginSignup() {
     }
   };
 
+  const resetForgotState = () => {
+    setForgotStep("email");
+    setForgotEmail("");
+    setForgotOtp("");
+    setForgotPassword("");
+    setForgotConfirmPassword("");
+    setForgotShowPassword(false);
+    setForgotShowConfirmPassword(false);
+    setForgotLoading(false);
+  };
+
+  const handleForgotSendOtp = async () => {
+    const emailToUse = String(forgotEmail || loginData.email || "").trim();
+    if (!emailToUse) {
+      toast.error("Please enter your email to receive OTP.");
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      await requestPasswordResetOtp(emailToUse);
+      setForgotEmail(emailToUse);
+      setForgotStep("otp_reset");
+      toast.success("OTP sent to your email.");
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to send OTP.";
+      toast.error(msg);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleForgotResetPassword = async () => {
+    if (String(forgotOtp || "").trim().length !== 6) {
+      toast.error("Please enter a valid 6-digit OTP");
+      return;
+    }
+    if (!forgotPassword || forgotPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (forgotPassword !== forgotConfirmPassword) {
+      toast.error("Password and confirm password must match");
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      await resetPasswordWithOtp({
+        email: String(forgotEmail || "").trim(),
+        otp: String(forgotOtp || "").trim(),
+        password: forgotPassword,
+        password_confirmation: forgotConfirmPassword,
+      });
+      toast.success("Password updated. Please login with your new password.");
+      setShowForgotModal(false);
+      resetForgotState();
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to reset password.";
+      toast.error(msg);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   return (
     <>
       {/* OTP Modal */}
@@ -386,6 +475,248 @@ export default function LoginSignup() {
           </div>
         </div>
 
+      )}
+
+      {/* Training / Personal Webinar Choice Modal */}
+      {showTrainingChoiceModal && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3"
+          onClick={(e) =>
+            e.target === e.currentTarget && setShowTrainingChoiceModal(false)
+          }
+        >
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-xl relative">
+            <button
+              onClick={() => setShowTrainingChoiceModal(false)}
+              className="absolute top-0 right-3 text-gray-500 hover:text-red-600 text-4xl font-bold"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+
+            <h2 className="text-2xl font-bold mb-2 mt-5 text-center">
+              Personal Webinar
+            </h2>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              Choose how you want to continue.
+            </p>
+
+            <div className="grid gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const userEmail =
+                    (activeTab === "login" ? loginData.email : signupData.email) ||
+                    "";
+                  if (!String(userEmail).trim()) {
+                    toast.error("Please enter your email first.");
+                    return;
+                  }
+                  setShowTrainingChoiceModal(false);
+                  navigate(`/exam-info?email=${encodeURIComponent(userEmail)}`);
+                }}
+                className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-left shadow-sm transition hover:bg-gray-50"
+              >
+                <div className="text-base font-bold text-gray-900">
+                  I Will Learn Myself (Free Training)
+                </div>
+                <div className="mt-1 text-sm text-gray-600">
+                  Continue with free training at your own pace.
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const userEmail =
+                    (activeTab === "login" ? loginData.email : signupData.email) ||
+                    "";
+                  if (!String(userEmail).trim()) {
+                    toast.error("Please enter your email first.");
+                    return;
+                  }
+                  setShowTrainingChoiceModal(false);
+                  navigate(
+                    `/exam-info?email=${encodeURIComponent(
+                      userEmail
+                    )}&webinar=paid`
+                  );
+                }}
+                className="w-full rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 px-5 py-4 text-left shadow-sm transition hover:from-indigo-100 hover:to-purple-100"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-base font-bold text-gray-900">
+                    Personal Webinar (₹1,999)
+                  </div>
+                  <span className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">
+                    Pay & Book Slot
+                  </span>
+                </div>
+                <div className="mt-1 text-sm text-gray-600">
+                  Book a slot and pay to confirm your webinar.
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-xl relative">
+            <button
+              onClick={() => {
+                setShowForgotModal(false);
+                resetForgotState();
+              }}
+              className="absolute top-0 right-3 text-gray-500 hover:text-red-600 text-4xl font-bold"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+
+            <h2 className="text-2xl font-bold mb-6 mt-5 text-center">
+              Forgot Password
+            </h2>
+
+            {forgotStep === "email" ? (
+              <>
+                <label className="block text-gray-700 font-medium mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                  placeholder="you@example.com"
+                  autoFocus
+                />
+
+                <button
+                  type="button"
+                  onClick={handleForgotSendOtp}
+                  disabled={forgotLoading}
+                  className={`bg-blue-600 text-white w-full py-3 rounded-xl font-bold hover:bg-blue-700 ${
+                    forgotLoading ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {forgotLoading ? "Sending..." : "Send OTP"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-1">
+                    OTP
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={forgotOtp}
+                    onChange={(e) =>
+                      setForgotOtp(e.target.value.replace(/\\D/g, ""))
+                    }
+                    className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-xl tracking-widest"
+                    placeholder="------"
+                  />
+                  <div className="flex justify-between mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setForgotStep("email")}
+                      className="text-sm text-gray-600 hover:text-gray-900"
+                      disabled={forgotLoading}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleForgotSendOtp}
+                      className="text-sm text-blue-600 font-semibold hover:text-blue-700"
+                      disabled={forgotLoading}
+                    >
+                      Resend OTP
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-1">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={forgotShowPassword ? "text" : "password"}
+                      value={forgotPassword}
+                      onChange={(e) => setForgotPassword(e.target.value)}
+                      className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForgotShowPassword((v) => !v)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      aria-label={
+                        forgotShowPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {forgotShowPassword ? (
+                        <AiOutlineEyeInvisible size={20} />
+                      ) : (
+                        <AiOutlineEye size={20} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-1">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={forgotShowConfirmPassword ? "text" : "password"}
+                      value={forgotConfirmPassword}
+                      onChange={(e) =>
+                        setForgotConfirmPassword(e.target.value)
+                      }
+                      className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Confirm new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForgotShowConfirmPassword((v) => !v)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      aria-label={
+                        forgotShowConfirmPassword
+                          ? "Hide confirm password"
+                          : "Show confirm password"
+                      }
+                    >
+                      {forgotShowConfirmPassword ? (
+                        <AiOutlineEyeInvisible size={20} />
+                      ) : (
+                        <AiOutlineEye size={20} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleForgotResetPassword}
+                  disabled={forgotLoading}
+                  className={`bg-blue-600 text-white w-full py-3 rounded-xl font-bold hover:bg-blue-700 ${
+                    forgotLoading ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {forgotLoading ? "Updating..." : "Reset Password"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
 
@@ -510,6 +841,23 @@ export default function LoginSignup() {
 
               </div>
 
+              {/* Forgot Password link (Login only) */}
+              {activeTab === "login" && (
+                <div className="text-right -mt-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotModal(true);
+                      setForgotEmail(String(loginData.email || "").trim());
+                      setForgotStep("email");
+                    }}
+                    className="text-sm text-blue-600 font-semibold hover:text-blue-700"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
+
 
               {/* Confirm Password */}
               {activeTab === "signup" && (
@@ -560,7 +908,7 @@ export default function LoginSignup() {
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => navigate("/tutorial")}
+                  onClick={() => setShowTrainingChoiceModal(true)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

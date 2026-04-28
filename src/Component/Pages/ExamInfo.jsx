@@ -4,6 +4,7 @@ import service from "../../api/axios";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { createPaymentOrder } from "../../api/payment";
+import { FaPlay } from "react-icons/fa";
 import dashboardImage from "../../assets/dashboard.png";
 import createAgentV1Image from "../../assets/tabs/create-agent-v1.png";
 import ownCreatedAgentImage from "../../assets/tabs/own-created-agent.png";
@@ -109,6 +110,7 @@ export default function ExamInfo() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const EXAM_FEE = 999;
+  const WEBINAR_FEE = 1999;
   
   // Clean email from URL parameter (remove quotes if present)
   const email = useMemo(() => {
@@ -116,6 +118,10 @@ export default function ExamInfo() {
     if (!emailParam) return null;
     // Remove surrounding quotes if present
     return emailParam.replace(/^["']|["']$/g, "").trim();
+  }, [searchParams]);
+
+  const webinarMode = useMemo(() => {
+    return (searchParams.get("webinar") || "").trim().toLowerCase();
   }, [searchParams]);
   
   // Check for email parameter and redirect if not present
@@ -159,12 +165,34 @@ export default function ExamInfo() {
   const [selectedDate, setSelectedDate] = useState(tomorrow);
   const scheduleRef = useRef(null);
   const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState("free"); // "free" | "paid_webinar"
+  const [showWebinarOptions, setShowWebinarOptions] = useState(false);
   const [showRichaInfo, setShowRichaInfo] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
+  const [isPayingWebinar, setIsPayingWebinar] = useState(false);
   const [showScheduleSuccess, setShowScheduleSuccess] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(null);
+  const [activeVideoId, setActiveVideoId] = useState(null);
   const FIXED_TIME = "10:00";
+
+  useEffect(() => {
+    if (webinarMode === "paid") {
+      setScheduleMode("paid_webinar");
+      setShowSchedule(true);
+    }
+  }, [webinarMode]);
+
+  useEffect(() => {
+    if (webinarMode !== "paid") return;
+    if (!showSchedule) return;
+
+    // Scroll only after the schedule section actually renders.
+    const id = window.setTimeout(() => {
+      scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    return () => window.clearTimeout(id);
+  }, [showSchedule, webinarMode]);
 
   const loginAndNavigateToExam = async () => {
     const response = await service.post("login", {
@@ -240,6 +268,83 @@ export default function ExamInfo() {
     }
   };
 
+  const handlePayAndBookWebinar = async () => {
+    if (!email) return;
+    if (!selectedDate) {
+      toast.error("Please select a date first.");
+      return;
+    }
+
+    setIsPayingWebinar(true);
+    try {
+      const customerName =
+        localStorage.getItem("userName") ||
+        Cookies.get("name") ||
+        "Webinar Attendee";
+      const customerPhone = Cookies.get("contact_no") || "";
+
+      if (!customerPhone) {
+        throw new Error(
+          "Phone number not found. Please sign up again before booking the webinar."
+        );
+      }
+
+      if (!window.cashfree) {
+        throw new Error(
+          "Payment gateway is not ready yet. Please refresh and try again."
+        );
+      }
+
+      const response = await createPaymentOrder({
+        name: customerName,
+        email,
+        phoneNumber: customerPhone,
+        totalPayment: WEBINAR_FEE,
+        orderDesc: "Personal Webinar Booking Fee",
+      });
+      const paymentSessionId = response?.payment_id || "";
+
+      if (!paymentSessionId) {
+        throw new Error(
+          "Payment session id was not returned from create order API."
+        );
+      }
+
+      const result = await window.cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: "_self",
+      });
+
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed.");
+      }
+
+      const isPaymentSuccessful =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!isPaymentSuccessful) {
+        if (result?.redirect) {
+          return;
+        }
+        throw new Error("Payment was not completed.");
+      }
+
+      toast.success("Payment successful. Booking your slot...");
+      await handleScheduleSubmit();
+    } catch (error) {
+      console.error("Webinar booking error:", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to book webinar. Please try again.";
+      toast.error(message);
+    } finally {
+      setIsPayingWebinar(false);
+    }
+  };
+
   // Handle Start Exam button click - complete payment, then login and navigate
   const handleStartExam = async () => {
     if (!email) return;
@@ -310,28 +415,10 @@ export default function ExamInfo() {
 
   const tutorialTabs = [
     {
-      id: "call-logs",
-      title: "Call Logs",
-      image: callLogsImg,
-      description:
-        "The Call Logs page provides a comprehensive view of all call records made by your AI sales agent. This section helps you track and monitor call activity.",
-      features: [
-        "View all call records in a structured table format",
-        "See recipient phone numbers with country codes",
-        "Monitor call status and duration for each call",
-        "Check timestamps to track when calls were made",
-      ],
-      howToUse: [
-        "Navigate to 'Call log' from the Dashboard sidebar",
-        "Click the 'View' button next to any call entry to see more details",
-        "Use pagination controls to browse historical call records",
-      ],
-      route: "/call-logs",
-    },
-    {
       id: "create-agent",
-      title: "Create Agent",
+      title: "Create Agent Tab",
       image: createAgentImg,
+      videoUrl: "https://youtube.com/shorts/sb0pTlV4AUY?feature=share",
       description:
         "The Create Agent page allows you to build and configure new AI sales agents. Each agent can be customized with specific messaging and behavior patterns.",
       features: [
@@ -348,9 +435,30 @@ export default function ExamInfo() {
       route: "/agents/new",
     },
     {
+      id: "send-call",
+      title: "Send Call Tab",
+      image: dashboardImage,
+      videoUrl: "https://youtube.com/shorts/L-4OoQelZ0w?feature=share",
+      description:
+        "The Send Call tab helps you start AI-powered outbound calls quickly using your configured agents and campaigns.",
+      features: [
+        "Start one-click outbound calls",
+        "Choose agents and call flows",
+        "Monitor call progress",
+        "Track status for each attempt",
+      ],
+      howToUse: [
+        "Open 'Send Call' from the sidebar",
+        "Select your campaign details",
+        "Start call flow and monitor status updates",
+      ],
+      route: "/sendcall",
+    },
+    {
       id: "email-template",
-      title: "Email Template",
+      title: "Email Tab",
       image: emailTemplateImg,
+      videoUrl: "https://youtu.be/PuLutAeykGs?si=H9VsYb34mJqD2dIX",
       description:
         "The Email Template section helps you manage email templates for your communications. Create, edit, and reuse templates with dynamic variables.",
       features: [
@@ -367,32 +475,34 @@ export default function ExamInfo() {
       route: "/email-template",
     },
     {
-      id: "whatsapp-send-message",
-      title: "Send WhatsApp Message",
+      id: "whatsapp-template-add",
+      title: "WhatsApp Template Add Tab",
       image: whatsappSendImg,
+      videoUrl: "https://youtube.com/shorts/cB_4-0sQdzc?feature=share",
       description:
-        "This page enables individual or bulk WhatsApp messaging to contacts. You can use templates and monitor available messaging minutes.",
+        "The WhatsApp Template Add tab lets you create and manage templates used for WhatsApp communication workflows.",
       features: [
-        "Send individual or bulk WhatsApp messages",
-        "Select ready templates for messages",
-        "Upload Excel file for bulk contacts",
-        "Choose country code and send instantly",
+        "Create reusable WhatsApp templates",
+        "Manage template list efficiently",
+        "Prepare template content for campaigns",
+        "Use templates for quick message sending",
       ],
       howToUse: [
-        "Navigate to 'Whatsapp Send Message'",
-        "Select template and country code",
-        "Add number/upload Excel and click Send Message",
+        "Open 'WhatsApp Templates' from sidebar",
+        "Add a new template with message content",
+        "Save and use it in WhatsApp messaging flows",
       ],
-      route: "/whatsapp-send-message",
+      route: "/whatsapp-temp",
     },
     {
-      id: "whatsapp-logs",
-      title: "WhatsApp Logs",
+      id: "whatsapp-message-check",
+      title: "WhatsApp Message Check",
       image: whatsappLogImg,
+      videoUrl: "https://youtube.com/shorts/mpT8upl4SeQ?feature=share",
       description:
-        "The WhatsApp Logs page provides a detailed record of all messages sent through the platform. Track delivery status and communication history.",
+        "The WhatsApp logs section provides a detailed record of all messages sent through the platform. Track delivery status and communication history.",
       features: [
-        "View sender/recipient details",
+        "View sender and recipient details",
         "Track message status and timestamps",
         "Filter logs by status",
         "Monitor campaign performance",
@@ -404,10 +514,76 @@ export default function ExamInfo() {
       ],
       route: "/whatsapp-logs",
     },
+    {
+      id: "call-logs",
+      title: "Call Log Tab",
+      image: callLogsImg,
+      videoUrl: "https://youtube.com/shorts/O4WXEbgxeaM?feature=share",
+      description:
+        "The Call Logs page provides a comprehensive view of all call records made by your AI sales agent. This section helps you track and monitor call activity.",
+      features: [
+        "View all call records in a structured table format",
+        "See recipient phone numbers with country codes",
+        "Monitor call status and duration for each call",
+        "Check timestamps to track when calls were made",
+      ],
+      howToUse: [
+        "Navigate to 'Call log' from the Dashboard sidebar",
+        "Click the 'View' button next to any call entry to see more details",
+        "Use pagination controls to browse historical call records",
+      ],
+      route: "/call-logs",
+    },
+    {
+      id: "call-transcript",
+      title: "Call Transcript Tab",
+      image: callLogsImg,
+      videoUrl: "https://youtube.com/shorts/HZuKJirpChc?feature=share",
+      description:
+        "Call Transcript helps you review conversation text for each call so you can audit quality and improve agent responses.",
+      features: [
+        "See transcript lines speaker-wise",
+        "Review full conversation context",
+        "Improve scripts based on call outcomes",
+        "Support quality checks and training",
+      ],
+      howToUse: [
+        "Open 'Call log' from sidebar",
+        "Click 'View' on any call row",
+        "Check the transcript section in call details",
+      ],
+      route: "/call-logs",
+    },
   ];
 
+  const toYouTubeEmbedUrl = (url) => {
+    if (!url) return "";
+    try {
+      const parsedUrl = new URL(url);
+      const host = parsedUrl.hostname.replace("www.", "");
+      let videoId = "";
+
+      if (host === "youtu.be") {
+        videoId = parsedUrl.pathname.split("/").filter(Boolean)[0] || "";
+      } else if (host.includes("youtube.com")) {
+        if (parsedUrl.pathname.startsWith("/shorts/")) {
+          videoId = parsedUrl.pathname.split("/shorts/")[1]?.split("/")[0] || "";
+        } else if (parsedUrl.pathname.startsWith("/embed/")) {
+          videoId = parsedUrl.pathname.split("/embed/")[1]?.split("/")[0] || "";
+        } else {
+          videoId = parsedUrl.searchParams.get("v") || "";
+        }
+      }
+
+      if (!videoId) return "";
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+    } catch (error) {
+      return "";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900 px-6 py-12">
+    <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900 px-1 md:px-6 py-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-10">
         <header className="space-y-5">
           <p className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
@@ -791,9 +967,17 @@ export default function ExamInfo() {
               ref={scheduleRef}
               className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
             >
-              <h2 className="text-2xl font-semibold text-slate-900">Schedule a call</h2>
+              <h2 className="text-2xl font-semibold text-slate-900">
+                {scheduleMode === "paid_webinar" ? "Book Personal Webinar Slot" : "Schedule a call"}
+              </h2>
               <p className="mt-2 text-slate-600">
                 Pick a date (no past days). Time is fixed at 10:00 AM.
+                {scheduleMode === "paid_webinar" ? (
+                  <>
+                    {" "}
+                    Webinar fee: <span className="font-semibold text-slate-900">₹{WEBINAR_FEE.toLocaleString("en-IN")}</span>.
+                  </>
+                ) : null}
 
               </p>
 
@@ -839,18 +1023,24 @@ export default function ExamInfo() {
 
                 <button
                   type="button"
-                  onClick={handleScheduleSubmit}
-                  disabled={isSubmittingSchedule || !selectedDate}
+                  onClick={scheduleMode === "paid_webinar" ? handlePayAndBookWebinar : handleScheduleSubmit}
+                  disabled={isSubmittingSchedule || isPayingWebinar || !selectedDate}
                   className="w-full rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmittingSchedule ? "Submitting..." : "Confirm Schedule"}
+                  {scheduleMode === "paid_webinar"
+                    ? isPayingWebinar
+                      ? "Processing Payment..."
+                      : `Pay ₹${WEBINAR_FEE.toLocaleString("en-IN")} & Book Slot`
+                    : isSubmittingSchedule
+                      ? "Submitting..."
+                      : "Confirm Schedule"}
                 </button>
               </div>
             </div>
           )}
 
         <section className="flex flex-col gap-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm w-full">
+          <div className="rounded-3xl border border-slate-200 bg-white p-1 md:p-6 shadow-sm w-full">
             <div className="mb-6">
               <h2 className="text-3xl font-bold text-gray-800 mb-2">Dashboard Tutorial Tabs Explanation</h2>
               <p className="text-gray-600">
@@ -878,11 +1068,39 @@ export default function ExamInfo() {
                     </div>
 
                     <div className="mb-6">
-                      <img
-                        src={tutorial.image}
-                        alt={tutorial.title}
-                        className="w-full rounded-lg border border-gray-300 shadow-sm"
-                      />
+                      <div className="relative overflow-hidden rounded-lg border border-gray-300 shadow-sm">
+                        {activeVideoId === tutorial.id ? (
+                          <div className="aspect-video w-full bg-black">
+                            <iframe
+                              src={toYouTubeEmbedUrl(tutorial.videoUrl)}
+                              title={`${tutorial.title} Video`}
+                              className="h-full w-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <img
+                              src={tutorial.image}
+                              alt={tutorial.title}
+                              className="w-full"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setActiveVideoId(tutorial.id)}
+                              className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 text-white transition hover:bg-slate-900/55"
+                            >
+                              <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-[0_10px_25px_-8px_rgba(244,63,94,0.85)] ring-2 ring-white/30">
+                                <FaPlay className="ml-1 text-2xl" />
+                              </span>
+                              <span className="mt-3 rounded-full bg-black/35 px-3 py-1 text-xs font-semibold tracking-wide">
+                                Play Video
+                              </span>
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <p className="text-gray-700 text-lg mb-6 leading-relaxed">
@@ -1271,23 +1489,95 @@ export default function ExamInfo() {
               >
                 {isLoading ? "Processing Payment..." : `Pay Rs. ${EXAM_FEE.toLocaleString("en-IN")} & Start Exam`}
               </button>
-              <a
-                href="#schedule"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setShowSchedule(true);
-                  scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
+              <button
+                type="button"
+                onClick={() => setShowWebinarOptions(true)}
                 className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
               >
-                Schedule a Query
-              </a>
+                Personal Webinar
+              </button>
             </div>
           </div>
           {/* Exam Description Section */}
           
         </section>
       </div>
+
+      {/* Personal Webinar Options Modal */}
+      {showWebinarOptions && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4"
+          onClick={(e) => e.target === e.currentTarget && setShowWebinarOptions(false)}
+        >
+          <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden mx-auto">
+            <div className="p-5 sm:p-6">
+              <button
+                onClick={() => setShowWebinarOptions(false)}
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-2 text-center">
+                Personal Webinar
+              </h2>
+              <p className="text-sm sm:text-base text-slate-600 text-center mb-6">
+                Choose how you want to continue.
+              </p>
+
+              <div className="grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowWebinarOptions(false);
+                    navigate(`/exam-info?email=${encodeURIComponent(email)}`);
+                    toast.success("Free training selected. Continue learning yourself.");
+                  }}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition hover:bg-slate-50"
+                >
+                  <div className="text-base font-bold text-slate-900">
+                    I Will Learn Myself (Free Training)
+                  </div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    Access free training content and continue at your own pace.
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowWebinarOptions(false);
+                    setScheduleMode("paid_webinar");
+                    setShowSchedule(true);
+                    setTimeout(() => {
+                      scheduleRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }, 0);
+                  }}
+                  className="w-full rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 px-5 py-4 text-left shadow-sm transition hover:from-indigo-100 hover:to-purple-100"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-base font-bold text-slate-900">
+                      Personal Webinar (₹{WEBINAR_FEE.toLocaleString("en-IN")})
+                    </div>
+                    <span className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">
+                      Pay & Book Slot
+                    </span>
+                  </div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    Choose a date and pay to confirm your webinar slot.
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Schedule Success Popup Modal */}
       {showScheduleSuccess && (

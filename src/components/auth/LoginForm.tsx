@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AuthService } from '@/utils/auth';
 import { useToast } from '@/hooks/use-toast';
 import { MyAuthService } from '@/services/authService';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { requestPasswordResetOtp, resetPasswordWithOtp } from "@/api/forgotPassword";
+import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
@@ -21,6 +32,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [forgotStep, setForgotStep] = useState<"email" | "otp_reset">("email");
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotPassword, setForgotPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [forgotShowPassword, setForgotShowPassword] = useState(false);
+  const [forgotShowConfirmPassword, setForgotShowConfirmPassword] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const forgotCanSubmitReset = useMemo(() => {
+    return (
+      forgotEmail.trim().length > 3 &&
+      forgotOtp.trim().length >= 4 &&
+      forgotPassword.length >= 6 &&
+      forgotConfirmPassword.length >= 6 &&
+      forgotPassword === forgotConfirmPassword
+    );
+  }, [forgotConfirmPassword, forgotEmail, forgotOtp, forgotPassword]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +77,91 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
       } finally {
           setIsLoading(false);
       }
+  };
+
+  const resetForgotModalState = () => {
+    setForgotStep("email");
+    setForgotEmail("");
+    setForgotOtp("");
+    setForgotPassword("");
+    setForgotConfirmPassword("");
+    setForgotShowPassword(false);
+    setForgotShowConfirmPassword(false);
+    setForgotLoading(false);
+  };
+
+  const handleRequestOtp = async () => {
+    const emailToUse = forgotEmail.trim() || email.trim();
+    if (!emailToUse) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email to receive an OTP.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      await requestPasswordResetOtp(emailToUse);
+      setForgotEmail(emailToUse);
+      setForgotStep("otp_reset");
+      toast({
+        title: "OTP sent",
+        description: "Check your email for the OTP.",
+      });
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to send OTP. Please try again.";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (forgotPassword !== forgotConfirmPassword) {
+      toast({
+        title: "Password mismatch",
+        description: "Password and confirm password must match.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!forgotEmail.trim() || !forgotOtp.trim()) {
+      toast({
+        title: "Missing info",
+        description: "Email and OTP are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      await resetPasswordWithOtp({
+        email: forgotEmail.trim(),
+        otp: forgotOtp.trim(),
+        password: forgotPassword,
+        password_confirmation: forgotConfirmPassword,
+      });
+      toast({
+        title: "Password updated",
+        description: "You can now login with your new password.",
+      });
+      setIsForgotOpen(false);
+      resetForgotModalState();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to reset password. Please try again.";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   // const handleSubmit = async (e: React.FormEvent) => {
@@ -155,7 +271,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
             </form>
             
             <div className="text-center">
-              <Button variant="link" className="text-sm">
+              <Button
+                type="button"
+                variant="link"
+                className="text-sm"
+                onClick={() => {
+                  setIsForgotOpen(true);
+                  setForgotEmail((prev) => prev || email);
+                }}
+              >
                 Forgot your password?
               </Button>
             </div>
@@ -192,6 +316,146 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
           </CardContent>
         </Card> */}
       </div>
+
+      <Dialog
+        open={isForgotOpen}
+        onOpenChange={(open) => {
+          setIsForgotOpen(open);
+          if (!open) resetForgotModalState();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Forgot password</DialogTitle>
+            <DialogDescription>
+              {forgotStep === "email"
+                ? "Enter your email to receive an OTP."
+                : "Enter OTP and set your new password."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {forgotStep === "email" ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">Email</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-otp">OTP</Label>
+                <div className="flex items-center gap-3">
+                  <InputOTP
+                    id="forgot-otp"
+                    maxLength={6}
+                    value={forgotOtp}
+                    onChange={setForgotOtp}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={forgotLoading}
+                    onClick={handleRequestOtp}
+                  >
+                    Resend
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="forgot-password">New password</Label>
+                <div className="relative">
+                  <Input
+                    id="forgot-password"
+                    type={forgotShowPassword ? "text" : "password"}
+                    placeholder="Enter new password"
+                    value={forgotPassword}
+                    onChange={(e) => setForgotPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    onClick={() => setForgotShowPassword((v) => !v)}
+                    aria-label={forgotShowPassword ? "Hide password" : "Show password"}
+                  >
+                    {forgotShowPassword ? <AiOutlineEyeInvisible /> : <AiOutlineEye />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="forgot-confirm-password">Confirm password</Label>
+                <div className="relative">
+                  <Input
+                    id="forgot-confirm-password"
+                    type={forgotShowConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm new password"
+                    value={forgotConfirmPassword}
+                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    onClick={() => setForgotShowConfirmPassword((v) => !v)}
+                    aria-label={
+                      forgotShowConfirmPassword ? "Hide confirm password" : "Show confirm password"
+                    }
+                  >
+                    {forgotShowConfirmPassword ? <AiOutlineEyeInvisible /> : <AiOutlineEye />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            {forgotStep === "otp_reset" ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={forgotLoading}
+                onClick={() => setForgotStep("email")}
+              >
+                Back
+              </Button>
+            ) : null}
+
+            {forgotStep === "email" ? (
+              <Button type="button" onClick={handleRequestOtp} disabled={forgotLoading}>
+                {forgotLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Send OTP
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={forgotLoading || !forgotCanSubmitReset}
+              >
+                {forgotLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Reset password
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
