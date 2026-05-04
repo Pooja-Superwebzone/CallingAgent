@@ -575,6 +575,34 @@ export function sendOmniCall(payload) {
     });
 }
 
+export function runOmniFlow(payload) {
+  return service
+    .post("run-omni-flow", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ run-omni-flow failed:", error);
+      let errorMessage = "Failed to run omni flow.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+export function runOmniFlowComplete(payload) {
+  return service
+    .post("run-omni-flow-complete", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ run-omni-flow-complete failed:", error);
+      let errorMessage = "Failed to complete omni flow.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
 
 // in hooks/useAuth.js (or wherever you keep those functions)
 export function downloadTemplateExcel() {
