@@ -202,7 +202,7 @@ const Sidebar = () => {
             </button>
           </li>
 
-          <li>
+          {/* <li>
             <button
               onClick={() => {
                 navigate("/create-agent-topic");
@@ -217,7 +217,7 @@ const Sidebar = () => {
               <FaMagento size={18} />
               Create Agent
             </button>
-          </li>
+          </li> */}
 
           {twilioUser === 1 && (
             <li>
