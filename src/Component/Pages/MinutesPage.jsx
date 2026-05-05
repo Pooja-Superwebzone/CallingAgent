@@ -2,11 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import service from "../../api/axios";
-import {
-  addSubscription,
-  createPaymentOrder,
-  updateSubscriptionPaymentStatus,
-} from "../../api/payment";
 
 const PLAN_ID_MAP = {
   become_channel_partner: "18",
@@ -14,10 +9,6 @@ const PLAN_ID_MAP = {
 };
 
 const resolvePlanId = (planId = "") => PLAN_ID_MAP[planId] || (planId ? String(planId) : "8");
-const resolvePlanIdFromRole = (role = "") =>
-  role === "channelpartner" ? 18 : 8;
-const resolveSubscriptionPlanIdFromRole = (role = "", fallbackPlanId = 8) =>
-  role === "channelpartner" ? 8 : fallbackPlanId;
 
 const DEFAULT_NORMAL_MINUTE_RATE = 15;
 
@@ -69,6 +60,21 @@ const pickDisplayPriceForNullUserId = (rows) => {
 };
 const DYNAMIC_MINUTE_RATE_CACHE = new Map();
 
+const getPlanSummaryOrigin = () =>
+  String(import.meta.env.VITE_PLAN_SUMMARY_ORIGIN || "https://infinitybrains.com").replace(
+    /\/$/,
+    ""
+  );
+
+/** Plan-summary expects channel_partner vs simple (non–channel-partner). */
+const resolvePlanSummaryUserType = ({ profileRole, cookieRole, planId }) => {
+  const role = String(profileRole || cookieRole || "").trim().toLowerCase();
+  const plan = String(planId || "").trim();
+  const isChannelPartner =
+    role === "channelpartner" || role === "channel_partner" || plan === "18";
+  return isChannelPartner ? "channel_partner" : "simple";
+};
+
 export default function MinutesPage() {
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -83,6 +89,7 @@ export default function MinutesPage() {
     name: "",
     email: "",
     phoneNumber: "",
+    role: "",
   });
   const [dynamicNormalMinuteRate, setDynamicNormalMinuteRate] = useState(
     DEFAULT_NORMAL_MINUTE_RATE
@@ -114,11 +121,12 @@ export default function MinutesPage() {
     setUserPlanTitle(Cookies.get("user_plan_title") || "");
   }, []);
 
-  useEffect(() => {
-    window.cashfree = window.Cashfree({
-      mode: "production"
-    });
-  }, []);
+  // Cashfree disabled while using direct redirect after add-minute.
+  // useEffect(() => {
+  //   window.cashfree = window.Cashfree({
+  //     mode: "production"
+  //   });
+  // }, []);
 
   useEffect(() => {
     syncPlanDetails(userEmail);
@@ -182,7 +190,6 @@ export default function MinutesPage() {
       return;
     }
 
-    const customerName = profileDetails.name || Cookies.get("name") || "Customer";
     const customerEmail = profileDetails.email || userEmail;
     const customerPhone = profileDetails.phoneNumber || Cookies.get("contact_no") || "";
 
@@ -194,91 +201,46 @@ export default function MinutesPage() {
     setError("");
 
     try {
-      const userRole = Cookies.get("role") || "";
-      const selectedPlanId = resolvePlanIdFromRole(userRole);
-      const subscriptionPlanId = resolveSubscriptionPlanIdFromRole(
-        userRole,
-        selectedPlanId
-      );
+      // add-minute disabled: credit minutes after payment on plan-summary / backend instead.
+      // const addMinutePayload = {
+      //   minute: purchaseMinutes,
+      //   user_id: profileDetails.userId,
+      // };
+      // const addMinuteResponse = await service.post(
+      //   "add-minute",
+      //   addMinutePayload,
+      //   {
+      //     headers: {
+      //       Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
+      //     },
+      //   }
+      // );
+      // console.log("add-minute response.data:", addMinuteResponse?.data);
 
-      if (!Number.isFinite(selectedPlanId) || selectedPlanId <= 0) {
-        throw new Error("Plan id was not found. Please select a valid plan and try again.");
-      }
-
-      const response = await createPaymentOrder({
-        name: customerName,
-        email: customerEmail,
-        phoneNumber: customerPhone,
-        totalPayment: Number(quote.totalWithTax.toFixed(2)),
-        orderDesc: `${purchaseMinutes} calling minutes purchase`,
+      const cookieRole = Cookies.get("role") || "";
+      const planIdForType = userPlan || resolvePlanId(Cookies.get("user_plan") || "");
+      const userTypeParam = resolvePlanSummaryUserType({
+        profileRole: profileDetails.role,
+        cookieRole,
+        planId: planIdForType,
       });
-      const paymentSessionId = response?.payment_id || "";
-      const addSubscriptionResponse = await addSubscription({
+      const planLabel =
+        Cookies.get("user_plan_title")?.trim() ||
+        displayedPlanTitle ||
+        "Pro";
+      const params = new URLSearchParams({
         email: customerEmail,
-        planId: subscriptionPlanId,
+        userType: userTypeParam,
+        minutes: String(purchaseMinutes),
+        plan: planLabel,
       });
-
-      const resolvedSubscriptionPlanId =
-        Number(
-          addSubscriptionResponse?.plan_id ||
-          addSubscriptionResponse?.data?.plan_id ||
-          addSubscriptionResponse?.resolvedPlanId
-        ) || subscriptionPlanId;
-      console.log("Resolved Plan ID:", resolvedSubscriptionPlanId);
-      console.log("createPaymentOrder response.data:", response);
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-      if (!paymentSessionId) {
-        throw new Error("Payment session id was not returned from create order API.");
-      }
-      if (!addSubscriptionResponse?.status) {
-        throw new Error("Add subscription API failed.");
-      }
-
-      let checkoutOptions = {
-        paymentSessionId,
-        redirectTarget: "_self"
-      };
-
-      const result = await window.cashfree.checkout(checkoutOptions);
-      if (result?.error) {
-        throw new Error(result.error?.message || "Payment failed.");
-      }
-
-      const isPaymentSuccessful =
-        result?.paymentDetails ||
-        result?.order?.order_status === "PAID" ||
-        result?.transaction?.txStatus === "SUCCESS";
-
-      if (!isPaymentSuccessful) {
-        if (result?.redirect) {
-          console.log("Redirecting to payment page...");
-          return;
-        }
-        throw new Error("Payment was not completed.");
-      }
-
-      const addMinutePayload = {
-        minute: purchaseMinutes,
-        user_id: profileDetails.userId,
-      };
-      await updateSubscriptionPaymentStatus(resolvedSubscriptionPlanId);
-      const addMinuteResponse = await service.post(
-        "add-minute",
-        addMinutePayload,
-        {
-          headers: {
-            Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
-          },
-        }
-      );
-      console.log("add-minute response.data:", addMinuteResponse?.data);
-      toast.success("Subscription added and minutes updated.");
-      fetchMinutes();
+      const planSummaryUrl = `${getPlanSummaryOrigin()}/plan-summary?${params.toString()}`;
+      window.location.assign(planSummaryUrl);
     } catch (e) {
       const rawMessage =
         e?.response?.data?.message ||
         e?.message ||
-        "Unable to start payment. Please try again.";
+        "Unable to complete purchase. Please try again.";
       const message = rawMessage;
       setError(message);
       toast.error(message);
@@ -348,6 +310,7 @@ export default function MinutesPage() {
           profile?.mobile ||
           profile?.mobile_no ||
           "",
+        role: String(profile?.role ?? profile?.user_role ?? "").trim(),
       });
       syncPlanDetails(profile?.email || profile?.emp_email || userEmail);
       localStorage.setItem("userRemainingMinutes", String(one));
@@ -373,7 +336,7 @@ export default function MinutesPage() {
               : pickDisplayPriceForNullUserId(rows);
             if (fromApi != null) normalRate = fromApi;
           } catch {
-
+            /* optional dynamic-minute pricing */
           }
           DYNAMIC_MINUTE_RATE_CACHE.set(cacheKey, normalRate);
         }
