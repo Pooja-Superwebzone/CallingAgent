@@ -167,6 +167,7 @@ export default function MinutesPage() {
         const firstSlabAmount = roundToTwo(
           firstSlabMinutes * RATE_UP_TO_THRESHOLD
         );
+        
         const secondSlabAmount = 0;
         const total = roundToTwo(firstSlabAmount + secondSlabAmount);
         const cgstAmount = roundToTwo(total * CGST_RATE);
