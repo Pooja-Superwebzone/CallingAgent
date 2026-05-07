@@ -3,12 +3,10 @@ import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import service from "../../api/axios";
 
-const PLAN_ID_MAP = {
-  become_channel_partner: "18",
-  trial: "8",
-};
 
-const resolvePlanId = (planId = "") => PLAN_ID_MAP[planId] || (planId ? String(planId) : "8");
+const DEFAULT_PLAN_ID = "8";
+
+const CHANNEL_PARTNER_PLAN_LABEL = "Channel Partner";
 
 const DEFAULT_NORMAL_MINUTE_RATE = 15;
 
@@ -66,13 +64,48 @@ const getPlanSummaryOrigin = () =>
     ""
   );
 
-/** Plan-summary expects channel_partner vs simple (non–channel-partner). */
-const resolvePlanSummaryUserType = ({ profileRole, cookieRole, planId }) => {
+/** Token Richa already stores: CRM key in localStorage, then CallingAgent cookie (same as axios). */
+const getRichaSessionTokenForIb = () =>
+  String(localStorage.getItem("ibcrmtoken") || Cookies.get("CallingAgent") || "").trim();
+
+const isPlanSummaryPostHandoff = () => {
+  const v = String(import.meta.env.VITE_PLAN_SUMMARY_USE_POST_HANDOFF || "").toLowerCase();
+  return v === "true" || v === "1" || v === "yes";
+};
+
+const postPlanSummaryCheckout = (fields) => {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = `${getPlanSummaryOrigin()}/plan-summary`;
+  form.enctype = "application/x-www-form-urlencoded";
+  form.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+  form.setAttribute("autocomplete", "off");
+  for (const [name, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
+    const str = String(value);
+    if (str === "") continue;
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = str;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+};
+
+const resolvePlanSummaryUserType = ({ profileRole, cookieRole, twilioUser }) => {
   const role = String(profileRole || cookieRole || "").trim().toLowerCase();
-  const plan = String(planId || "").trim();
-  const isChannelPartner =
-    role === "channelpartner" || role === "channel_partner" || plan === "18";
-  return isChannelPartner ? "channel_partner" : "simple";
+  if (role === "channelpartner" || role === "channel_partner") {
+    return "channel_partner";
+  }
+
+  const tw = twilioUser === undefined || twilioUser === null ? "" : String(twilioUser).trim();
+  if (tw === "1") return "simple";
+  if (tw === "0") return "admin";
+
+  if (role === "admin") return "admin";
+  return "simple";
 };
 
 export default function MinutesPage() {
@@ -81,7 +114,6 @@ export default function MinutesPage() {
   const [error, setError] = useState("");
   const [oneWayMinutes, setOneWayMinutes] = useState(0);
   const [twoWayMinutes, setTwoWayMinutes] = useState(0);
-  const [userPlan, setUserPlan] = useState("");
   const [userPlanTitle, setUserPlanTitle] = useState("");
   const [purchaseMinutesInput, setPurchaseMinutesInput] = useState("");
   const [profileDetails, setProfileDetails] = useState({
@@ -90,13 +122,22 @@ export default function MinutesPage() {
     email: "",
     phoneNumber: "",
     role: "",
+    twilioUser: String(Cookies.get("twilio_user") ?? "0").trim(),
   });
   const [dynamicNormalMinuteRate, setDynamicNormalMinuteRate] = useState(
     DEFAULT_NORMAL_MINUTE_RATE
   );
   const userEmail = Cookies.get("email") || "";
-  const isChannelPartnerPlan = String(userPlan) === "18";
-  const displayedPlanTitle = userPlanTitle || "Become Channel Partner";
+  const cookieRoleLower = String(Cookies.get("role") || "").trim().toLowerCase();
+  const profileRoleLower = String(profileDetails.role || "").trim().toLowerCase();
+  const isChannelPartnerPlan =
+    cookieRoleLower === "channelpartner" ||
+    cookieRoleLower === "channel_partner" ||
+    profileRoleLower === "channelpartner" ||
+    profileRoleLower === "channel_partner";
+  const displayedPlanTitle = isChannelPartnerPlan
+    ? CHANNEL_PARTNER_PLAN_LABEL
+    : userPlanTitle || "Become Channel Partner";
 
   const MINUTES_PER_PACKAGE = isChannelPartnerPlan ? 1000 : 100;
   const RATE_UP_TO_THRESHOLD = isChannelPartnerPlan
@@ -116,17 +157,8 @@ export default function MinutesPage() {
     }).format(amount);
 
   const syncPlanDetails = useCallback(() => {
-    const storedPlan = resolvePlanId(Cookies.get("user_plan") || "");
-    setUserPlan(storedPlan);
     setUserPlanTitle(Cookies.get("user_plan_title") || "");
   }, []);
-
-  // Cashfree disabled while using direct redirect after add-minute.
-  // useEffect(() => {
-  //   window.cashfree = window.Cashfree({
-  //     mode: "production"
-  //   });
-  // }, []);
 
   useEffect(() => {
     syncPlanDetails(userEmail);
@@ -202,38 +234,31 @@ export default function MinutesPage() {
     setError("");
 
     try {
-      // add-minute disabled: credit minutes after payment on plan-summary / backend instead.
-      // const addMinutePayload = {
-      //   minute: purchaseMinutes,
-      //   user_id: profileDetails.userId,
-      // };
-      // const addMinuteResponse = await service.post(
-      //   "add-minute",
-      //   addMinutePayload,
-      //   {
-      //     headers: {
-      //       Authorization: `Bearer ${Cookies.get("CallingAgent")}`,
-      //     },
-      //   }
-      // );
-      // console.log("add-minute response.data:", addMinuteResponse?.data);
-
       const cookieRole = Cookies.get("role") || "";
-      const planIdForType = userPlan || resolvePlanId(Cookies.get("user_plan") || "");
+      const twilioFlag =
+        String(profileDetails.twilioUser ?? Cookies.get("twilio_user") ?? "0").trim();
       const userTypeParam = resolvePlanSummaryUserType({
         profileRole: profileDetails.role,
         cookieRole,
-        planId: planIdForType,
+        twilioUser: twilioFlag,
       });
-      const planLabel =
-        Cookies.get("user_plan_title")?.trim() ||
-        displayedPlanTitle ||
-        "Pro";
+      const planLabel = isChannelPartnerPlan
+        ? displayedPlanTitle
+        : Cookies.get("user_plan_title")?.trim() ||
+          displayedPlanTitle ||
+          "Pro";
+      const authToken =
+        Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken") || "";
       const params = new URLSearchParams({
         email: customerEmail,
         userType: userTypeParam,
         minutes: String(purchaseMinutes),
         plan: planLabel,
+        plan_id: DEFAULT_PLAN_ID,
+        ...(profileDetails.userId
+          ? { user_id: String(profileDetails.userId) }
+          : {}),
+        ...(authToken ? { token: String(authToken).trim() } : {}),
       });
       const planSummaryUrl = `${getPlanSummaryOrigin()}/plan-summary?${params.toString()}`;
       window.location.assign(planSummaryUrl);
@@ -312,14 +337,25 @@ export default function MinutesPage() {
           profile?.mobile_no ||
           "",
         role: String(profile?.role ?? profile?.user_role ?? "").trim(),
+        twilioUser: String(
+          profile?.twilio_user ?? Cookies.get("twilio_user") ?? "0"
+        ).trim(),
       });
       syncPlanDetails(profile?.email || profile?.emp_email || userEmail);
       localStorage.setItem("userRemainingMinutes", String(one));
 
       const role = Cookies.get("role") || "";
-      const planCookie = resolvePlanId(Cookies.get("user_plan") || "");
+      const profileRoleLower = String(
+        profile?.role ?? profile?.user_role ?? ""
+      )
+        .trim()
+        .toLowerCase();
+      const cookieRoleLower = String(role).trim().toLowerCase();
       const isChannelPartnerUser =
-        role === "channelpartner" || String(planCookie) === "18";
+        cookieRoleLower === "channelpartner" ||
+        cookieRoleLower === "channel_partner" ||
+        profileRoleLower === "channelpartner" ||
+        profileRoleLower === "channel_partner";
       if (isChannelPartnerUser) {
         setDynamicNormalMinuteRate(DEFAULT_NORMAL_MINUTE_RATE);
       } else {
