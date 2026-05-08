@@ -18,6 +18,7 @@ import ChannelPartner from "./Component/Pages/ChannelPartner";
 import ChannelPartnerUsers from "./Component/Pages/ChannelPartnerUsers";
 import AgentsPage from './Component/Pages/AgentsPage';
 import SendOmniCall from './Component/Pages/SendOmniCall';
+import CreateAgentSendPage from './Component/Pages/CreateAgentSendPage';
 import AgentCreatePage from './Component/Pages/AgentCreatePage';
 import CallLogs from "./Component/Pages/CallLogs";
 import AgentUsersPage from './Component/Pages/AgentUsersPage';
@@ -173,6 +174,7 @@ function App() {
             <Route path="/agents_page" element={<AgentsPage />} />
             <Route path="/agents/new" element={<AgentCreatePage />} />
             <Route path="/send-omni" element={<SendOmniCall />} />
+            <Route path="/create-agent-send" element={<CreateAgentSendPage />} />
             <Route path="/agent-user" element={<AgentUsersPage />} />
             <Route path="/agent-new" element={<AgentUserCreate />} />
             <Route path="/agent-Connection" element={<AgentConnection />} />
