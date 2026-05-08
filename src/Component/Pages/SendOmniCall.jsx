@@ -1,41 +1,21 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
-import { getAgents, getAgentsCategory, runOmniFlow, runOmniFlowComplete, sendOmniCall } from "../../hooks/useAuth";
+import { getAgents, sendOmniCall } from "../../hooks/useAuth";
 import * as XLSX from "xlsx";
 import Cookies from "js-cookie";
 import service from "../../api/axios";
 import { PhoneNumberUtil, PhoneNumberFormat } from "google-libphonenumber";
 
 const FROM_NUMBER_ID = "3007";
-// Static values for "Need Assistant & create agent" popup
-const QUICK_ASSIST_AGENT_ID = "155287";
-const QUICK_ASSIST_FROM_NUMBER_ID = "3007";
-const OMNI_LOGS_ENDPOINT = "omni/calls/logs";
 
 export default function SendOmniCall() {
-  const navigate = useNavigate();
-
   const phoneUtil = PhoneNumberUtil.getInstance();
   const PNF = PhoneNumberFormat;
 
   const [agents, setAgents] = useState([]);
   const [selectedAgentId, setSelectedAgentId] = useState("");
 
-  const [needAssistant, setNeedAssistant] = useState(false);
-  const [assistantAgents, setAssistantAgents] = useState([]);
-  const [assistantFetching, setAssistantFetching] = useState(false);
-  const [selectedAssistantAgentId, setSelectedAssistantAgentId] = useState("");
-
-  // quick assistant popup (number only)
-  const [showQuickAssist, setShowQuickAssist] = useState(false);
-  const [quickCountryCode, setQuickCountryCode] = useState("IN");
-  const [quickMobile, setQuickMobile] = useState("");
-  const [quickSubmitting, setQuickSubmitting] = useState(false);
-  const [quickStatusText, setQuickStatusText] = useState("");
-  const [quickHangupDetected, setQuickHangupDetected] = useState(false);
-  const [quickAgentCountdown, setQuickAgentCountdown] = useState(0); // seconds
   const [countries, setCountries] = useState([]);
   const [countryCode, setCountryCode] = useState("IN"); 
   const [mobile, setMobile] = useState("");
@@ -45,19 +25,6 @@ export default function SendOmniCall() {
   const [uploadedNumbers, setUploadedNumbers] = useState([]);
   const [fileError, setFileError] = useState("");
   const fileInputRef = useRef(null);
-
-  // quick assist polling timers
-  const quickAssistTimeoutRef = useRef(null);
-  const quickAssistIntervalRef = useRef(null);
-  const quickAssistCountdownRef = useRef(null);
-
-  useEffect(() => {
-    return () => {
-      if (quickAssistTimeoutRef.current) clearTimeout(quickAssistTimeoutRef.current);
-      if (quickAssistIntervalRef.current) clearInterval(quickAssistIntervalRef.current);
-      if (quickAssistCountdownRef.current) clearInterval(quickAssistCountdownRef.current);
-    };
-  }, []);
 
   // Minutes state
   const [twoWayMinutes, setTwoWayMinutes] = useState(0);
@@ -80,27 +47,6 @@ export default function SendOmniCall() {
     };
     loadAgents();
   }, []);
-
-  // Load assistant agents (agents-category) only when needed
-  useEffect(() => {
-    if (!needAssistant) return;
-
-    const loadAssistantAgents = async () => {
-      setAssistantFetching(true);
-      try {
-        const list = await getAgentsCategory();
-        setAssistantAgents(Array.isArray(list) ? list : []);
-      } catch (err) {
-        console.error("Failed to load assistant agents:", err);
-        toast.error(err?.message || "Failed to load assistant agents");
-        setAssistantAgents([]);
-      } finally {
-        setAssistantFetching(false);
-      }
-    };
-
-    loadAssistantAgents();
-  }, [needAssistant]);
 
   // Fetch minutes
   useEffect(() => {
@@ -169,13 +115,11 @@ export default function SendOmniCall() {
       // default to IN if available else first entry
       const hasIN = list.find((c) => c.code === "IN");
       setCountryCode(hasIN ? "IN" : (list[0]?.code || ""));
-      setQuickCountryCode(hasIN ? "IN" : (list[0]?.code || ""));
     } catch (err) {
       console.error("Error building country list from libphonenumber:", err);
       // fallback to India only if something goes wrong
       setCountries([{ code: "IN", name: "India", countryCode: 91, label: "India (+91)" }]);
       setCountryCode("IN");
-      setQuickCountryCode("IN");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -204,9 +148,8 @@ export default function SendOmniCall() {
 
   // Validate form (manual input)
   const validate = () => {
-    const activeAgentId = needAssistant ? selectedAssistantAgentId : selectedAgentId;
-    if (!activeAgentId) {
-      setError(needAssistant ? "Please select an assistant." : "Please select an agent.");
+    if (!selectedAgentId) {
+      setError("Please select an agent.");
       return false;
     }
     if (!mobile && uploadedNumbers.length === 0) {
@@ -342,9 +285,8 @@ export default function SendOmniCall() {
             }
             toNumber = e164;
           }
-          const activeAgentId = needAssistant ? selectedAssistantAgentId : selectedAgentId;
           const payload = {
-            agent_id: String(activeAgentId),
+            agent_id: String(selectedAgentId),
             to: toNumber,
             from_number_id: FROM_NUMBER_ID,
           };
@@ -364,8 +306,6 @@ export default function SendOmniCall() {
       setMobile("");
       setUploadedNumbers([]);
       setSelectedAgentId("");
-      setSelectedAssistantAgentId("");
-      setNeedAssistant(false);
       setError("");
       setFileError("");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -374,145 +314,6 @@ export default function SendOmniCall() {
       toast.error(err?.message || "Failed to trigger calls");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const openQuickAssist = async () => {
-    setShowQuickAssist(true);
-    setQuickMobile("");
-    setError("");
-  };
-
-  const closeQuickAssist = () => {
-    if (quickSubmitting) return;
-    if (quickHangupDetected && quickAgentCountdown > 0) return; // keep window open during creation period
-    setShowQuickAssist(false);
-    setQuickMobile("");
-    setQuickStatusText("");
-    setQuickHangupDetected(false);
-    setQuickAgentCountdown(0);
-    stopQuickAssistPolling();
-    if (quickAssistCountdownRef.current) {
-      clearInterval(quickAssistCountdownRef.current);
-      quickAssistCountdownRef.current = null;
-    }
-  };
-
-  const stopQuickAssistPolling = () => {
-    if (quickAssistTimeoutRef.current) {
-      clearTimeout(quickAssistTimeoutRef.current);
-      quickAssistTimeoutRef.current = null;
-    }
-    if (quickAssistIntervalRef.current) {
-      clearInterval(quickAssistIntervalRef.current);
-      quickAssistIntervalRef.current = null;
-    }
-  };
-
-  const startAgentCreationCountdown = (seconds = 300) => {
-    if (quickAssistCountdownRef.current) {
-      clearInterval(quickAssistCountdownRef.current);
-      quickAssistCountdownRef.current = null;
-    }
-    setQuickAgentCountdown(seconds);
-    quickAssistCountdownRef.current = setInterval(() => {
-      setQuickAgentCountdown((prev) => {
-        if (prev <= 1) {
-          if (quickAssistCountdownRef.current) {
-            clearInterval(quickAssistCountdownRef.current);
-            quickAssistCountdownRef.current = null;
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const pollLatestOmnidimLogUntilCompleted = async () => {
-    try {
-      const res = await service.get(OMNI_LOGS_ENDPOINT, {
-        params: { pageno: 1, pagesize: 1 },
-      });
-      const data = res?.data;
-
-      const item = Array.isArray(data?.call_log_data) ? data.call_log_data[0] : null;
-      if (!item) return;
-
-      const status = String(item.status ?? "").trim().toLowerCase();
-      const id = item.id;
-
-      if (status === "completed") {
-        stopQuickAssistPolling();
-        if (id) {
-          setQuickHangupDetected(true);
-          setQuickStatusText(
-            "After call hangup don't close the window. It will take 5 min to create the agent."
-          );
-          startAgentCreationCountdown(300);
-          const completeRes = await runOmniFlowComplete({ call_id: String(id) });
-          if (
-            completeRes?.success === true &&
-            String(completeRes?.status || "").toLowerCase() === "completed" &&
-            String(completeRes?.action || "").toLowerCase() === "agent_created"
-          ) {
-            // stop countdown early; agent is created
-            if (quickAssistCountdownRef.current) {
-              clearInterval(quickAssistCountdownRef.current);
-              quickAssistCountdownRef.current = null;
-            }
-            setQuickAgentCountdown(0);
-            setQuickStatusText("Agent created successfully. You can close this window now.");
-          }
-        }
-      }
-    } catch (err) {
-      // keep polling; do not break on transient errors
-      console.warn("Polling logs failed:", err);
-    }
-  };
-
-  const startQuickAssistPolling = () => {
-    stopQuickAssistPolling();
-
-    // wait 20 seconds first
-    quickAssistTimeoutRef.current = setTimeout(async () => {
-      await pollLatestOmnidimLogUntilCompleted();
-
-      // then poll every 30 seconds until completed
-      quickAssistIntervalRef.current = setInterval(() => {
-        pollLatestOmnidimLogUntilCompleted();
-      }, 30 * 1000);
-    }, 2 * 60 * 1000);
-  };
-
-  const submitQuickAssist = async () => {
-    if (!quickMobile.trim()) return toast.error("Please enter a mobile number.");
-
-    const e164 = parseAndValidateToE164(quickMobile, quickCountryCode || countryCode);
-    if (!e164) {
-      const selected = countries.find((c) => c.code === (quickCountryCode || countryCode));
-      const countryName = selected ? selected.name : (quickCountryCode || countryCode);
-      return toast.error(`Enter a valid ${countryName} phone number.`);
-    }
-
-    setQuickSubmitting(true);
-    try {
-      const to_number = String(e164); // keep E.164 with +
-      const payload = {
-        to_number,
-        agent_id: QUICK_ASSIST_AGENT_ID,
-        from_number_id: QUICK_ASSIST_FROM_NUMBER_ID,
-      };
-      await runOmniFlow(payload);
-      startQuickAssistPolling();
-      setQuickStatusText("Call dispatched. Please wait for call hangup...");
-      toast.success("Call dispatched successfully!");
-    } catch (err) {
-      console.error("quick run-omni-flow error:", err);
-      toast.error(err?.message || "Failed to trigger call");
-    } finally {
-      setQuickSubmitting(false);
     }
   };
 
@@ -559,90 +360,26 @@ export default function SendOmniCall() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <label className="block text-sm font-medium text-gray-700">Agent</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setNeedAssistant((prev) => {
-                    const next = !prev;
-                    // clear selection when switching modes
-                    setError("");
-                    if (next) {
-                      setSelectedAgentId("");
-                    } else {
-                      setSelectedAssistantAgentId("");
-                    }
-                    return next;
-                  });
-                }}
-                className={`px-3 py-1.5 rounded-lg text-sm border ${
-                  needAssistant
-                    ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                Need Assistant?
-              </button>
-
-              <button
-                type="button"
-                onClick={openQuickAssist}
-                className="px-3 py-1.5 rounded-lg text-sm border border-emerald-600 text-emerald-700 bg-white hover:bg-emerald-50"
-              >
-                Need Assistant & create agent
-              </button>
-            </div>
-          </div>
-
           <div>
-            {needAssistant ? (
-              <select
-                value={selectedAssistantAgentId}
-                onChange={(e) => setSelectedAssistantAgentId(e.target.value)}
-                className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                  error && !selectedAssistantAgentId
-                    ? "border-red-400 focus:ring-red-300"
-                    : "focus:ring-emerald-200"
-                }`}
-                disabled={assistantFetching}
-                required
-              >
-                <option value="">
-                  {assistantFetching ? "Loading assistants..." : "-- Select an assistant --"}
+            <label className="block text-sm font-medium text-gray-700 mb-1">Agent</label>
+            <select
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                error && !selectedAgentId
+                  ? "border-red-400 focus:ring-red-300"
+                  : "focus:ring-indigo-200"
+              }`}
+              disabled={fetching}
+              required
+            >
+              <option value="">{fetching ? "Loading agents..." : "-- Select an agent --"}</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.agent_id}>
+                  {a.agent_id} — {a.name || `Agent ${a.agent_id}`}
                 </option>
-                {assistantAgents.map((a) => {
-                  const value = a.agent_id ?? a.id ?? "";
-                  const labelLeft = a.agent_id ?? a.id ?? "";
-                  const labelRight = a.name || a.category_name || a.category || `Assistant ${labelLeft}`;
-                  return (
-                    <option key={a.id ?? value} value={value}>
-                      {labelLeft ? `${labelLeft} — ${labelRight}` : labelRight}
-                    </option>
-                  );
-                })}
-              </select>
-            ) : (
-              <select
-                value={selectedAgentId}
-                onChange={(e) => setSelectedAgentId(e.target.value)}
-                className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                  error && !selectedAgentId
-                    ? "border-red-400 focus:ring-red-300"
-                    : "focus:ring-indigo-200"
-                }`}
-                disabled={fetching}
-                required
-              >
-                <option value="">{fetching ? "Loading agents..." : "-- Select an agent --"}</option>
-                {agents.map((a) => (
-                  <option key={a.id} value={a.agent_id}>
-                    {a.agent_id} — {a.name || `Agent ${a.agent_id}`}
-                  </option>
-                ))}
-              </select>
-            )}
+              ))}
+            </select>
           </div>
 
           {uploadedNumbers.length === 0 && (
@@ -707,9 +444,6 @@ export default function SendOmniCall() {
               onClick={() => {
                 setMobile("");
                 setSelectedAgentId("");
-                setSelectedAssistantAgentId("");
-                setNeedAssistant(false);
-                setShowQuickAssist(false);
                 setError("");
                 setUploadedNumbers([]);
                 setFileError("");
@@ -728,96 +462,6 @@ export default function SendOmniCall() {
             </button>
           </div>
         </form>
-
-        {showQuickAssist && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
-              <div className="flex items-center justify-between px-5 py-4 border-b">
-                <div className="text-lg font-semibold text-gray-800">Need Assistant & create agent</div>
-                <button
-                  type="button"
-                  onClick={closeQuickAssist}
-                  className="text-gray-500 hover:text-gray-700"
-                  disabled={quickSubmitting || (quickHangupDetected && quickAgentCountdown > 0)}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="px-5 py-4 space-y-4">
-                {quickStatusText && (
-                  <div
-                    className={`text-sm rounded-lg px-3 py-2 border ${
-                      quickHangupDetected
-                        ? "bg-amber-50 border-amber-200 text-amber-800"
-                        : "bg-blue-50 border-blue-200 text-blue-800"
-                    }`}
-                  >
-                    <div className="font-semibold">{quickStatusText}</div>
-                    {quickHangupDetected && quickAgentCountdown > 0 && (
-                      <div className="mt-1 text-xs">
-                        Please keep this window open for{" "}
-                        <span className="font-semibold">
-                          {Math.floor(quickAgentCountdown / 60)}:
-                          {String(quickAgentCountdown % 60).padStart(2, "0")}
-                        </span>
-                        .
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
-                  <div className="flex gap-2">
-                    <div className="w-52">
-                      <select
-                        value={quickCountryCode}
-                        onChange={(e) => setQuickCountryCode(e.target.value)}
-                        className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                        disabled={quickSubmitting}
-                      >
-                        {countries.map((c) => (
-                          <option key={c.code} value={c.code}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <input
-                      type="tel"
-                      placeholder="Enter phone number (national or +...)"
-                      value={quickMobile}
-                      onChange={(e) => setQuickMobile(e.target.value)}
-                      className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                      disabled={quickSubmitting}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 px-5 py-4 border-t">
-                <button
-                  type="button"
-                  onClick={closeQuickAssist}
-                  className="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300"
-                  disabled={quickSubmitting || (quickHangupDetected && quickAgentCountdown > 0)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={submitQuickAssist}
-                  className="px-4 py-2 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-60"
-                  disabled={quickSubmitting}
-                >
-                  {quickSubmitting ? "Sending..." : "Send Call"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
