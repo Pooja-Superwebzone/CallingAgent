@@ -42,6 +42,7 @@ import UpgradeMinutesPage from "./Component/Pages/UpgradeMinutesPage";
 import ChannelPartnerMinuteTransactions from "./Component/Pages/ChannelPartnerMinuteTransactions";
 import AgentsCategoryPage from "./Component/Pages/AgentsCategoryPage";
 import CreateAgentTopicPage from "./Component/Pages/CreateAgentTopicPage";
+import DynamicMinutePage from "./Component/Pages/DynamicMinutePage";
 
 function App() {
   const location = useLocation();
@@ -188,6 +189,7 @@ function App() {
             <Route path="/perplexity" element={<Perplexity />} />
             <Route path="/minutes" element={<MinutesPage />} />
             <Route path="/upgrade-minutes" element={<UpgradeMinutesPage />} />
+            <Route path="/dynamic-minute" element={<DynamicMinutePage />} />
             <Route path="/call-logs" element={<CallLogs />} />
             <Route path="/channel-partner" element={<ChannelPartner />} />
             <Route path="/channel-partner-users" element={<ChannelPartnerUsers />} />

@@ -495,7 +495,7 @@ export default function LoginSignup() {
             </button>
 
             <h2 className="text-2xl font-bold mb-2 mt-5 text-center">
-              I want to learn from Tutore
+              I want to Learn Online From Tutor Rs 1999
             </h2>
             <p className="text-sm text-gray-600 text-center mb-6">
               Choose how you want to continue, or open{" "}
