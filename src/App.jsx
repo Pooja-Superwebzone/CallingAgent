@@ -36,6 +36,7 @@ import CertifiedAITrainingPage from './Component/Pages/CertifiedAITrainingPage';
 import RichaTrialPackPage from './Component/Pages/RichaTrialPackPage';
 import DemoCallPackPage from './Component/Pages/DemoCallPackPage';
 import TutorialPage from './Component/Pages/TutorialPage';
+import PrivacyPolicy from './Component/Pages/PrivacyPolicy';
 import MinutesPage from "./Component/Pages/MinutesPage";
 import UpgradeMinutesPage from "./Component/Pages/UpgradeMinutesPage";
 import ChannelPartnerMinuteTransactions from "./Component/Pages/ChannelPartnerMinuteTransactions";
@@ -157,6 +158,9 @@ function App() {
 
         {/* Public: Tutorial Page */}
         <Route path="/tutorial" element={<TutorialPage />} />
+
+        {/* Public: Privacy Policy */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
         {/* Protected (wrapped in Sidebar) */}
         {authed && (

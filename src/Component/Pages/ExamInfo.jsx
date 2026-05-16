@@ -4,6 +4,12 @@ import service from "../../api/axios";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { createPaymentOrder } from "../../api/payment";
+import {
+  login,
+  signupTwillioUser,
+  verifyEmailOtp,
+  resendTwillioOtp,
+} from "../../hooks/useAuth";
 import { FaPlay } from "react-icons/fa";
 import dashboardImage from "../../assets/dashboard.png";
 import createAgentV1Image from "../../assets/tabs/create-agent-v1.png";
@@ -12,6 +18,7 @@ import alreadyCreatedAgentImage from "../../assets/tabs/already-created.png";
 import callLogsImg from "../../assets/tabs/call_logs.png";
 import createAgentImg from "../../assets/tabs/create_agent.png";
 import emailTemplateImg from "../../assets/tabs/how_email_template_work.png";
+import richaSignupImage from "../../assets/richa_signup.png";
 import whatsappSendImg from "../../assets/tabs/how_whatshapp_message_send.png";
 import whatsappLogImg from "../../assets/tabs/whatshapp_log.png";
 
@@ -109,27 +116,46 @@ const plans = [
 export default function ExamInfo() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const EXAM_FEE = 999;
+  const EXAM_FEE = 1999;
   const WEBINAR_FEE = 1999;
+  const TUTOR_TRAINING_URL = "https://training.infinitybrains.com/";
   
-  // Clean email from URL parameter (remove quotes if present)
-  const email = useMemo(() => {
+  const urlEmail = useMemo(() => {
     const emailParam = searchParams.get("email");
-    if (!emailParam) return null;
-    // Remove surrounding quotes if present
+    if (!emailParam) return "";
     return emailParam.replace(/^["']|["']$/g, "").trim();
   }, [searchParams]);
 
   const webinarMode = useMemo(() => {
     return (searchParams.get("webinar") || "").trim().toLowerCase();
   }, [searchParams]);
-  
-  // Check for email parameter and redirect if not present
-  useEffect(() => {
-    if (!email || email === "") {
-      navigate("/", { replace: true });
-    }
-  }, [email, navigate]);
+
+  const [authTick, setAuthTick] = useState(0);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab] = useState("login");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [signupData, setSignupData] = useState({
+    name: "",
+    email: "",
+    contact_no: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpEmail, setOtpEmail] = useState("");
+
+  const email = useMemo(() => {
+    if (urlEmail) return urlEmail;
+    const cookieEmail = Cookies.get("email");
+    return cookieEmail ? String(cookieEmail).trim() : "";
+  }, [urlEmail, authTick]);
+
+  const isAuthenticated = useMemo(() => {
+    return !!(Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken"));
+  }, [authTick]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.Cashfree) {
@@ -138,12 +164,7 @@ export default function ExamInfo() {
       });
     }
   }, []);
-  
-  // Don't render content if email is not present (will redirect)
-  if (!email || email === "") {
-    return null;
-  }
-  
+
   const today = useMemo(() => {
     const d = new Date();
     const year = d.getFullYear();
@@ -194,7 +215,216 @@ export default function ExamInfo() {
     return () => window.clearTimeout(id);
   }, [showSchedule, webinarMode]);
 
+  const syncExamAuthUrl = (resolvedEmail) => {
+    if (!resolvedEmail) return;
+    const params = new URLSearchParams();
+    params.set("email", resolvedEmail);
+    if (webinarMode === "paid") params.set("webinar", "paid");
+    navigate(`/exam-info?${params.toString()}`, { replace: true });
+  };
+
+  const persistExamAuthSession = (token, user = {}) => {
+    if (token) {
+      Cookies.set("CallingAgent", token, { expires: 365, secure: true, sameSite: "Strict" });
+      localStorage.setItem("ibcrmtoken", token);
+    }
+    if (user?.role) {
+      Cookies.set("role", user.role, { expires: 365, secure: true, sameSite: "Strict" });
+    }
+    if (user?.twilio_user !== undefined) {
+      Cookies.set("twilio_user", String(user.twilio_user || "0"), {
+        expires: 365,
+        secure: true,
+        sameSite: "Strict",
+      });
+    }
+    const resolvedEmail = (user?.email || "").trim();
+    if (resolvedEmail) {
+      Cookies.set("email", resolvedEmail, { expires: 365, secure: true, sameSite: "Strict" });
+    }
+    if (user?.email_verified_at) {
+      Cookies.set("email_verified", "true", { expires: 365, secure: true, sameSite: "Strict" });
+    }
+    if (user?.name) {
+      localStorage.setItem("userName", user.name);
+      Cookies.set("name", user.name, { expires: 365, secure: true, sameSite: "Strict" });
+    }
+    if (user?.contact_no) {
+      Cookies.set("contact_no", String(user.contact_no), {
+        expires: 365,
+        secure: true,
+        sameSite: "Strict",
+      });
+    }
+    syncExamAuthUrl(resolvedEmail || email);
+    setAuthTick((t) => t + 1);
+  };
+
+  const openAuthModal = (tab = "login") => {
+    setAuthError("");
+    setAuthTab(tab);
+    setShowAuthModal(true);
+    if (tab === "login" && email) {
+      setLoginData((prev) => ({ ...prev, email }));
+    }
+    if (tab === "signup" && email) {
+      setSignupData((prev) => ({ ...prev, email }));
+    }
+  };
+
+  const requireAuthForPayment = (
+    message = "Please login or sign up to continue with payment."
+  ) => {
+    if (isAuthenticated && email) return true;
+    openAuthModal(email ? "login" : "signup");
+    toast.error(message);
+    return false;
+  };
+
+  const handleExamLogin = async (e) => {
+    e?.preventDefault?.();
+    setAuthError("");
+    if (!loginData.email?.trim() || !loginData.password) {
+      setAuthError("Email and password are required.");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await login({
+        email: loginData.email.trim(),
+        password: loginData.password,
+      });
+      const { token, data: user } = res;
+      const isAdminWithTwilioZero =
+        user?.role === "admin" && String(user?.twilio_user) === "0";
+
+      if (!user?.email_verified_at && !isAdminWithTwilioZero) {
+        toast.error("Email not verified. OTP sent to your email.");
+        setOtpEmail(loginData.email.trim());
+        await resendTwillioOtp({ email: loginData.email.trim() });
+        setShowAuthModal(false);
+        setShowOtpModal(true);
+        return;
+      }
+
+      if (!token || !user) {
+        toast.error("Invalid login response");
+        return;
+      }
+
+      persistExamAuthSession(token, user);
+      setShowAuthModal(false);
+      toast.success("Login successful. You can now continue with payment.");
+    } catch (err) {
+      const message = err?.message || "Login failed";
+      setAuthError(message);
+      toast.error(message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleExamSignup = async (e) => {
+    e?.preventDefault?.();
+    setAuthError("");
+    const { name, email: signupEmail, contact_no, password, confirmPassword } = signupData;
+    if (!name?.trim() || !signupEmail?.trim() || !contact_no || !password) {
+      setAuthError("Please fill all required fields.");
+      return;
+    }
+    if (contact_no.length !== 10) {
+      setAuthError("Contact number must be 10 digits.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setAuthError("Passwords do not match.");
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      const res = await signupTwillioUser({
+        name: name.trim(),
+        email: signupEmail.trim(),
+        contact_no,
+        password,
+        confirmPassword,
+        minute: "10",
+        role: "admin",
+      });
+      const { token, data: user } = res;
+
+      setOtpEmail(signupEmail.trim());
+
+      if (token && user) {
+        persistExamAuthSession(token, user);
+        if (!user?.email_verified_at) {
+          setShowAuthModal(false);
+          setShowOtpModal(true);
+          toast.success("Signup successful. Please verify your email with OTP.");
+          return;
+        }
+        setShowAuthModal(false);
+        toast.success("Signup successful. You can now continue with payment.");
+        return;
+      }
+
+      setShowAuthModal(false);
+      setShowOtpModal(true);
+      toast.success("Signup successful. Please verify your email with OTP.");
+    } catch (err) {
+      const message = err?.message || "Signup failed";
+      setAuthError(message);
+      toast.error(message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleExamOtpVerify = async () => {
+    if (otp.length !== 6) {
+      toast.error("Please enter a valid 6-digit OTP");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await verifyEmailOtp({ email: otpEmail, otp });
+      const isVerified =
+        res?.verified === true ||
+        res?.status === "success" ||
+        res?.message?.toLowerCase?.().includes("verified");
+
+      if (!isVerified) {
+        toast.error("Invalid OTP");
+        return;
+      }
+
+      if (res?.token && res?.data) {
+        persistExamAuthSession(res.token, res.data);
+      } else {
+        Cookies.set("email_verified", "true", { expires: 365 });
+        syncExamAuthUrl(otpEmail);
+        setAuthTick((t) => t + 1);
+      }
+
+      setShowOtpModal(false);
+      setOtp("");
+      toast.success("Email verified. You can now continue with payment.");
+    } catch (err) {
+      toast.error(err?.message || "OTP verification failed");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const loginAndNavigateToExam = async () => {
+    const existingToken =
+      Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken");
+    if (existingToken && email) {
+      navigate(`/exam-start?email=${encodeURIComponent(email)}`);
+      return;
+    }
+
     const response = await service.post("login", {
       email,
       password: "12345678",
@@ -238,6 +468,7 @@ export default function ExamInfo() {
 
   // Handle Schedule Submit
   const handleScheduleSubmit = async () => {
+    if (!requireAuthForPayment()) return;
     if (!selectedDate || !email) {
       alert("Please select a date and ensure email is available.");
       return;
@@ -269,6 +500,7 @@ export default function ExamInfo() {
   };
 
   const handlePayAndBookWebinar = async () => {
+    if (!requireAuthForPayment()) return;
     if (!email) return;
     if (!selectedDate) {
       toast.error("Please select a date first.");
@@ -347,6 +579,7 @@ export default function ExamInfo() {
 
   // Handle Start Exam button click - complete payment, then login and navigate
   const handleStartExam = async () => {
+    if (!requireAuthForPayment()) return;
     if (!email) return;
 
     setIsLoading(true);
@@ -584,6 +817,32 @@ export default function ExamInfo() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900 px-1 md:px-6 py-12">
+      {!isAuthenticated && (
+        <div className="sticky top-0 z-40 -mx-1 mb-6 border-b border-indigo-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur md:-mx-6">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium text-slate-700">
+              Login or sign up to pay for the exam and continue your certification journey.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => openAuthModal("login")}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => openAuthModal("signup")}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700"
+              >
+                Signup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mx-auto flex max-w-7xl flex-col gap-10">
         <header className="space-y-5">
           <p className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
@@ -838,7 +1097,7 @@ export default function ExamInfo() {
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="rounded-xl border border-blue-200 bg-white p-4 shadow-sm">
                 <img
-                  src="/dist/assets/richa_signup.png"
+                  src={richaSignupImage}
                   alt="Richa AI Signup Screenshot"
                   className="w-full rounded-lg border border-slate-200"
                 />
@@ -1494,7 +1753,7 @@ export default function ExamInfo() {
                 onClick={() => setShowWebinarOptions(true)}
                 className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
               >
-                Personal Webinar
+                I want to learn from Tutore
               </button>
             </div>
           </div>
@@ -1503,7 +1762,7 @@ export default function ExamInfo() {
         </section>
       </div>
 
-      {/* Personal Webinar Options Modal */}
+      {/* Learn from Tutore Options Modal */}
       {showWebinarOptions && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4"
@@ -1522,10 +1781,19 @@ export default function ExamInfo() {
               </button>
 
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-2 text-center">
-                Personal Webinar
+                I want to learn from Tutore
               </h2>
               <p className="text-sm sm:text-base text-slate-600 text-center mb-6">
-                Choose how you want to continue.
+                Choose how you want to continue, or open{" "}
+                <a
+                  href={TUTOR_TRAINING_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+                >
+                  Tutor
+                </a>{" "}
+                training.
               </p>
 
               <div className="grid gap-3">
@@ -1533,7 +1801,16 @@ export default function ExamInfo() {
                   type="button"
                   onClick={() => {
                     setShowWebinarOptions(false);
-                    navigate(`/exam-info?email=${encodeURIComponent(email)}`);
+                    if (
+                      !requireAuthForPayment(
+                        "Please login or sign up to continue with free training."
+                      )
+                    ) {
+                      return;
+                    }
+                    if (email) {
+                      navigate(`/exam-info?email=${encodeURIComponent(email)}`, { replace: true });
+                    }
                     toast.success("Free training selected. Continue learning yourself.");
                   }}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition hover:bg-slate-50"
@@ -1550,27 +1827,18 @@ export default function ExamInfo() {
                   type="button"
                   onClick={() => {
                     setShowWebinarOptions(false);
-                    setScheduleMode("paid_webinar");
-                    setShowSchedule(true);
-                    setTimeout(() => {
-                      scheduleRef.current?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
-                    }, 0);
+                    window.open(TUTOR_TRAINING_URL, "_blank", "noopener,noreferrer");
                   }}
                   className="w-full rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 px-5 py-4 text-left shadow-sm transition hover:from-indigo-100 hover:to-purple-100"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-base font-bold text-slate-900">
-                      Personal Webinar (₹{WEBINAR_FEE.toLocaleString("en-IN")})
-                    </div>
-                    <span className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">
-                      Pay & Book Slot
+                  <div className="text-base font-bold text-slate-900">
+                    I want to learn from{" "}
+                    <span className="text-indigo-600 underline underline-offset-2">
+                      Tutor
                     </span>
                   </div>
                   <div className="mt-1 text-sm text-slate-600">
-                    Choose a date and pay to confirm your webinar slot.
+                    Open guided training on Infinity Brains.
                   </div>
                 </button>
               </div>
@@ -1690,6 +1958,218 @@ export default function ExamInfo() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showAuthModal && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={(e) => e.target === e.currentTarget && setShowAuthModal(false)}
+        >
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(false)}
+              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-xl font-bold text-slate-900 text-center">
+              {authTab === "login" ? "Login" : "Sign up"}
+            </h2>
+            <p className="mt-1 text-center text-sm text-slate-600">
+              Continue on this page after {authTab === "login" ? "login" : "signup"} to complete payment.
+            </p>
+
+            <div className="mt-4 flex rounded-lg border border-slate-200 p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthTab("login");
+                  setAuthError("");
+                }}
+                className={`flex-1 rounded-md py-2 text-sm font-semibold ${
+                  authTab === "login"
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthTab("signup");
+                  setAuthError("");
+                }}
+                className={`flex-1 rounded-md py-2 text-sm font-semibold ${
+                  authTab === "signup"
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Signup
+              </button>
+            </div>
+
+            {authTab === "login" ? (
+              <form className="mt-4 space-y-3" onSubmit={handleExamLogin}>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Email</label>
+                  <input
+                    type="email"
+                    value={loginData.email}
+                    onChange={(e) =>
+                      setLoginData((v) => ({ ...v, email: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    placeholder="you@example.com"
+                    autoComplete="username"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Password</label>
+                  <input
+                    type="password"
+                    value={loginData.password}
+                    onChange={(e) =>
+                      setLoginData((v) => ({ ...v, password: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    placeholder="Enter password"
+                    autoComplete="current-password"
+                  />
+                </div>
+                {authError ? (
+                  <p className="text-sm font-medium text-rose-600">{authError}</p>
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {authLoading ? "Logging in..." : "Login"}
+                </button>
+              </form>
+            ) : (
+              <form className="mt-4 space-y-3" onSubmit={handleExamSignup}>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Name</label>
+                  <input
+                    type="text"
+                    value={signupData.name}
+                    onChange={(e) =>
+                      setSignupData((v) => ({ ...v, name: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Contact No</label>
+                  <input
+                    type="text"
+                    value={signupData.contact_no}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "");
+                      if (value.length <= 10) {
+                        setSignupData((v) => ({ ...v, contact_no: value }));
+                      }
+                    }}
+                    maxLength={10}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    placeholder="10-digit mobile"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Email</label>
+                  <input
+                    type="email"
+                    value={signupData.email}
+                    onChange={(e) =>
+                      setSignupData((v) => ({ ...v, email: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    placeholder="you@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Password</label>
+                  <input
+                    type="password"
+                    value={signupData.password}
+                    onChange={(e) =>
+                      setSignupData((v) => ({ ...v, password: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    placeholder="Enter password"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={signupData.confirmPassword}
+                    onChange={(e) =>
+                      setSignupData((v) => ({ ...v, confirmPassword: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    placeholder="Re-enter password"
+                  />
+                </div>
+                {authError ? (
+                  <p className="text-sm font-medium text-rose-600">{authError}</p>
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {authLoading ? "Signing up..." : "Sign up"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showOtpModal && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70 p-4">
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setShowOtpModal(false);
+                setOtp("");
+              }}
+              className="absolute right-3 top-3 text-2xl text-slate-400 hover:text-slate-600"
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <h2 className="mt-2 text-center text-xl font-bold text-slate-900">OTP Verification</h2>
+            <p className="mt-2 text-center text-sm text-slate-600">
+              Enter the OTP sent to <span className="font-semibold">{otpEmail}</span>
+            </p>
+            <input
+              type="text"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+              className="mt-4 w-full rounded-lg border border-slate-200 px-4 py-2 text-center text-xl tracking-widest outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+              placeholder="------"
+            />
+            <button
+              type="button"
+              onClick={handleExamOtpVerify}
+              disabled={authLoading}
+              className="mt-4 w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {authLoading ? "Verifying..." : "Verify OTP"}
+            </button>
           </div>
         </div>
       )}

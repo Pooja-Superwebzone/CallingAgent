@@ -141,7 +141,7 @@ export default function MinutesPage() {
 
   const MINUTES_PER_PACKAGE = isChannelPartnerPlan ? 1000 : 100;
   const RATE_UP_TO_THRESHOLD = isChannelPartnerPlan
-    ? 11.44
+    ? 13.50
     : dynamicNormalMinuteRate;
   const purchasePlaceholder = isChannelPartnerPlan ? "1000, 2000, 3000..." : "100, 200, 300...";
   const CGST_RATE = 0.09;
@@ -448,7 +448,7 @@ export default function MinutesPage() {
           <div className="w-full">
             <label className="block text-sm font-semibold text-slate-700 mb-1">
               {isChannelPartnerPlan
-                ? "Mintues to Add 11.44 * add mintues in inpute ( below input type eg.1000,2000,3000 ...)"
+                ? "Mintues to Add 13.50 * add mintues in inpute ( below input type eg.1000,2000,3000 ...)"
                 : `Mintues to Add ${formatRate(
                   dynamicNormalMinuteRate
                 )} * add mintues in inpute ( below input type eg.100,200,300 ...)`}

@@ -477,7 +477,7 @@ export default function LoginSignup() {
 
       )}
 
-      {/* Training / Personal Webinar Choice Modal */}
+      {/* Training / Learn from Tutore Choice Modal */}
       {showTrainingChoiceModal && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3"
@@ -495,10 +495,19 @@ export default function LoginSignup() {
             </button>
 
             <h2 className="text-2xl font-bold mb-2 mt-5 text-center">
-              Personal Webinar
+              I want to learn from Tutore
             </h2>
             <p className="text-sm text-gray-600 text-center mb-6">
-              Choose how you want to continue.
+              Choose how you want to continue, or open{" "}
+              <a
+                href="https://training.infinitybrains.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+              >
+                Tutor
+              </a>{" "}
+              training.
             </p>
 
             <div className="grid gap-3">
@@ -528,32 +537,23 @@ export default function LoginSignup() {
               <button
                 type="button"
                 onClick={() => {
-                  const userEmail =
-                    (activeTab === "login" ? loginData.email : signupData.email) ||
-                    "";
-                  if (!String(userEmail).trim()) {
-                    toast.error("Please enter your email first.");
-                    return;
-                  }
                   setShowTrainingChoiceModal(false);
-                  navigate(
-                    `/exam-info?email=${encodeURIComponent(
-                      userEmail
-                    )}&webinar=paid`
+                  window.open(
+                    "https://training.infinitybrains.com/",
+                    "_blank",
+                    "noopener,noreferrer"
                   );
                 }}
                 className="w-full rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 px-5 py-4 text-left shadow-sm transition hover:from-indigo-100 hover:to-purple-100"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-base font-bold text-gray-900">
-                    Personal Webinar (₹1,999)
-                  </div>
-                  <span className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">
-                    Pay & Book Slot
+                <div className="text-base font-bold text-gray-900">
+                  I want to learn from{" "}
+                  <span className="text-indigo-600 underline underline-offset-2">
+                    Tutor
                   </span>
                 </div>
                 <div className="mt-1 text-sm text-gray-600">
-                  Book a slot and pay to confirm your webinar.
+                  Open guided training on Infinity Brains.
                 </div>
               </button>
             </div>

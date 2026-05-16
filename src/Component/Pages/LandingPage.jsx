@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
-import { signupTwillioUser } from "../../hooks/useAuth";
+import franchiseAgreementDocUrl from "../../assets/franchisee-agreement.docx?url";
+import { signupTwillioUser, login, resendTwillioOtp } from "../../hooks/useAuth";
 import service from "../../api/axios";
 import toast from "react-hot-toast";
 
@@ -240,6 +241,13 @@ export default function LandingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [signupError, setSignupError] = useState("");
   const [storedToken, setStoredToken] = useState("");
+  const [showPlanLoginModal, setShowPlanLoginModal] = useState(false);
+  const [planLoginEmail, setPlanLoginEmail] = useState("");
+  const [planLoginPassword, setPlanLoginPassword] = useState("");
+  const [planLoginError, setPlanLoginError] = useState("");
+  const [planLoginSubmitting, setPlanLoginSubmitting] = useState(false);
+  const [channelPartnerFranchiseAccepted, setChannelPartnerFranchiseAccepted] =
+    useState(false);
 
   const getCookie = (name) => {
     if (typeof document === "undefined") return "";
@@ -287,11 +295,17 @@ export default function LandingPage() {
     if (plan) {
       setSelectedPlan(plan);
       setStoredToken(getStoredToken(plan.id));
+      setShowPlanLoginModal(false);
+      resetPlanLoginForm();
       setShowSignup(true);
       // Optional: Remove the plan parameter from URL after opening modal
       // setSearchParams({});
     }
   }, [location.pathname, searchParams]);
+
+  useEffect(() => {
+    setChannelPartnerFranchiseAccepted(false);
+  }, [selectedPlan?.id]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.Cashfree) {
@@ -308,11 +322,23 @@ export default function LandingPage() {
     if (!plan) return;
     setSelectedPlan(plan);
     setStoredToken(getStoredToken(plan.id));
+    setShowPlanLoginModal(false);
+    resetPlanLoginForm();
     setShowSignup(true);
+  };
+
+  const resetPlanLoginForm = () => {
+    setPlanLoginEmail("");
+    setPlanLoginPassword("");
+    setPlanLoginError("");
+    setPlanLoginSubmitting(false);
   };
 
   const closeSignupModal = () => {
     setShowSignup(false);
+    setShowPlanLoginModal(false);
+    resetPlanLoginForm();
+    setChannelPartnerFranchiseAccepted(false);
   };
 
   const persistSelectedPlan = (plan, token = "") => {
@@ -342,6 +368,158 @@ export default function LandingPage() {
     }
   };
 
+  const finalizePlanCheckoutAfterAuth = async ({
+    tokenToUse,
+    userForFallbackId,
+    email,
+    resolvedName,
+    resolvedContactNo,
+    roleCookie,
+    resolvedTwilioUser,
+    emailVerifiedCookie,
+    channelPartnerSuccessToast,
+  }) => {
+    if (typeof window === "undefined" || !selectedPlan || !tokenToUse) return;
+
+    const normalizedEmail = normalizeEmail(email);
+    persistSelectedPlan(selectedPlan, tokenToUse);
+    localStorage.setItem("ibcrmtoken", tokenToUse);
+
+    document.cookie = `role=${encodeURIComponent(roleCookie)}; path=/; max-age=31536000; SameSite=Strict`;
+    document.cookie = `CallingAgent=${encodeURIComponent(
+      tokenToUse
+    )}; path=/; max-age=31536000; SameSite=Strict`;
+    document.cookie = `twilio_user=${encodeURIComponent(
+      resolvedTwilioUser
+    )}; path=/; max-age=31536000; SameSite=Strict`;
+    document.cookie = `email_verified=${encodeURIComponent(
+      emailVerifiedCookie
+    )}; path=/; max-age=31536000; SameSite=Strict`;
+    document.cookie = `email=${encodeURIComponent(email)}; path=/; max-age=31536000; SameSite=Strict`;
+    document.cookie = `name=${encodeURIComponent(
+      resolvedName || ""
+    )}; path=/; max-age=31536000; SameSite=Strict`;
+    document.cookie = `contact_no=${encodeURIComponent(
+      resolvedContactNo || ""
+    )}; path=/; max-age=31536000; SameSite=Strict`;
+
+    const storedPlanId = resolveStoredPlanIdFromRole(roleCookie);
+    if (normalizedEmail) {
+      localStorage.setItem(`user_plan_${normalizedEmail}`, storedPlanId);
+      localStorage.setItem(`user_plan_title_${normalizedEmail}`, selectedPlan.title);
+    }
+
+    if (selectedPlan.id === "become_channel_partner") {
+      try {
+        const profileRes = await service.get("Profile", {
+          headers: { Authorization: `Bearer ${tokenToUse}` },
+        });
+        const profile = profileRes?.data?.data || {};
+        const userId =
+          profile?.id ||
+          profile?.user_id ||
+          profile?.twilio_create_id ||
+          userForFallbackId?.id ||
+          "";
+
+        if (userId) {
+          await service.post(
+            "add-minute",
+            { minute: "10", user_id: userId },
+            { headers: { Authorization: `Bearer ${tokenToUse}` } }
+          );
+        }
+      } catch (e) {
+        console.warn("add-minute after plan checkout failed:", e);
+      }
+      toast.success(channelPartnerSuccessToast || "Success");
+      closeSignupModal();
+      navigate("/minutes", {
+        replace: true,
+        state: {
+          showWelcome: true,
+          trialMinutes: "10",
+        },
+      });
+      return;
+    }
+
+    if (selectedPlan.id === "certified_ai_training") {
+      closeSignupModal();
+      navigate(`/exam-info?email=${encodeURIComponent(email)}`, {
+        replace: true,
+      });
+      return;
+    }
+
+    const url = new URL(`https://ibcrm.in/${selectedPlan.link}`);
+    url.searchParams.set("email", email);
+    if (tokenToUse) url.searchParams.set("token", tokenToUse);
+    closeSignupModal();
+    setTimeout(() => {
+      window.location.href = url.toString();
+    }, 50);
+  };
+
+  const submitPlanCheckoutLogin = async () => {
+    try {
+      setPlanLoginError("");
+      setPlanLoginSubmitting(true);
+      const trimmedEmail = planLoginEmail.trim();
+      if (!trimmedEmail || !planLoginPassword) {
+        setPlanLoginError("Email and password are required.");
+        return;
+      }
+
+      const res = await login({ email: trimmedEmail, password: planLoginPassword });
+      const { token, data: user } = res;
+
+      const resolvedEmail = user?.email?.trim() || trimmedEmail;
+      const isAdminWithTwilioZero =
+        user?.role === "admin" &&
+        String(user?.twilio_user) === "0";
+
+      if (!user?.email_verified_at && !isAdminWithTwilioZero) {
+        toast.error("Email not verified. OTP sent to your email.");
+        document.cookie = `email_verified=${encodeURIComponent(
+          "false"
+        )}; path=/; max-age=31536000; SameSite=Strict`;
+        await resendTwillioOtp({ email: resolvedEmail });
+        resetPlanLoginForm();
+        setShowPlanLoginModal(false);
+        closeSignupModal();
+        navigate("/login?tab=login");
+        return;
+      }
+
+      if (!token || !user) {
+        toast.error("Invalid login response");
+        return;
+      }
+
+      const resolvedName = user?.name || user?.emp_name || "";
+      const resolvedContactNo = String(user?.contact_no ?? user?.mobile ?? "");
+
+      await finalizePlanCheckoutAfterAuth({
+        tokenToUse: token,
+        userForFallbackId: user,
+        email: resolvedEmail,
+        resolvedName,
+        resolvedContactNo,
+        roleCookie: user?.role || "user",
+        resolvedTwilioUser: String(user?.twilio_user ?? "0"),
+        emailVerifiedCookie: user?.email_verified_at ? "true" : "false",
+        channelPartnerSuccessToast: "Login successful",
+      });
+    } catch (err) {
+      const message = err?.message || "Login failed. Please try again.";
+      setPlanLoginError(message);
+      toast.error(message);
+    } finally {
+      setPlanLoginSubmitting(false);
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900 overflow-x-hidden">
       <div className="relative min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900">
@@ -362,6 +540,13 @@ export default function LandingPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/privacy-policy")}
+                className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition animate-pop-in anim-delay-150 sm:px-4 sm:text-sm"
+              >
+                Privacy
+              </button>
               <button
                 type="button"
                 onClick={() => navigate("/tutorial")}
@@ -646,6 +831,8 @@ export default function LandingPage() {
                     onClick={() => {
                       setSelectedPlan(plan);
                       setStoredToken(getStoredToken(plan.id));
+                      setShowPlanLoginModal(false);
+                      resetPlanLoginForm();
                       setShowSignup(true);
                     }}
                     className="group relative flex min-h-[320px] w-full flex-col rounded-3xl border border-slate-200 bg-white p-6 text-left text-slate-900 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
@@ -740,8 +927,20 @@ export default function LandingPage() {
           </section>
         </main>
         <footer className="border-t border-slate-200 bg-white/80 backdrop-blur animate-fade-in flex">
-          <div className="mx-auto flex max-w-7xl items-center  justify-between px-6 py-6 text-sm text-slate-600">
-            <span>© {new Date().getFullYear()} Richa AI. All rights reserved.</span>
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-6 py-6 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1">
+              <span>© {new Date().getFullYear()} Richa AI. All rights reserved.</span>
+              <span className="text-xs text-slate-500">
+                Redjinni Private Limited Pvt. Ltd.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/privacy-policy")}
+              className="text-left font-medium text-indigo-600 hover:text-indigo-800 sm:text-right"
+            >
+              Privacy Policy
+            </button>
           </div>
         </footer>
 
@@ -754,7 +953,9 @@ export default function LandingPage() {
                   <p className="text-sm font-semibold text-indigo-600">Sign up to continue</p>
                   <h3 className="text-xl font-bold text-slate-900 mt-1">{selectedPlan.title}</h3>
                   <p className="text-sm text-slate-600">
-                    {selectedPlan.subtitle || "Complete signup to proceed to payment."}
+                    {selectedPlan.id === "become_channel_partner"
+                      ? "Review the franchise agreement, accept below, then complete signup."
+                      : selectedPlan.subtitle || "Complete signup to proceed to payment."}
                   </p>
                 </div>
                 <button
@@ -822,159 +1023,217 @@ export default function LandingPage() {
                         placeholder="Re-enter password"
                       />
                     </div>
+
+                    {selectedPlan.id === "become_channel_partner" ? (
+                      <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+                        <div className="flex items-start gap-3">
+                          <input
+                            id="landing-channel-franchise-accept"
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0"
+                            checked={channelPartnerFranchiseAccepted}
+                            onChange={(e) => setChannelPartnerFranchiseAccepted(e.target.checked)}
+                          />
+                          <div className="text-sm leading-relaxed text-slate-700">
+                            <label
+                              htmlFor="landing-channel-franchise-accept"
+                              className="cursor-pointer"
+                            >
+                              I agree with this{" "}
+                            </label>
+                            <a
+                              href={franchiseAgreementDocUrl}
+                              download="Franchisee Agreement.docx"
+                              className="font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+                              rel="noopener noreferrer"
+                            >
+                              franchise agreement
+                            </a>
+                            <span>.</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
                     {signupError ? (
                       <div className="text-sm text-rose-600 font-medium">{signupError}</div>
                     ) : null}
                   </div>
 
-                  <div className="mt-6 flex items-center justify-between">
+                  <div className="mt-6 flex flex-col gap-4">
                     <div className="text-sm text-slate-600">
                       Price: <span className="font-semibold text-slate-900">{selectedPlan.price}</span>{" "}
                       <span className="text-xs text-slate-500">{selectedPlan.price == "Free" ? "" : "(+GST)"} </span>
                     </div>
-                    <button
-                      type="button"
-                      disabled={
-                        submitting ||
-                        !formValues.email ||
-                        !formValues.name ||
-                        !formValues.contact_no ||
-                        formValues.contact_no.length !== 10 ||
-                        !formValues.password ||
-                        formValues.password !== formValues.confirmPassword
-                      }
-                      onClick={async () => {
-                        try {
-                          setSignupError("");
-                          setSubmitting(true);
-                          const payload = {
-                            name: formValues.name,
-                            email: formValues.email,
-                            contact_no: formValues.contact_no,
-                            password: formValues.password,
-                            confirmPassword: formValues.confirmPassword,
-                            minute: "10",
-                            role: getSignupRoleForPlan(selectedPlan.id),
-                          };
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                      <button
+                        type="button"
+                        disabled={
+                          submitting ||
+                          !formValues.email ||
+                          !formValues.name ||
+                          !formValues.contact_no ||
+                          formValues.contact_no.length !== 10 ||
+                          !formValues.password ||
+                          formValues.password !== formValues.confirmPassword ||
+                          (selectedPlan.id === "become_channel_partner" &&
+                            !channelPartnerFranchiseAccepted)
+                        }
+                        onClick={async () => {
+                          try {
+                            setSignupError("");
+                            setSubmitting(true);
+                            const payload = {
+                              name: formValues.name,
+                              email: formValues.email,
+                              contact_no: formValues.contact_no,
+                              password: formValues.password,
+                              confirmPassword: formValues.confirmPassword,
+                              minute: "10",
+                              role: getSignupRoleForPlan(selectedPlan.id),
+                            };
 
-                          const data = await signupTwillioUser(payload);
-                          const tokenRaw = extractToken(data);
-                          const signupUser = extractSignupUser(data);
-                          const tokenFromStorage = storedToken || getStoredToken(selectedPlan.id);
-                          const tokenToUse = tokenRaw || tokenFromStorage || getCookie("token") || getCookie("CallingAgent");
+                            const data = await signupTwillioUser(payload);
+                            const tokenRaw = extractToken(data);
+                            const signupUser = extractSignupUser(data);
+                            const tokenFromStorage = storedToken || getStoredToken(selectedPlan.id);
+                            const tokenToUse = tokenRaw || tokenFromStorage || getCookie("token") || getCookie("CallingAgent");
 
-                          if (!tokenToUse) {
-                            console.warn("Token missing in signup response", data);
-                            toast.error("Token missing from signup response");
-                            setSubmitting(false);
-                            return;
-                          }
+                            if (!tokenToUse) {
+                              console.warn("Token missing in signup response", data);
+                              toast.error("Token missing from signup response");
+                              setSubmitting(false);
+                              return;
+                            }
 
-                          if (typeof window !== "undefined") {
-                            const normalizedEmail = normalizeEmail(formValues.email);
                             const signupRole = getSignupRoleForPlan(selectedPlan.id);
                             const resolvedTwilioUser = String(
                               signupUser?.twilio_user ??
-                              signupUser?.twilioUser ??
-                              (selectedPlan.id === "become_channel_partner" ? 1 : 0)
+                                signupUser?.twilioUser ??
+                                (selectedPlan.id === "become_channel_partner" ? 1 : 0)
                             );
                             const resolvedEmailVerified =
                               signupUser?.email_verified_at
                                 ? "true"
-                                : (selectedPlan.id === "become_channel_partner" ? "true" : "false");
-                            persistSelectedPlan(selectedPlan, tokenToUse);
-                            localStorage.setItem("ibcrmtoken", tokenToUse);
-                            document.cookie = `role=${encodeURIComponent(
-                              signupRole
-                            )}; path=/; max-age=31536000; SameSite=Strict`;
-                            document.cookie = `CallingAgent=${encodeURIComponent(
-                              tokenToUse
-                            )}; path=/; max-age=31536000; SameSite=Strict`;
-                            document.cookie = `twilio_user=${encodeURIComponent(
-                              resolvedTwilioUser
-                            )}; path=/; max-age=31536000; SameSite=Strict`;
-                            document.cookie = `email_verified=${encodeURIComponent(
-                              resolvedEmailVerified
-                            )}; path=/; max-age=31536000; SameSite=Strict`;
-                            document.cookie = `email=${encodeURIComponent(
-                              formValues.email
-                            )}; path=/; max-age=31536000; SameSite=Strict`;
-                            document.cookie = `name=${encodeURIComponent(
-                              formValues.name
-                            )}; path=/; max-age=31536000; SameSite=Strict`;
-                            document.cookie = `contact_no=${encodeURIComponent(
-                              formValues.contact_no
-                            )}; path=/; max-age=31536000; SameSite=Strict`;
-                            if (normalizedEmail) {
-                              const storedPlanId = resolveStoredPlanIdFromRole(
-                                signupRole
-                              );
-                              localStorage.setItem(`user_plan_${normalizedEmail}`, storedPlanId);
-                              localStorage.setItem(`user_plan_title_${normalizedEmail}`, selectedPlan.title);
-                            }
-                          }
-                          if (selectedPlan.id === "become_channel_partner") {
-                            try {
-                              const profileRes = await service.get("Profile", {
-                                headers: { Authorization: `Bearer ${tokenToUse}` },
-                              });
-                              const profile = profileRes?.data?.data || {};
-                              const userId =
-                                profile?.id ||
-                                profile?.user_id ||
-                                profile?.twilio_create_id ||
-                                signupUser?.id ||
-                                "";
+                                : (selectedPlan.id === "become_channel_partner"
+                                  ? "true"
+                                  : "false");
 
-                              if (userId) {
-                                await service.post(
-                                  "add-minute",
-                                  { minute: "10", user_id: userId },
-                                  { headers: { Authorization: `Bearer ${tokenToUse}` } }
-                                );
-                              }
-                            } catch (e) {
-                              console.warn("add-minute after signup failed:", e);
-                            }
-                            toast.success("Signup successful");
-                            closeSignupModal();
-                            navigate("/minutes", {
-                              replace: true,
-                              state: {
-                                showWelcome: true,
-                                trialMinutes: "10",
-                              },
+                            await finalizePlanCheckoutAfterAuth({
+                              tokenToUse,
+                              userForFallbackId: signupUser,
+                              email: formValues.email,
+                              resolvedName: formValues.name,
+                              resolvedContactNo: formValues.contact_no,
+                              roleCookie: signupRole,
+                              resolvedTwilioUser,
+                              emailVerifiedCookie: resolvedEmailVerified,
+                              channelPartnerSuccessToast: "Signup successful",
                             });
-                            return;
+                          } catch (err) {
+                            const message = err?.message || "Signup failed. Please try again.";
+                            setSignupError(message);
+                            toast.error(message);
+                          } finally {
+                            setSubmitting(false);
                           }
-                          if (selectedPlan.id === "certified_ai_training") {
-                            closeSignupModal();
-                            navigate(`/exam-info?email=${encodeURIComponent(formValues.email)}`, {
-                              replace: true,
-                            });
-                            return;
-                          }
-
-                          const url = new URL(`https://ibcrm.in/${selectedPlan.link}`);
-                          url.searchParams.set("email", formValues.email);
-                          if (tokenToUse) url.searchParams.set("token", tokenToUse);
-                          setTimeout(() => {
-                            window.location.href = url.toString();
-                          }, 50);
-                        } catch (err) {
-                          const message = err?.message || "Signup failed. Please try again.";
-                          setSignupError(message);
-                          toast.error(message);
-                        } finally {
-                          setSubmitting(false);
-                        }
-                      }}
-                      className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {submitting ? "Submitting..." : "Signup & Continue"}
-                    </button>
+                        }}
+                        className="inline-flex w-full flex-1 items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                      >
+                        {submitting ? "Submitting..." : "Signup & Continue"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPlanLoginEmail(formValues.email.trim());
+                          setPlanLoginPassword("");
+                          setPlanLoginError("");
+                          setShowPlanLoginModal(true);
+                        }}
+                        className="inline-flex w-full flex-1 items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 sm:w-auto"
+                      >
+                        Login
+                      </button>
+                    </div>
                   </div>
               </>
+            </div>
+          </div>
+        )}
+
+        {showPlanLoginModal && selectedPlan && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/65 px-4">
+            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-indigo-600">Log in to continue</p>
+                  <h3 className="mt-1 text-xl font-bold text-slate-900">{selectedPlan.title}</h3>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close login"
+                  onClick={() => {
+                    resetPlanLoginForm();
+                    setShowPlanLoginModal(false);
+                  }}
+                  className="shrink-0 text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Email</label>
+                  <input
+                    type="email"
+                    value={planLoginEmail}
+                    onChange={(e) => setPlanLoginEmail(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                    placeholder="you@example.com"
+                    autoComplete="username"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Password</label>
+                  <input
+                    type="password"
+                    value={planLoginPassword}
+                    onChange={(e) => setPlanLoginPassword(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                    placeholder="Enter password"
+                    autoComplete="current-password"
+                  />
+                </div>
+                {planLoginError ? (
+                  <div className="text-sm font-medium text-rose-600">{planLoginError}</div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetPlanLoginForm();
+                    setShowPlanLoginModal(false);
+                  }}
+                  className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+                >
+                  ← Back to signup
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    planLoginSubmitting ||
+                    !planLoginEmail.trim() ||
+                    !planLoginPassword
+                  }
+                  onClick={submitPlanCheckoutLogin}
+                  className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {planLoginSubmitting ? "Signing in..." : "Log in & Continue"}
+                </button>
+              </div>
             </div>
           </div>
         )}
