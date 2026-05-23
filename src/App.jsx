@@ -32,6 +32,7 @@ import LandingPage from './Component/Pages/LandingPage';
 import ExamInfo from './Component/Pages/ExamInfo';
 import ExamMcq from './Component/Pages/ExamMcq';
 import CertificatePage from './Component/Pages/CertificatePage';
+import AiCertificateAdminPage from "./Component/Pages/AiCertificateAdminPage";
 import CertifiedAITrainingPage from './Component/Pages/CertifiedAITrainingPage';
 import RichaTrialPackPage from './Component/Pages/RichaTrialPackPage';
 import DemoCallPackPage from './Component/Pages/DemoCallPackPage';
@@ -190,6 +191,7 @@ function App() {
             <Route path="/minutes" element={<MinutesPage />} />
             <Route path="/upgrade-minutes" element={<UpgradeMinutesPage />} />
             <Route path="/dynamic-minute" element={<DynamicMinutePage />} />
+            <Route path="/ai-certificate" element={<AiCertificateAdminPage />} />
             <Route path="/call-logs" element={<CallLogs />} />
             <Route path="/channel-partner" element={<ChannelPartner />} />
             <Route path="/channel-partner-users" element={<ChannelPartnerUsers />} />

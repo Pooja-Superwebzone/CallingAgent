@@ -249,6 +249,63 @@ export default function LandingPage() {
   const [channelPartnerFranchiseAccepted, setChannelPartnerFranchiseAccepted] =
     useState(false);
 
+  const howRichaWorksSteps = [
+    {
+      title: "Signup first",
+      desc: "Create your account in less than a minute to unlock Richa’s dashboard and tools.",
+      accent: "from-indigo-600 to-fuchsia-600",
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+          <circle cx="9" cy="7" r="4" strokeWidth={2} />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 8v6m3-3h-6" />
+        </svg>
+      ),
+    },
+    {
+      title: "Create your Agent",
+      desc: "Choose your assistant type and goals—Richa creates the calling assistant for your business.",
+      accent: "from-fuchsia-600 to-cyan-600",
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3a2.25 2.25 0 00-2.25 2.25v1.5A2.25 2.25 0 015.25 9h-1.5A2.25 2.25 0 001.5 11.25v1.5A2.25 2.25 0 003.75 15h1.5A2.25 2.25 0 017.5 17.25v1.5A2.25 2.25 0 009.75 21h1.5A2.25 2.25 0 0013.5 18.75v-1.5A2.25 2.25 0 0115.75 15h1.5A2.25 2.25 0 0019.5 12.75v-1.5A2.25 2.25 0 0017.25 9h-1.5A2.25 2.25 0 0113.5 6.75v-1.5A2.25 2.25 0 0011.25 3h-1.5z" />
+        </svg>
+      ),
+    },
+    {
+      title: "Dial & start calling",
+      desc: "One click to start calls—Richa handles the conversation and follows your flow.",
+      accent: "from-cyan-600 to-emerald-600",
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h2.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-1.7.85a11.042 11.042 0 005.516 5.516l.85-1.7a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+      ),
+    },
+    {
+      title: "Upload your leads",
+      desc: "Bulk upload Excel leads and call users one-by-one—perfect for campaigns and follow-ups.",
+      accent: "from-emerald-600 to-indigo-600",
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16v-8m0 0l-3 3m3-3l3 3" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 16.5a4.5 4.5 0 00-3.9-4.46A5.5 5.5 0 005.5 13.5a4 4 0 00.5 8h12a2 2 0 002-2v-3z" />
+        </svg>
+      ),
+    },
+    {
+      title: "Schedule & message",
+      desc: "Schedule WhatsApp templates, send WhatsApp messages, and create email templates to send emails too.",
+      accent: "from-indigo-600 to-pink-600",
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16h6" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+  ];
+
   const getCookie = (name) => {
     if (typeof document === "undefined") return "";
     const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -654,6 +711,55 @@ export default function LandingPage() {
                   alt="Richa AI assistant"
                   className="h-96 w-full object-cover rounded-2xl shadow-sm"
                 />
+              </div>
+            </div>
+          </section>
+
+          {/* How Richa works (cards) */}
+          <section className="pb-10">
+            <div className="mx-auto max-w-7xl px-6">
+              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div className="bg-gradient-to-r from-indigo-50 via-fuchsia-50 to-cyan-50 px-6 py-5">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 animate-fade-up">
+                    How Richa works
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600 animate-fade-up anim-delay-150">
+                    Simple steps to start using Richa.
+                  </p>
+                </div>
+
+                <div className="p-6">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    {howRichaWorksSteps.map((step, idx) => (
+                      <div
+                        key={idx}
+                        className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md animate-fade-up"
+                        style={{ animationDelay: `${200 + idx * 140}ms` }}
+                      >
+                        <div className={`pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-gradient-to-br ${step.accent} opacity-15 blur-2xl transition group-hover:opacity-25`} />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r ${step.accent} text-white shadow-sm`}>
+                              {step.icon}
+                            </div>
+                            <div className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white font-extrabold shadow-sm">
+                              {idx + 1}
+                            </div>
+                          </div>
+                          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 opacity-80 group-hover:opacity-100 transition" />
+                        </div>
+                        <div className="mt-4">
+                          <div className="text-sm font-extrabold text-slate-900">
+                            {step.title}
+                          </div>
+                          <div className="mt-1 text-xs leading-relaxed text-slate-600">
+                            {step.desc}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </section>
