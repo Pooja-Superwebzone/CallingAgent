@@ -190,8 +190,26 @@ function App() {
             <Route path="/perplexity" element={<Perplexity />} />
             <Route path="/minutes" element={<MinutesPage />} />
             <Route path="/upgrade-minutes" element={<UpgradeMinutesPage />} />
-            <Route path="/dynamic-minute" element={<DynamicMinutePage />} />
-            <Route path="/ai-certificate" element={<AiCertificateAdminPage />} />
+            <Route
+              path="/dynamic-minute"
+              element={
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <DynamicMinutePage />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
+            <Route
+              path="/ai-certificate"
+              element={
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <AiCertificateAdminPage />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
             <Route path="/call-logs" element={<CallLogs />} />
             <Route path="/channel-partner" element={<ChannelPartner />} />
             <Route path="/channel-partner-users" element={<ChannelPartnerUsers />} />

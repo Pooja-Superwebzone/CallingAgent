@@ -656,9 +656,9 @@ export function getCallLogss(page = 1) {
 }
 
 
-export function getCallTranscript(callId) {
+export function getCallTranscript(logId) {
   return service
-    .get(`calls-logs/${callId}`, {
+    .get(`ai-call/transcript/${logId}`, {
       headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
     })
     .then((res) => res.data)

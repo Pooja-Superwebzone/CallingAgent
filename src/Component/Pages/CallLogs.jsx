@@ -46,18 +46,23 @@ const CallLogs = () => {
       .finally(() => setLoading(false));
   }, [currentPage]);
 
-  const fetchTranscript = async (callId) => {
+  const fetchTranscript = async (logId) => {
     setTranscriptLoading(true);
     try {
-      const data = await getCallTranscript(callId);
+      const data = await getCallTranscript(logId);
+      const messages = Array.isArray(data?.data?.messages) ? data.data.messages : [];
       setSelectedTranscript({
-        callId,
-        transcript: data.transcript || [],
+        callId: logId,
+        transcript: messages.map((m) => ({
+          speaker: m?.role || "system",
+          text: m?.content || "",
+          time: m?.created_at || "",
+        })),
       });
     } catch (err) {
       console.error("Transcript fetch failed:", err);
       setSelectedTranscript({
-        callId,
+        callId: logId,
         transcript: [{ speaker: "system", text: "Failed to load transcript." }],
       });
     } finally {
@@ -156,7 +161,7 @@ const CallLogs = () => {
                   </td>
                   <td className="px-4 py-2">
                     <button
-                      onClick={() => fetchTranscript(log.callId)}
+                      onClick={() => fetchTranscript(log.id)}
                       className="rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"
                     >
                       View

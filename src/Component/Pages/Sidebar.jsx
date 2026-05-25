@@ -255,7 +255,7 @@ const Sidebar = () => {
             </li>
           )}
 
-          {role === "admin" && (
+          {Cookies.get("email") == "paragshah.devac@gmail.com" && (
             <li>
               <button
                 onClick={() => {
@@ -318,7 +318,7 @@ const Sidebar = () => {
             </>
           )}
 
-          {role === "admin" && (
+          {Cookies.get("email") == "paragshah.devac@gmail.com" && (
             <li>
               <button
                 onClick={() => {
