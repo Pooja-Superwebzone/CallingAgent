@@ -74,7 +74,7 @@ export const plans = [
   },
   {
     id: "become_channel_partner",
-    title: "Become Channel Partner",
+    title: "Start Your Own AI Sales Agency",
     subtitle: "Only Talktime to be Purchased",
     price: "Free",
     // original: "Rs. 98,000/-",

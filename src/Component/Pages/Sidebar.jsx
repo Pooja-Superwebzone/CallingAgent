@@ -337,6 +337,25 @@ const Sidebar = () => {
             </li>
           )}
 
+          {Cookies.get("email") == "paragshah.devac@gmail.com" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/language");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/language"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FiSmile size={18} className="flex-shrink-0" />
+                Language
+              </button>
+            </li>
+          )}
+
           {twilioUser === 1 && (role === "admin" || role === "channelpartner") && (
             <>
              

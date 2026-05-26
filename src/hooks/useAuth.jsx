@@ -509,6 +509,19 @@ export function getAgentsUsers() {
     });
 }
 
+export function updateAgentLanguages(agentId, languages) {
+  if (!agentId) return Promise.reject(new Error("Agent id is required"));
+  const langs = Array.isArray(languages) ? languages : [];
+  return service
+    .post(`agents/${agentId}/languages`, { languages: langs })
+    .then((res) => res.data)
+    .catch((error) => {
+      let msg = "Failed to update agent languages.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
 export function createAgent(payload) {
   return service
     .post("agents", payload)

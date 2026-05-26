@@ -44,6 +44,7 @@ import ChannelPartnerMinuteTransactions from "./Component/Pages/ChannelPartnerMi
 import AgentsCategoryPage from "./Component/Pages/AgentsCategoryPage";
 import CreateAgentTopicPage from "./Component/Pages/CreateAgentTopicPage";
 import DynamicMinutePage from "./Component/Pages/DynamicMinutePage";
+import LanguageKeywordsPage from "./Component/Pages/LanguageKeywordsPage";
 
 function App() {
   const location = useLocation();
@@ -205,6 +206,16 @@ function App() {
               element={
                 Cookies.get("email") === "paragshah.devac@gmail.com" ? (
                   <AiCertificateAdminPage />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
+            <Route
+              path="/language"
+              element={
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <LanguageKeywordsPage />
                 ) : (
                   <Navigate to="/agents_page" replace />
                 )

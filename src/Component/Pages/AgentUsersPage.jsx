@@ -6,11 +6,14 @@ import { useNavigate } from "react-router-dom";
 
 import {
   getAgentsUsers, 
+  updateAgentLanguages,
 } from "../../hooks/useAuth";
 
 export default function AgentUsersPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [languagesById, setLanguagesById] = useState({});
+  const [savingById, setSavingById] = useState({});
 
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -23,17 +26,28 @@ export default function AgentUsersPage() {
     setLoading(true);
     try {
       const list = await getAgentsUsers();
-      setRows(
-        (Array.isArray(list) ? list : []).map((r, i) => ({
+      const mapped = (Array.isArray(list) ? list : []).map((r, i) => ({
           id: r.id ?? i + 1,
           name: r.name ?? "",
           welcome_message: r.welcome_message ?? r.welcomeMessage ?? "",
           body: r.body ?? "",
-        }))
-      );
+          languages: r.languages ?? r.language ?? r.lang ?? [],
+        }));
+      setRows(mapped);
+      // init local selection
+      const initial = {};
+      for (const r of mapped) {
+        const raw = r.languages;
+        let arr = [];
+        if (Array.isArray(raw)) arr = raw;
+        else if (typeof raw === "string") arr = raw.split(",").map((s) => s.trim()).filter(Boolean);
+        initial[r.id] = arr;
+      }
+      setLanguagesById(initial);
     } catch (e) {
       toast.error(e?.message || "Failed to fetch agents");
       setRows([]);
+      setLanguagesById({});
     } finally {
       setLoading(false);
     }
@@ -42,6 +56,35 @@ export default function AgentUsersPage() {
   useEffect(() => {
     loadRows();
   }, []);
+
+  const LANGUAGE_OPTIONS = [
+    "English",
+    "Hindi",
+    "Marathi",
+    "Gujarati",
+    "Tamil",
+    "Telugu",
+    "Kannada",
+    "Bengali",
+    "Punjabi",
+    "Malayalam",
+    "Urdu",
+    "Odia",
+    "Bhojpuri",
+  ];
+
+  const saveLanguages = async (id) => {
+    setSavingById((p) => ({ ...p, [id]: true }));
+    try {
+      const langs = languagesById[id] || [];
+      await updateAgentLanguages(id, langs);
+      toast.success("Languages updated");
+    } catch (e) {
+      toast.error(e?.message || "Failed to update languages");
+    } finally {
+      setSavingById((p) => ({ ...p, [id]: false }));
+    }
+  };
 
   return (
     <div className="p-4 sm:p-6">
@@ -65,19 +108,20 @@ export default function AgentUsersPage() {
               <th className="px-4 py-2 w-12">Sr No</th>
               <th className="px-4 py-2 w-48">Name</th>
               <th className="px-4 py-2 w-56">Welcome Message</th>
+              <th className="px-4 py-2 w-72">Language</th>
               <th className="px-4 py-2">Body</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} className="text-center py-6">
+                <td colSpan={5} className="text-center py-6">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-6">
+                <td colSpan={5} className="text-center py-6">
                   No agents found
                 </td>
               </tr>
@@ -92,6 +136,38 @@ export default function AgentUsersPage() {
                   </td>
                   <td className="px-4 py-2 font-medium">{r.name}</td>
                   <td className="px-4 py-2">{r.welcome_message}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex flex-col gap-2">
+                      <select
+                        multiple
+                        value={languagesById[r.id] || []}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
+                          setLanguagesById((p) => ({ ...p, [r.id]: selected }));
+                        }}
+                        className="w-full border rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 min-h-[96px]"
+                      >
+                        {LANGUAGE_OPTIONS.map((l) => (
+                          <option key={l} value={l}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-gray-500">
+                          Hold Ctrl/⌘ to select multiple
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => saveLanguages(r.id)}
+                          disabled={!!savingById[r.id]}
+                          className="px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 text-sm"
+                        >
+                          {savingById[r.id] ? "Saving..." : "Save"}
+                        </button>
+                      </div>
+                    </div>
+                  </td>
                   <td
                     className="px-4 py-2 whitespace-pre-line break-words"
                     dangerouslySetInnerHTML={{
