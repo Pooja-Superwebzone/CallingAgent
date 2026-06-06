@@ -19,11 +19,29 @@ export default function DynamicMinutePage() {
 
   const [userId, setUserId] = useState("");
   const [price, setPrice] = useState("");
+  const [userSearch, setUserSearch] = useState("");
 
   const selectedUser = useMemo(() => {
     const uid = String(userId || "");
     return users.find((u) => String(u?.id ?? u?.user_id ?? "") === uid) || null;
   }, [userId, users]);
+
+  const filteredUsers = useMemo(() => {
+    const term = String(userSearch || "").trim().toLowerCase();
+    if (!term) return users;
+    return users.filter((u) => {
+      const id = String(u?.id ?? u?.user_id ?? "").toLowerCase();
+      const name = String(u?.name ?? "").toLowerCase();
+      const email = String(u?.email ?? "").toLowerCase();
+      const phone = String(u?.contact_no ?? u?.phone_no ?? "").toLowerCase();
+      return (
+        id.includes(term) ||
+        name.includes(term) ||
+        email.includes(term) ||
+        phone.includes(term)
+      );
+    });
+  }, [userSearch, users]);
 
   useEffect(() => {
     const load = async () => {
@@ -91,6 +109,13 @@ export default function DynamicMinutePage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               User
             </label>
+            <input
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              placeholder="Search user by id, name, email, phone..."
+              className="w-full border rounded-xl px-3 py-2 mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              disabled={loadingUsers || saving}
+            />
             <select
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
@@ -101,7 +126,7 @@ export default function DynamicMinutePage() {
               <option value="">
                 {loadingUsers ? "Loading users..." : "-- Select a user --"}
               </option>
-              {users.map((u) => {
+              {filteredUsers.map((u) => {
                 const id = u?.id ?? u?.user_id;
                 const name = u?.name || "User";
                 const email = u?.email || "";
@@ -115,6 +140,19 @@ export default function DynamicMinutePage() {
                 );
               })}
             </select>
+            <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+              <span>Showing {filteredUsers.length} user(s)</span>
+              {userSearch.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setUserSearch("")}
+                  className="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300"
+                  disabled={loadingUsers || saving}
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
             {selectedUser && (
               <div className="mt-2 text-xs text-gray-500">
                 Selected:{" "}

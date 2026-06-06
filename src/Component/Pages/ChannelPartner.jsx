@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   getChannelPartners,
   updateChannelPartner,
@@ -26,6 +26,24 @@ export default function ChannelPartner() {
   const [donatingFrom, setDonatingFrom] = useState(null); 
   const [donateUserId, setDonateUserId] = useState("");
   const [donateMinute, setDonateMinute] = useState("");
+  const [donateUserSearch, setDonateUserSearch] = useState("");
+
+  const filteredTwilioUsers = useMemo(() => {
+    const term = String(donateUserSearch || "").trim().toLowerCase();
+    if (!term) return twilioUsers;
+    return (Array.isArray(twilioUsers) ? twilioUsers : []).filter((u) => {
+      const id = String(u?.id ?? "").toLowerCase();
+      const name = String(u?.name ?? "").toLowerCase();
+      const email = String(u?.email ?? "").toLowerCase();
+      const phone = String(u?.contact_no ?? u?.phone_no ?? "").toLowerCase();
+      return (
+        id.includes(term) ||
+        name.includes(term) ||
+        email.includes(term) ||
+        phone.includes(term)
+      );
+    });
+  }, [donateUserSearch, twilioUsers]);
 
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -139,6 +157,7 @@ export default function ChannelPartner() {
     setDonatingFrom(row);
     setDonateUserId("");
     setDonateMinute("");
+    setDonateUserSearch("");
     await ensureUsersLoaded();
   };
 
@@ -146,6 +165,7 @@ export default function ChannelPartner() {
     setDonatingFrom(null);
     setDonateUserId("");
     setDonateMinute("");
+    setDonateUserSearch("");
   };
 
   const handleDonate = async () => {
@@ -364,6 +384,13 @@ export default function ChannelPartner() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select User</label>
+                <input
+                  value={donateUserSearch}
+                  onChange={(e) => setDonateUserSearch(e.target.value)}
+                  placeholder="Search user by id, name, email, phone..."
+                  className="w-full border rounded-xl px-3 py-2 mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  disabled={saving || usersLoading}
+                />
                 <select
                   value={donateUserId}
                   onChange={(e) => setDonateUserId(e.target.value)}
@@ -371,12 +398,27 @@ export default function ChannelPartner() {
                   disabled={saving || usersLoading}
                 >
                   <option value="">{usersLoading ? "Loading users..." : "Select user"}</option>
-                  {twilioUsers.map((u) => (
+                  {filteredTwilioUsers.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {(u.name || "User") + (u.email ? ` (${u.email})` : "")}
+                      {`${u.id ?? ""} — ${u.name || "User"}${u.email ? ` (${u.email})` : ""}${
+                        u.contact_no || u.phone_no ? ` — ${u.contact_no || u.phone_no}` : ""
+                      }`}
                     </option>
                   ))}
                 </select>
+                <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+                  <span>Showing {filteredTwilioUsers.length} user(s)</span>
+                  {donateUserSearch.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setDonateUserSearch("")}
+                      className="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300"
+                      disabled={saving || usersLoading}
+                    >
+                      Clear search
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>

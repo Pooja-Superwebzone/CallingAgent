@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import moment from "moment";
 import { getCallLogss, getCallTranscript } from "../../hooks/useAuth";
+import service from "../../api/axios";
+import { toast } from "react-hot-toast";
+import * as XLSX from "xlsx";
 
 const CallLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -12,6 +15,10 @@ const CallLogs = () => {
   const [lastPage, setLastPage] = useState(1);
   const [selectedTranscript, setSelectedTranscript] = useState(null);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -45,6 +52,74 @@ const CallLogs = () => {
       })
       .finally(() => setLoading(false));
   }, [currentPage]);
+
+  const downloadBlob = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (exportStartDate) params.start_date = exportStartDate;
+      if (exportEndDate) params.end_date = exportEndDate;
+
+      const res = await service.get("ai-call/transcripts-export", {
+        params,
+        responseType: "blob",
+        headers: {
+          Accept: "text/csv",
+        },
+      });
+
+      const contentDisposition = res?.headers?.["content-disposition"] || "";
+      let filename = "transcripts_export.csv";
+      const match = /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i.exec(contentDisposition);
+      if (match && match[1]) {
+        filename = decodeURIComponent(match[1]);
+      } else {
+        const suffix =
+          exportStartDate || exportEndDate
+            ? `_${exportStartDate || "all"}_${exportEndDate || "all"}`
+            : "_all";
+        filename = `transcripts_export${suffix}.csv`;
+      }
+
+      const contentType = String(res?.headers?.["content-type"] || "").toLowerCase();
+      const isCsv =
+        contentType.includes("text/csv") || String(filename).toLowerCase().endsWith(".csv");
+
+      if (isCsv) {
+        downloadBlob(res.data, filename);
+      } else {
+        // API returned XLSX or other binary; convert first sheet to CSV
+        const ab = await res.data.arrayBuffer();
+        const wb = XLSX.read(ab, { type: "array" });
+        const sheetName = wb.SheetNames?.[0];
+        const ws = sheetName ? wb.Sheets[sheetName] : null;
+        if (!ws) throw new Error("No sheet found in export file");
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        const csvBlob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const csvName = String(filename).replace(/\.xlsx$/i, ".csv");
+        downloadBlob(csvBlob, csvName);
+      }
+
+      toast.success("Transcript export downloaded");
+      setShowExportModal(false);
+    } catch (err) {
+      console.error("Transcript export failed:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to export transcripts");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const fetchTranscript = async (logId) => {
     setTranscriptLoading(true);
@@ -119,7 +194,17 @@ const CallLogs = () => {
 
   return (
     <div className="w-full p-7">
-      <h2 className="mb-4 text-2xl font-bold text-gray-700">Call Logs</h2>
+      <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-2xl font-bold text-gray-700">Call Logs</h2>
+        <button
+          type="button"
+          onClick={() => setShowExportModal(true)}
+          className="rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-60"
+          disabled={exporting}
+        >
+          {exporting ? "Preparing..." : "Download Transcript"}
+        </button>
+      </div>
 
       <div className="w-full overflow-x-auto rounded-xl shadow">
         <table className="min-w-full bg-white text-md">
@@ -199,6 +284,78 @@ const CallLogs = () => {
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {showExportModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={(e) => e.target === e.currentTarget && !exporting && setShowExportModal(false)}
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <div className="text-lg font-semibold text-gray-800">Download Transcript</div>
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+                disabled={exporting}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <div className="text-sm text-gray-600">
+                Note: If you do not select Start Date and End Date, it will export all data.
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                    className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    disabled={exporting}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                    className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    disabled={exporting}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t">
+              <button
+                type="button"
+                onClick={() => {
+                  setExportStartDate("");
+                  setExportEndDate("");
+                }}
+                className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300"
+                disabled={exporting}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-60"
+                disabled={exporting}
+              >
+                {exporting ? "Downloading..." : "Download"}
+              </button>
+            </div>
           </div>
         </div>
       )}

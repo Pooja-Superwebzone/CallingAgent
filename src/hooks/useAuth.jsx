@@ -116,6 +116,30 @@ export function getWhatsappChatByNumber(phone) {
     });
 }
 
+export function getCustomerCareHeadByPhone() {
+  // Call directly (no params), similar to:
+  // curl -X GET "https://api-main.ibcrm.in/api/customer-care-head-by-phone" \
+  //  -H "Authorization: Bearer YOUR_TOKEN"
+  const token = Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken");
+
+  return service
+    .get("customer-care-head-by-phone", {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ customer-care-head-by-phone failed:", error);
+      // If backend returns structured error payload (e.g. 404 with {status:false,...}),
+      // surface it to UI for proper rendering instead of throwing.
+      const payload = error?.response?.data;
+      if (payload && typeof payload === "object") return payload;
+
+      const msg =
+        error?.message || "Failed to fetch customer care head details.";
+      throw new Error(msg);
+    });
+}
+
 export function sendWhatsappTextMessage(payload) {
   return service
     .post("twilio/send-message-text", payload)
@@ -151,6 +175,39 @@ export function sendPerplexityMessage(payload) {
     .catch(error => {
       console.error("❌ Failed to send Perplexity message:", error);
       let errorMessage = "Failed to send message.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+export function startPerplexityCall(payload) {
+  return service
+    .post("start-call", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ start-call failed:", error);
+      let errorMessage = "Failed to start call.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+export function startPerplexityCallExcel({ file, agent }) {
+  const formData = new FormData();
+  formData.append("excel", file);
+  formData.append("agent", agent);
+  return service
+    .post("start-call-excel", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ start-call-excel failed:", error);
+      let errorMessage = "Failed to start excel calls.";
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }

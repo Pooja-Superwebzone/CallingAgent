@@ -293,6 +293,25 @@ const Sidebar = () => {
             </li>
           )}
 
+          {role === "channelpartner" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/channel-partner-connect");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/channel-partner-connect"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <TbCloudDataConnection size={18} />
+                Channel Partner Connect
+              </button>
+            </li>
+          )}
+
           {/* ---------------------------
               If Twilio user === 1 AND role === "admin" show this exact set
              --------------------------- */}
