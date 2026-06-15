@@ -173,7 +173,11 @@ export default function Perplexity() {
     <div className="p-4 sm:p-6">
       <div className="mx-auto max-w-sd bg-white rounded-xl shadow p-6">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">LLM</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Send two way call</h2>
+        </div>
+
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <span className="font-semibold">Note</span> - Kindly keep this window open and do not switch to another window until all calls have been completed.
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

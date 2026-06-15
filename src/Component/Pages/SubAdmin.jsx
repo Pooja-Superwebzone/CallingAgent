@@ -91,6 +91,7 @@ const onSubmit = async (data) => {
     two_way: data.twoWayMinute,
     international: data.internationalMinute,
     role: data.role,
+    total_duration_minutes: data.total_duration_minutes,
   };
 
   if (editMode) {
@@ -221,6 +222,7 @@ const onSubmit = async (data) => {
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Gender</th>
                 <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Minutes Used</th>
                 <th className="px-4 py-3">Customer Care Head No</th>
                 <th className="px-4 py-3">One-way Minutes</th>
                 <th className="px-4 py-3">Two-way Minutes</th>
@@ -248,6 +250,7 @@ const onSubmit = async (data) => {
                     <td className="px-4 py-2">{admin.contact_no || '-'}</td>
                     <td className="px-4 py-2 capitalize">{admin.gender || '-'}</td>
                     <td className="px-4 py-2 capitalize">{admin.role || '-'}</td>
+                    <td className="px-4 py-2">{admin.total_duration_minutes || '-'}</td>
                     <td className="px-4 py-2">{admin.customer_care_head_no || '-'}</td>
                     <td className="px-4 py-2">
                       {admin.twilio_user_minute?.one_way || admin.twilio_user_minute?.oneWay || admin.twilio_user_minute?.outbound || admin.twilio_user_minute?.outbound_minute || admin.twilio_user_minute?.minute || '0'} min

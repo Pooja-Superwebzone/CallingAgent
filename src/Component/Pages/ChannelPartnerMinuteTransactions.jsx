@@ -290,7 +290,7 @@ export default function ChannelPartnerMinuteTransactions() {
 
                 const minuteAmount = Number(
                   pickFirstDefined(tx, [
-                    "minute_amount",
+                    "minute",
                     "minuteAmount",
                     "minute",
                     "minutes",

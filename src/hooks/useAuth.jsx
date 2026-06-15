@@ -140,6 +140,21 @@ export function getCustomerCareHeadByPhone() {
     });
 }
 
+export function getAdminCustomerCareHeadUsers() {
+  // GET /api/admin/customer-care-head-users
+  const token = Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken");
+  return service
+    .get("admin/customer-care-head-users", {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      const payload = error?.response?.data;
+      if (payload && typeof payload === "object") return payload;
+      throw new Error(error?.message || "Failed to fetch customer care head users.");
+    });
+}
+
 export function sendWhatsappTextMessage(payload) {
   return service
     .post("twilio/send-message-text", payload)
@@ -708,10 +723,15 @@ export function generateSpeech(payload) {
     });
 }
 
-export function getCallLogss(page = 1) {
+export function getCallLogss(page = 1, signup_data) {
   return service
     .get("calls-logs", {
-      params: { page },
+      params: {
+        page,
+        ...(signup_data === 0 || signup_data === "0" || signup_data === 1 || signup_data === "1"
+          ? { signup_data }
+          : {}),
+      },
       headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
     })
     .then((res) => res.data)

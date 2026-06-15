@@ -274,6 +274,25 @@ const Sidebar = () => {
             </li>
           )}
 
+          {role === "admin" && Cookies.get("email") === "paragshah.devac@gmail.com" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/admin/customer-care-head-users");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/admin/customer-care-head-users"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FaUsers size={18} />
+                Channel Partner Users
+              </button>
+            </li>
+          )}
+
           {role === "channelpartner" && (
             <li>
               <button
@@ -738,7 +757,7 @@ const Sidebar = () => {
 
           {/* Send a Call (send-omni) - keep original but hide if combined block already shows Send a call */}
         
-            <li>
+            {/* <li>
               <button
                 onClick={() => {
                   navigate("/send-omni");
@@ -753,7 +772,7 @@ const Sidebar = () => {
                 <MdCallMade size={18} />
           Make Two way call
               </button>
-            </li>
+            </li> */}
        
 
           {/* Call Log (admin & twilioUser===0 original) - hidden if combined block */}
@@ -776,11 +795,10 @@ const Sidebar = () => {
             </li>
           )}
 
-          {twilioUser === 1 ? (
-          <>
+          {twilioUser === 1 && (
             <li>
               <button
-                onClick={() => {    
+                onClick={() => {
                   navigate("/upgrade-minutes");
                   setMobileOpen(false);
                 }}
@@ -792,27 +810,28 @@ const Sidebar = () => {
               >
                 <FiCreditCard size={18} className="flex-shrink-0" />
                 <span className="whitespace-nowrap">Upgrade Plan</span>
-              </button> 
+              </button>
             </li>
-          </>
-        ) : (<>
-        <li>
-            <button
-              onClick={() => {
-                navigate("/perplexity");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/perplexity"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <BsChatTextFill size={18} className="flex-shrink-0" />
-              <span className="whitespace-nowrap">LLM</span>
-            </button>
-          </li>
-        </>)}
+          )}
+
+          {role === "admin" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/perplexity");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/perplexity"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <BsChatTextFill size={18} className="flex-shrink-0" />
+                <span className="whitespace-nowrap">Send two way call</span>
+              </button>
+            </li>
+          )}
 
 
 

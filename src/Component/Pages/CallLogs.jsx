@@ -9,6 +9,7 @@ const CallLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [signupFilter, setSignupFilter] = useState("");
   const [totalLogs, setTotalLogs] = useState(0);
   const [fromEntry, setFromEntry] = useState(0);
   const [toEntry, setToEntry] = useState(0);
@@ -23,7 +24,10 @@ const CallLogs = () => {
   useEffect(() => {
     setLoading(true);
 
-    getCallLogss(currentPage)
+    const signup_data =
+      signupFilter === "1" ? 1 : signupFilter === "0" ? 0 : undefined;
+
+    getCallLogss(currentPage, signup_data)
       .then((data) => {
         const pageData = Array.isArray(data?.data) ? data.data : [];
         const formatted = pageData.map((item) => ({
@@ -33,6 +37,7 @@ const CallLogs = () => {
           to: item.to_number,
           status: item.call_status,
           duration: item.duration,
+          signup_data: item.signup_data,
           time: item.created_at,
         }));
 
@@ -51,7 +56,7 @@ const CallLogs = () => {
         setLastPage(1);
       })
       .finally(() => setLoading(false));
-  }, [currentPage]);
+  }, [currentPage, signupFilter]);
 
   const downloadBlob = (blob, filename) => {
     const url = window.URL.createObjectURL(blob);
@@ -196,14 +201,29 @@ const CallLogs = () => {
     <div className="w-full p-7">
       <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-2xl font-bold text-gray-700">Call Logs</h2>
-        <button
-          type="button"
-          onClick={() => setShowExportModal(true)}
-          className="rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-60"
-          disabled={exporting}
-        >
-          {exporting ? "Preparing..." : "Download Transcript"}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={signupFilter}
+            onChange={(e) => {
+              setSignupFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="rounded border px-3 py-2 text-sm text-gray-700"
+          >
+            <option value="">All Calls</option>
+            <option value="1">Signup Data</option>
+            <option value="0">Normal Calls</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={() => setShowExportModal(true)}
+            className="rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-60"
+            disabled={exporting}
+          >
+            {exporting ? "Preparing..." : "Download Transcript"}
+          </button>
+        </div>
       </div>
 
       <div className="w-full overflow-x-auto rounded-xl shadow">
@@ -214,6 +234,7 @@ const CallLogs = () => {
               <th className="px-4 py-2">To</th>
               <th className="px-4 py-2">Status</th>
               <th className="px-4 py-2">Duration (s)</th>
+              <th className="px-4 py-2">Call Type</th>
               <th className="px-4 py-2">Time</th>
               <th className="px-4 py-2">Action</th>
             </tr>
@@ -221,13 +242,13 @@ const CallLogs = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" className="py-6 text-center">
+                <td colSpan="8" className="py-6 text-center">
                   Loading...
                 </td>
               </tr>
             ) : logs.length === 0 ? (
               <tr>
-                <td colSpan="6" className="py-6 text-center">
+                <td colSpan="8" className="py-6 text-center">
                   No logs found
                 </td>
               </tr>
@@ -241,6 +262,9 @@ const CallLogs = () => {
                   <td className="px-4 py-2">{log.to}</td>
                   <td className="px-4 py-2 capitalize">{log.status}</td>
                   <td className="px-4 py-2">{log.duration}</td>
+                  <td className="px-4 py-2">
+                    {Number(log?.signup_data) === 1 ? "Signup Data" : "Normal Call"}
+                  </td>
                   <td className="px-4 py-2">
                     {moment(log.time).format("MMM DD, YYYY, hh:mm A")}
                   </td>

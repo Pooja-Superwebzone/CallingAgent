@@ -56,18 +56,34 @@ export default function ChannelPartner() {
     try {
       const list = await getChannelPartners();
       setRows(
-        (Array.isArray(list) ? list : []).map((r, i) => ({
-          id: r.id ?? i + 1,
-          name: r.name ?? "",
-          email: r.email ?? "",
-          phone_no: r.phone_no ?? "",
-          minute:
-            r.minute ??
-            r.minutes ??
+        (Array.isArray(list) ? list : []).map((r, i) => {
+          const omniMinuteObj = r?.omni_minute ?? r?.omniMinute ?? null;
+          const omniMinuteRaw =
+            omniMinuteObj && typeof omniMinuteObj === "object"
+              ? omniMinuteObj?.minute ??
+                omniMinuteObj?.minutes ??
+                omniMinuteObj?.remaining_minute ??
+                omniMinuteObj?.remainingMinute
+              : omniMinuteObj;
+
+          const minuteRaw =
+            omniMinuteRaw ??
+            r?.minute ??
+            r?.minutes ??
             r?.twilio_user_minute?.minute ??
             r?.twilio_user_minute ??
-            "",
-        }))
+            "";
+
+          return {
+            id: r.id ?? i + 1,
+            user_id: r?.user_id ?? r?.userId ?? "",
+            name: r.name ?? "",
+            email: r.email ?? "",
+            phone_no: r.phone_no ?? "",
+            omni_minute: omniMinuteObj,
+            minute: minuteRaw,
+          };
+        })
       );
     } catch (e) {
       toast.error(e.message || "Failed to fetch channel partners");
@@ -87,7 +103,7 @@ export default function ChannelPartner() {
       name: row?.name ?? "",
       email: row?.email ?? "",
       phone_no: row?.phone_no ?? "",
-      minute: row?.minute ?? "",
+      minute: row?.omni_minute?.minute ?? row?.minute ?? "",
     });
   };
 
@@ -122,7 +138,7 @@ export default function ChannelPartner() {
       name,
       email,
       phone_no,
-      ...(minute !== null ? { minute_amount: minute } : {}),
+      ...(minute !== null ? { minute: minute } : {}),
     };
 
     setSaving(true);
@@ -172,7 +188,7 @@ export default function ChannelPartner() {
     if (!donatingFrom?.id) return;
     if (!donateUserId) return toast.error("Please select a user");
 
-    const available = Number(donatingFrom?.minute ?? 0) || 0;
+    const available = Number(donatingFrom?.omni_minute?.minute ?? donatingFrom?.minute ?? 0) || 0;
     const n = Number(String(donateMinute ?? "").trim());
     if (!Number.isFinite(n) || n <= 0) return toast.error("Enter valid donate minutes");
 
@@ -246,7 +262,10 @@ export default function ChannelPartner() {
                   <td className="px-4 py-2">{r.email}</td>
                   <td className="px-4 py-2">{r.phone_no}</td>
                   <td className="px-4 py-2">
-                    {r.minute === "" || r.minute === null || r.minute === undefined ? "-" : r.minute}
+                    {(() => {
+                      const m = r?.omni_minute?.minute ?? r?.minute;
+                      return m === "" || m === null || m === undefined ? "-" : m;
+                    })()}
                   </td>
                   <td className="px-4 py-2">
                     <button
@@ -261,7 +280,7 @@ export default function ChannelPartner() {
                       onClick={() => openDonate(r)}
                       className="ml-2 px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
                     >
-                      Donate Minutes
+                      Sell Minutes
                     </button>
                   </td>
                 </tr>
@@ -379,7 +398,9 @@ export default function ChannelPartner() {
             <div className="px-5 py-4 space-y-4">
               <div className="text-sm text-gray-700">
                 Available minutes (channel partner):{" "}
-                <span className="font-semibold">{Number(donatingFrom?.minute ?? 0) || 0}</span>
+                <span className="font-semibold">
+                  {Number(donatingFrom?.omni_minute?.minute ?? donatingFrom?.minute ?? 0) || 0}
+                </span>
               </div>
 
               <div>

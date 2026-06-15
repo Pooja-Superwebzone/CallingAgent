@@ -342,6 +342,23 @@ export default function LoginSignup() {
           syncStoredPlanForEmail(signupData.email);
         }
 
+        // After twillio-email-verify success (OTP verified): trigger Perplexity call (signup only)
+        try {
+          if (activeTab === "signup") {
+            const tokenToUse = res?.token || Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken");
+            const digits = String(signupData?.contact_no || "").replace(/\D/g, "");
+            if (tokenToUse && digits.length === 10) {
+              await service.post(
+                "start-call",
+                { phone: `+91${digits}`, agent: "richa-signup" },
+                { headers: { Authorization: `Bearer ${tokenToUse}` } }
+              );
+            }
+          }
+        } catch (e) {
+          console.warn("start-call after OTP verify failed:", e);
+        }
+
         // ✅ Navigate with welcome popup
         navigate("/agents_page", {
           state: {
@@ -770,11 +787,31 @@ export default function LoginSignup() {
                   <div className="mb-4">
                     <label className="block text-gray-700 font-medium mb-1">Contact No</label>
                     <input
-                      type="text"
+                      type="tel"
+                      inputMode="numeric"
                       value={signupData.contact_no}
                       onChange={(e) => {
                         const value = e.target.value.replace(/\D/g, "");
-                        if (value.length <= 10) setSignupData({ ...signupData, contact_no: value });
+                        if (value.length <= 10) {
+                          setSignupData({ ...signupData, contact_no: value });
+                          setErrors((prev) => {
+                            const next = { ...(prev || {}) };
+                            if (!value) next.contact_no = "Contact number is required";
+                            else if (value.length < 10) next.contact_no = "Contact number must be 10 digits";
+                            else delete next.contact_no;
+                            return next;
+                          });
+                        }
+                      }}
+                      onBlur={() => {
+                        const value = String(signupData.contact_no || "").trim();
+                        setErrors((prev) => {
+                          const next = { ...(prev || {}) };
+                          if (!value) next.contact_no = "Contact number is required";
+                          else if (value.length < 10) next.contact_no = "Contact number must be 10 digits";
+                          else delete next.contact_no;
+                          return next;
+                        });
                       }}
                       maxLength={10}
                       className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.contact_no ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
