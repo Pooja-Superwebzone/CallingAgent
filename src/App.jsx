@@ -47,6 +47,7 @@ import AgentsCategoryPage from "./Component/Pages/AgentsCategoryPage";
 import CreateAgentTopicPage from "./Component/Pages/CreateAgentTopicPage";
 import DynamicMinutePage from "./Component/Pages/DynamicMinutePage";
 import LanguageKeywordsPage from "./Component/Pages/LanguageKeywordsPage";
+import CallsDashboard from "./Component/Pages/CallsDashboard";
 
 function App() {
   const location = useLocation();
@@ -242,6 +243,7 @@ function App() {
               element={<ChannelPartnerMinuteTransactions />}
             />
             <Route path="/agents-category" element={<AgentsCategoryPage />} />
+            <Route path="/dashboard" element={<CallsDashboard />} />
           </Route>
         )}
         {/* Catch-all */}
