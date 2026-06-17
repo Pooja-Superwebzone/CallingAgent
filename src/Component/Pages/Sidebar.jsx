@@ -101,6 +101,18 @@ const Sidebar = () => {
     setEmailVerified(emailVerifiedFromCookie);
   }, []);
 
+  const normalizedEmail = String(Cookies.get("email") || "").trim().toLowerCase();
+  const PARAG_EMAIL = "paragshah.devac@gmail.com";
+  const isParagEmail = normalizedEmail === PARAG_EMAIL;
+
+  const isParagAdmin = role === "admin" && isParagEmail;
+  const isRestrictedAdmin = role === "admin" && !isParagAdmin;
+
+  const isParagChannelPartner = role === "channelpartner" && isParagEmail;
+  const isRestrictedChannelPartner = role === "channelpartner" && !isParagChannelPartner;
+
+  const isRestrictedUser = isRestrictedAdmin || isRestrictedChannelPartner;
+
   useEffect(() => {
     const fetchProfileMinutes = async () => {
       setLoadingMinutes(true);
@@ -167,23 +179,316 @@ const Sidebar = () => {
 
         {/* ---------- MENU ---------- */}
         <ul className="mt-6 space-y-2 px-4">
-          {/* Tutorial Link - Available to all users */}
-          <li>
-            <button
-              onClick={() => {
-                navigate("/tutorial");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/tutorial"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <BookOpen size={18} />
-              Tutorial
-            </button>
-          </li>
+          {role === "channelpartner" ? (
+            <>
+              {twilioUser === 1 && (
+                <li>
+                  <button
+                    onClick={() => {
+                      navigate("/minutes");
+                      setMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                      location.pathname === "/minutes"
+                        ? "bg-gray-700 text-gray-300"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <FiClock size={18} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap">Add Talktime</span>
+                  </button>
+                </li>
+              )}
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/channel-partner-users");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/channel-partner-users"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <FaUsers size={18} />
+                  Users
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/channel-partner-connect");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/channel-partner-connect"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <TbCloudDataConnection size={18} />
+                  <span className="whitespace-nowrap">Channel partner connect</span>
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/tutorial");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/tutorial"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <BookOpen size={18} />
+                  Tutorial
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/agents_page");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/agents_page"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <FaMagento size={18} />
+                  Agents
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/perplexity");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/perplexity"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <BsChatTextFill size={18} className="flex-shrink-0" />
+                  <span className="whitespace-nowrap">Send two way call</span>
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/call-logs");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/call-logs"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <MdCallReceived size={18} />
+                  <span className="whitespace-nowrap">Call logs</span>
+                </button>
+              </li>
+
+              {twilioUser === 1 && (
+                <li>
+                  <button
+                    onClick={() => setShowNextStepsModal(true)}
+                    className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
+                  >
+                    <User size={18} />
+                    Next steps
+                  </button>
+                </li>
+              )}
+
+              {twilioUser === 1 && (
+                <li>
+                  <button
+                    onClick={() => {
+                      navigate("/upgrade-minutes");
+                      setMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                      location.pathname === "/upgrade-minutes"
+                        ? "bg-gray-700 text-gray-300"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <FiCreditCard size={18} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap">Upgrade plan</span>
+                  </button>
+                </li>
+              )}
+            </>
+          ) : isRestrictedAdmin ? (
+            <>
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/perplexity");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/perplexity"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <BsChatTextFill size={18} className="flex-shrink-0" />
+                  <span className="whitespace-nowrap">Send two way call</span>
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/call-logs");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/call-logs"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <MdCallReceived size={18} />
+                  <span className="whitespace-nowrap">Call log</span>
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/agents_page");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/agents_page"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <FaMagento size={18} />
+                  <span className="whitespace-nowrap">Agents</span>
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/create-agent-send");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/create-agent-send"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <FaMagento size={18} />
+                  <span className="whitespace-nowrap">Create Agents</span>
+                </button>
+              </li>
+
+              {twilioUser === 1 && (
+                <li>
+                  <button
+                    onClick={() => {
+                      navigate("/minutes");
+                      setMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                      location.pathname === "/minutes"
+                        ? "bg-gray-700 text-gray-300"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <FiClock size={18} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap">Add Talktime</span>
+                  </button>
+                </li>
+              )}
+
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/tutorial");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/tutorial"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <BookOpen size={18} />
+                  <span className="whitespace-nowrap">Tutorial</span>
+                </button>
+              </li>
+
+              {twilioUser === 1 && (
+                <li>
+                  <button
+                    onClick={() => setShowNextStepsModal(true)}
+                    className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
+                  >
+                    <User size={18} />
+                    <span className="whitespace-nowrap">Next Steps</span>
+                  </button>
+                </li>
+              )}
+
+              {twilioUser === 1 && (
+                <li>
+                  <button
+                    onClick={() => {
+                      navigate("/upgrade-minutes");
+                      setMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                      location.pathname === "/upgrade-minutes"
+                        ? "bg-gray-700 text-gray-300"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <FiCreditCard size={18} className="flex-shrink-0" />
+                    <span className="whitespace-nowrap">Upgrade Plan</span>
+                  </button>
+                </li>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Tutorial Link - Available to all users */}
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/tutorial");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/tutorial"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <BookOpen size={18} />
+                  Tutorial
+                </button>
+              </li>
 
           <li>
             <button
@@ -414,39 +719,43 @@ const Sidebar = () => {
                 </button>
               </li>
 
-              <li>
-                <button
-                  onClick={() => {
-                    navigate("/email-template");
-                    setMobileOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                    location.pathname === "/email-template"
-                      ? "bg-gray-700 text-gray-300"
-                      : "hover:bg-gray-700 text-gray-300"
-                  }`}
-                >
-                  <MdOutlineEmail size={18} />
-                  Email Template
-                </button>
-              </li>
+              {!isRestrictedUser && (
+                <li>
+                  <button
+                    onClick={() => {
+                      navigate("/email-template");
+                      setMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                      location.pathname === "/email-template"
+                        ? "bg-gray-700 text-gray-300"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <MdOutlineEmail size={18} />
+                    Email Template
+                  </button>
+                </li>
+              )}
 
-              <li>
-                <button
-                  onClick={() => {
-                    navigate("/whatsapp-logs");
-                    setMobileOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                    location.pathname === "/whatsapp-logs"
-                      ? "bg-gray-700 text-gray-300"
-                      : "hover:bg-gray-700 text-gray-300"
-                  }`}
-                >
-                  <MessageSquareText size={18} />
-                  Whatsapp Logs
-                </button>
-              </li>
+              {!isRestrictedUser && (
+                <li>
+                  <button
+                    onClick={() => {
+                      navigate("/whatsapp-logs");
+                      setMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                      location.pathname === "/whatsapp-logs"
+                        ? "bg-gray-700 text-gray-300"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <MessageSquareText size={18} />
+                    Whatsapp Logs
+                  </button>
+                </li>
+              )}
 
               <li>
                 <button
@@ -465,22 +774,24 @@ const Sidebar = () => {
                 </button>
               </li>
 
-              <li>
-                <button
-                  onClick={() => {
-                    navigate("/agent-Connection");
-                    setMobileOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                    location.pathname === "/agent-Connection"
-                      ? "bg-gray-700 text-gray-300"
-                      : "hover:bg-gray-700 text-gray-300"
-                  }`}
-                >
-                  <TbCloudDataConnection size={18} />
-                  Agents Connection
-                </button>
-              </li>
+              {!isRestrictedUser && (
+                <li>
+                  <button
+                    onClick={() => {
+                      navigate("/agent-Connection");
+                      setMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                      location.pathname === "/agent-Connection"
+                        ? "bg-gray-700 text-gray-300"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <TbCloudDataConnection size={18} />
+                    Agents Connection
+                  </button>
+                </li>
+              )}
             </>
           )}
 
@@ -490,7 +801,7 @@ const Sidebar = () => {
              --------------------------- */}
 
           {/* Make one way Call (show if NOT the combined-admin-twilio block) */}
-          
+          {!isRestrictedUser && (
             <li>
               <button
                 onClick={() => {
@@ -507,44 +818,29 @@ const Sidebar = () => {
                 Make one way Call
               </button>
             </li>
+          )}
 
 
-          {/* Calls Log (always visible as fallback) */}
-          {!(twilioUser === 1 && role === "admin") && (
+          {/* Calls Log (/calling) hidden from sidebar */}
+
+          {/* Whatsapp Template */}
+          {!isRestrictedUser && (
             <li>
               <button
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
                 onClick={() => {
-                  navigate("/calling");
+                  navigate("/whatsapp-temp");
                   setMobileOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                  location.pathname === "/calling"
-                    ? "bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-700 text-gray-300"
-                }`}
               >
-                <Phone size={18} />
-                Calls Log
+                <BiLogoWhatsapp size={18} />
+                Whatsapp Template
               </button>
             </li>
           )}
 
-          {/* Whatsapp Template */}
-          <li>
-            <button
-              className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
-              onClick={() => {
-                navigate("/whatsapp-temp");
-                setMobileOpen(false);
-              }}
-            >
-              <BiLogoWhatsapp size={18} />
-              Whatsapp Template
-            </button>
-          </li>
-
           {/* Email Template (originally only for twilioUser===0 && role==='admin') - keep that behaviour but hide if combined block above shown */}
-          {!(twilioUser === 1 && role === "admin") && twilioUser === 0 && role === "admin" && (
+          {!(twilioUser === 1 && role === "admin") && twilioUser === 0 && role === "admin" && !isRestrictedUser && (
             <li>
               <button
                 onClick={() => navigate("/email-template")}
@@ -596,7 +892,7 @@ const Sidebar = () => {
           )}
 
           {/* Whatsapp Logs (originally shown for twilioUser===0), hide when combined block present */}
-          {!(twilioUser === 1 && role === "admin") && (twilioUser === 0 && (
+          {!(twilioUser === 1 && role === "admin") && !isRestrictedUser && (twilioUser === 0 && (
             <li>
               <button
                 onClick={() => {
@@ -656,7 +952,7 @@ const Sidebar = () => {
           )}
 
           {/* Channel partner (admin & twilioUser===0 original) */}
-          {twilioUser === 0 && role === "admin" && (
+          {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
             <li>
               <button
                 onClick={() => {
@@ -676,7 +972,7 @@ const Sidebar = () => {
           )}
 
           {/* Channel partner minute transactions (admin & twilioUser===0) */}
-          {twilioUser === 0 && role === "admin" && (
+          {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
             <li>
               <button
                 onClick={() => {
@@ -736,7 +1032,7 @@ const Sidebar = () => {
           )}
 
           {/* Agents Connection (admin & twilioUser===0 original) */}
-          {twilioUser === 0 && role === "admin" && (
+          {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
             <li>
               <button
                 onClick={() => {
@@ -776,7 +1072,7 @@ const Sidebar = () => {
        
 
           {/* Call Log (admin & twilioUser===0 original) - hidden if combined block */}
-          {twilioUser === 0 && role === "admin" && (
+          {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
             <li>
               <button
                 onClick={() => {
@@ -814,7 +1110,7 @@ const Sidebar = () => {
             </li>
           )}
 
-          {role === "admin" && (
+          {(role === "admin" || role === "channelpartner") && (
             <li>
               <button
                 onClick={() => {
@@ -836,25 +1132,29 @@ const Sidebar = () => {
 
 
 
-          <li>
-            <button
-              onClick={() => {
-                navigate("/whatsapp-send-message");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/whatsapp-send-message"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <BsChatTextFill size={18} className="flex-shrink-0" />
-              <span className="whitespace-nowrap">Whatsapp Send Message</span>
-            </button>
-          </li>
+          {!isRestrictedUser && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/whatsapp-send-message");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/whatsapp-send-message"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <BsChatTextFill size={18} className="flex-shrink-0" />
+                <span className="whitespace-nowrap">Whatsapp Send Message</span>
+              </button>
+            </li>
+          )}
 
           
           
+            </>
+          )}
         </ul>
       </div>
       <div className="space-y-2 px-4 pb-4">
