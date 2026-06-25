@@ -1,20 +1,49 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
-import { sendPerplexityMessage } from "../../hooks/useAuth";
+import { startPerplexityCall, startPerplexityCallExcel } from "../../hooks/useAuth";
 import { PhoneNumberUtil, PhoneNumberFormat } from "google-libphonenumber";
-
-const STATIC_AGENT_ID = "38339";
+import service from "../../api/axios";
 
 export default function Perplexity() {
   const phoneUtil = PhoneNumberUtil.getInstance();
   const PNF = PhoneNumberFormat;
 
   const [mobile, setMobile] = useState("");
-  const [message, setMessage] = useState("Hi, I'm Richa AI, India's first AI Business Assistant. How can I help you today?");
+  const [voiceAgents, setVoiceAgents] = useState([]);
+  const [voiceAgentsLoading, setVoiceAgentsLoading] = useState(false);
+  const [selectedVoiceAgentId, setSelectedVoiceAgentId] = useState("");
+  const [selectedVoiceAgentKeyword, setSelectedVoiceAgentKeyword] = useState("");
+  const [excelFile, setExcelFile] = useState(null);
+  const [fileError, setFileError] = useState("");
+  const fileInputRef = useRef(null);
   const [countries, setCountries] = useState([]);
   const [countryCode, setCountryCode] = useState("IN");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const loadVoiceAgents = async () => {
+      setVoiceAgentsLoading(true);
+      try {
+        const res = await service.get("voice-perplexity-agents");
+        const list = Array.isArray(res?.data?.data) ? res.data.data : Array.isArray(res?.data) ? res.data : [];
+        const active = list.filter((a) => a?.is_active !== false);
+        setVoiceAgents(active);
+        const first = active[0];
+        if (first?.id) {
+          setSelectedVoiceAgentId(String(first.id));
+          setSelectedVoiceAgentKeyword(String(first.keyword || "").trim());
+        }
+      } catch (e) {
+        console.error("voice-perplexity-agents error:", e);
+        toast.error(e?.response?.data?.message || e?.message || "Failed to load voice agents");
+        setVoiceAgents([]);
+      } finally {
+        setVoiceAgentsLoading(false);
+      }
+    };
+    loadVoiceAgents();
+  }, []);
 
   useEffect(() => {
     try {
@@ -65,20 +94,26 @@ export default function Perplexity() {
 
 
   const validate = () => {
+    if (!selectedVoiceAgentKeyword) {
+      setError("Please select an agent.");
+      return false;
+    }
+
+    if (!excelFile && !mobile.trim()) {
+      setError("Please enter a mobile number or upload an Excel file.");
+      return false;
+    }
+
     if (!mobile.trim()) {
-      setError("Please enter a mobile number.");
-      return false;
-    }
-    const e164 = parseAndValidateToE164(mobile, countryCode);
-    if (!e164) {
-      const selected = countries.find((c) => c.code === countryCode);
-      const countryName = selected ? selected.name : countryCode;
-      setError(`Enter a valid ${countryName} phone number.`);
-      return false;
-    }
-    if (!message.trim()) {
-      setError("Please enter a welcome message.");
-      return false;
+      // ok if excel is present
+    } else {
+      const e164 = parseAndValidateToE164(mobile, countryCode);
+      if (!e164) {
+        const selected = countries.find((c) => c.code === countryCode);
+        const countryName = selected ? selected.name : countryCode;
+        setError(`Enter a valid ${countryName} phone number.`);
+        return false;
+      }
     }
     setError("");
     return true;
@@ -104,21 +139,31 @@ export default function Perplexity() {
         toNumber = e164;
       }
 
-      const payload = {
-        agent_id: STATIC_AGENT_ID,
-        to: toNumber,
-        message: message.trim(),
-      };
-
-      const res = await sendPerplexityMessage(payload);
-      console.log("outbound-call response:", res);
-      toast.success("Call initiated successfully!");
-      setMobile("");
-      setMessage("Hi, I'm Richa AI, India's first AI Business Assistant. How can I help you today?");
-      setError("");
+      if (excelFile) {
+        const res = await startPerplexityCallExcel({
+          file: excelFile,
+          agent: selectedVoiceAgentKeyword,
+        });
+        console.log("start-call-excel response:", res);
+        toast.success(res?.message || "Excel calls started successfully!");
+        setExcelFile(null);
+        setFileError("");
+        setMobile("");
+        setError("");
+      } else {
+        const payload = {
+          phone: toNumber,
+          agent: selectedVoiceAgentKeyword,
+        };
+        const res = await startPerplexityCall(payload);
+        console.log("start-call response:", res);
+        toast.success(res?.message || "Call started successfully!");
+        setMobile("");
+        setError("");
+      }
     } catch (err) {
-      console.error("outbound-call error:", err);
-      toast.error(err?.message || "Failed to initiate call");
+      console.error("perplexity start-call error:", err);
+      toast.error(err?.message || "Failed to start call");
     } finally {
       setSubmitting(false);
     }
@@ -128,10 +173,36 @@ export default function Perplexity() {
     <div className="p-4 sm:p-6">
       <div className="mx-auto max-w-sd bg-white rounded-xl shadow p-6">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">LLM</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Send two way call</h2>
+        </div>
+
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <span className="font-semibold">Note</span> - Kindly keep this window open and do not switch to another window until all calls have been completed.
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Select Agent</label>
+            <select
+              value={selectedVoiceAgentId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setSelectedVoiceAgentId(id);
+                const selected = voiceAgents.find((a) => String(a?.id) === String(id));
+                setSelectedVoiceAgentKeyword(String(selected?.keyword || "").trim());
+              }}
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              disabled={voiceAgentsLoading}
+            >
+              <option value="">{voiceAgentsLoading ? "Loading agents..." : "-- Select an agent --"}</option>
+              {voiceAgents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name || a.keyword || `Agent ${a.id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
             <div className="flex gap-2">
@@ -162,25 +233,42 @@ export default function Perplexity() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Welcome Message</label>
-            <textarea
-              placeholder="Enter welcome message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={4}
-              className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                error && !message.trim() ? "border-red-400 focus:ring-red-300" : "focus:ring-indigo-200"
-              }`}
-            />
+            <div className="text-xs text-gray-500">
+              Tip: If you upload Excel, the call will use the uploaded leads. Otherwise, it will call the mobile number above.
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => {
+                const f = e.target.files?.[0] || null;
+                setExcelFile(f);
+                setFileError("");
+              }}
+              className="hidden"
+              disabled={submitting}
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-60"
+              disabled={submitting}
+            >
+              Upload Excel
+            </button>
+
             <button
               type="button"
               onClick={() => {
                 setMobile("");
-                setMessage("Hi, I'm Richa AI, India's first AI Business Assistant. How can I help you today?");
+                setExcelFile(null);
+                setFileError("");
                 setError("");
+                if (fileInputRef.current) fileInputRef.current.value = "";
                 if (countries.find((c) => c.code === "IN")) setCountryCode("IN");
               }}
               className="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300"
@@ -193,6 +281,32 @@ export default function Perplexity() {
               {submitting ? "Sending..." : "Send Call"}
             </button>
           </div>
+
+          {(excelFile || fileError) && (
+            <div className="flex items-center justify-between text-xs mt-2">
+              <div className="text-gray-600 truncate">
+                {fileError ? (
+                  <span className="text-red-600">{fileError}</span>
+                ) : excelFile ? (
+                  <span>Selected Excel: <span className="font-semibold">{excelFile.name}</span></span>
+                ) : null}
+              </div>
+              {excelFile && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExcelFile(null);
+                    setFileError("");
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
+                  disabled={submitting}
+                >
+                  Remove Excel
+                </button>
+              )}
+            </div>
+          )}
         </form>
       </div>
     </div>

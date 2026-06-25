@@ -116,6 +116,45 @@ export function getWhatsappChatByNumber(phone) {
     });
 }
 
+export function getCustomerCareHeadByPhone() {
+  // Call directly (no params), similar to:
+  // curl -X GET "https://api-main.ibcrm.in/api/customer-care-head-by-phone" \
+  //  -H "Authorization: Bearer YOUR_TOKEN"
+  const token = Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken");
+
+  return service
+    .get("customer-care-head-by-phone", {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ customer-care-head-by-phone failed:", error);
+      // If backend returns structured error payload (e.g. 404 with {status:false,...}),
+      // surface it to UI for proper rendering instead of throwing.
+      const payload = error?.response?.data;
+      if (payload && typeof payload === "object") return payload;
+
+      const msg =
+        error?.message || "Failed to fetch customer care head details.";
+      throw new Error(msg);
+    });
+}
+
+export function getAdminCustomerCareHeadUsers() {
+  // GET /api/admin/customer-care-head-users
+  const token = Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken");
+  return service
+    .get("admin/customer-care-head-users", {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      const payload = error?.response?.data;
+      if (payload && typeof payload === "object") return payload;
+      throw new Error(error?.message || "Failed to fetch customer care head users.");
+    });
+}
+
 export function sendWhatsappTextMessage(payload) {
   return service
     .post("twilio/send-message-text", payload)
@@ -151,6 +190,39 @@ export function sendPerplexityMessage(payload) {
     .catch(error => {
       console.error("❌ Failed to send Perplexity message:", error);
       let errorMessage = "Failed to send message.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+export function startPerplexityCall(payload) {
+  return service
+    .post("start-call", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ start-call failed:", error);
+      let errorMessage = "Failed to start call.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
+    });
+}
+
+export function startPerplexityCallExcel({ file, agent }) {
+  const formData = new FormData();
+  formData.append("excel", file);
+  formData.append("agent", agent);
+  return service
+    .post("start-call-excel", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ start-call-excel failed:", error);
+      let errorMessage = "Failed to start excel calls.";
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
@@ -509,6 +581,19 @@ export function getAgentsUsers() {
     });
 }
 
+export function updateAgentLanguages(agentId, languages) {
+  if (!agentId) return Promise.reject(new Error("Agent id is required"));
+  const langs = Array.isArray(languages) ? languages : [];
+  return service
+    .post(`agents/${agentId}/languages`, { languages: langs })
+    .then((res) => res.data)
+    .catch((error) => {
+      let msg = "Failed to update agent languages.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
 export function createAgent(payload) {
   return service
     .post("agents", payload)
@@ -638,10 +723,15 @@ export function generateSpeech(payload) {
     });
 }
 
-export function getCallLogss(page = 1) {
+export function getCallLogss(page = 1, signup_data) {
   return service
     .get("calls-logs", {
-      params: { page },
+      params: {
+        page,
+        ...(signup_data === 0 || signup_data === "0" || signup_data === 1 || signup_data === "1"
+          ? { signup_data }
+          : {}),
+      },
       headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
     })
     .then((res) => res.data)
@@ -656,9 +746,9 @@ export function getCallLogss(page = 1) {
 }
 
 
-export function getCallTranscript(callId) {
+export function getCallTranscript(logId) {
   return service
-    .get(`calls-logs/${callId}`, {
+    .get(`ai-call/transcript/${logId}`, {
       headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
     })
     .then((res) => res.data)

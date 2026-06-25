@@ -86,7 +86,7 @@ export default function ChannelPartnerUsers() {
 
   const extractTxMinuteAmount = (tx) => {
     const raw =
-      tx?.minute_amount ??
+      tx?.minute ??
       tx?.minuteAmount ??
       tx?.minute ??
       tx?.minutes ??

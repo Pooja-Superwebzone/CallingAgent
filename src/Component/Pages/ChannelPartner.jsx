@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   getChannelPartners,
   updateChannelPartner,
@@ -26,6 +26,24 @@ export default function ChannelPartner() {
   const [donatingFrom, setDonatingFrom] = useState(null); 
   const [donateUserId, setDonateUserId] = useState("");
   const [donateMinute, setDonateMinute] = useState("");
+  const [donateUserSearch, setDonateUserSearch] = useState("");
+
+  const filteredTwilioUsers = useMemo(() => {
+    const term = String(donateUserSearch || "").trim().toLowerCase();
+    if (!term) return twilioUsers;
+    return (Array.isArray(twilioUsers) ? twilioUsers : []).filter((u) => {
+      const id = String(u?.id ?? "").toLowerCase();
+      const name = String(u?.name ?? "").toLowerCase();
+      const email = String(u?.email ?? "").toLowerCase();
+      const phone = String(u?.contact_no ?? u?.phone_no ?? "").toLowerCase();
+      return (
+        id.includes(term) ||
+        name.includes(term) ||
+        email.includes(term) ||
+        phone.includes(term)
+      );
+    });
+  }, [donateUserSearch, twilioUsers]);
 
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -38,18 +56,34 @@ export default function ChannelPartner() {
     try {
       const list = await getChannelPartners();
       setRows(
-        (Array.isArray(list) ? list : []).map((r, i) => ({
-          id: r.id ?? i + 1,
-          name: r.name ?? "",
-          email: r.email ?? "",
-          phone_no: r.phone_no ?? "",
-          minute:
-            r.minute ??
-            r.minutes ??
+        (Array.isArray(list) ? list : []).map((r, i) => {
+          const omniMinuteObj = r?.omni_minute ?? r?.omniMinute ?? null;
+          const omniMinuteRaw =
+            omniMinuteObj && typeof omniMinuteObj === "object"
+              ? omniMinuteObj?.minute ??
+                omniMinuteObj?.minutes ??
+                omniMinuteObj?.remaining_minute ??
+                omniMinuteObj?.remainingMinute
+              : omniMinuteObj;
+
+          const minuteRaw =
+            omniMinuteRaw ??
+            r?.minute ??
+            r?.minutes ??
             r?.twilio_user_minute?.minute ??
             r?.twilio_user_minute ??
-            "",
-        }))
+            "";
+
+          return {
+            id: r.id ?? i + 1,
+            user_id: r?.user_id ?? r?.userId ?? "",
+            name: r.name ?? "",
+            email: r.email ?? "",
+            phone_no: r.phone_no ?? "",
+            omni_minute: omniMinuteObj,
+            minute: minuteRaw,
+          };
+        })
       );
     } catch (e) {
       toast.error(e.message || "Failed to fetch channel partners");
@@ -69,7 +103,7 @@ export default function ChannelPartner() {
       name: row?.name ?? "",
       email: row?.email ?? "",
       phone_no: row?.phone_no ?? "",
-      minute: row?.minute ?? "",
+      minute: row?.omni_minute?.minute ?? row?.minute ?? "",
     });
   };
 
@@ -104,7 +138,7 @@ export default function ChannelPartner() {
       name,
       email,
       phone_no,
-      ...(minute !== null ? { minute_amount: minute } : {}),
+      ...(minute !== null ? { minute: minute } : {}),
     };
 
     setSaving(true);
@@ -139,6 +173,7 @@ export default function ChannelPartner() {
     setDonatingFrom(row);
     setDonateUserId("");
     setDonateMinute("");
+    setDonateUserSearch("");
     await ensureUsersLoaded();
   };
 
@@ -146,13 +181,14 @@ export default function ChannelPartner() {
     setDonatingFrom(null);
     setDonateUserId("");
     setDonateMinute("");
+    setDonateUserSearch("");
   };
 
   const handleDonate = async () => {
     if (!donatingFrom?.id) return;
     if (!donateUserId) return toast.error("Please select a user");
 
-    const available = Number(donatingFrom?.minute ?? 0) || 0;
+    const available = Number(donatingFrom?.omni_minute?.minute ?? donatingFrom?.minute ?? 0) || 0;
     const n = Number(String(donateMinute ?? "").trim());
     if (!Number.isFinite(n) || n <= 0) return toast.error("Enter valid donate minutes");
 
@@ -226,7 +262,10 @@ export default function ChannelPartner() {
                   <td className="px-4 py-2">{r.email}</td>
                   <td className="px-4 py-2">{r.phone_no}</td>
                   <td className="px-4 py-2">
-                    {r.minute === "" || r.minute === null || r.minute === undefined ? "-" : r.minute}
+                    {(() => {
+                      const m = r?.omni_minute?.minute ?? r?.minute;
+                      return m === "" || m === null || m === undefined ? "-" : m;
+                    })()}
                   </td>
                   <td className="px-4 py-2">
                     <button
@@ -241,7 +280,7 @@ export default function ChannelPartner() {
                       onClick={() => openDonate(r)}
                       className="ml-2 px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
                     >
-                      Donate Minutes
+                      Sell Minutes
                     </button>
                   </td>
                 </tr>
@@ -359,11 +398,20 @@ export default function ChannelPartner() {
             <div className="px-5 py-4 space-y-4">
               <div className="text-sm text-gray-700">
                 Available minutes (channel partner):{" "}
-                <span className="font-semibold">{Number(donatingFrom?.minute ?? 0) || 0}</span>
+                <span className="font-semibold">
+                  {Number(donatingFrom?.omni_minute?.minute ?? donatingFrom?.minute ?? 0) || 0}
+                </span>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select User</label>
+                <input
+                  value={donateUserSearch}
+                  onChange={(e) => setDonateUserSearch(e.target.value)}
+                  placeholder="Search user by id, name, email, phone..."
+                  className="w-full border rounded-xl px-3 py-2 mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  disabled={saving || usersLoading}
+                />
                 <select
                   value={donateUserId}
                   onChange={(e) => setDonateUserId(e.target.value)}
@@ -371,12 +419,27 @@ export default function ChannelPartner() {
                   disabled={saving || usersLoading}
                 >
                   <option value="">{usersLoading ? "Loading users..." : "Select user"}</option>
-                  {twilioUsers.map((u) => (
+                  {filteredTwilioUsers.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {(u.name || "User") + (u.email ? ` (${u.email})` : "")}
+                      {`${u.id ?? ""} — ${u.name || "User"}${u.email ? ` (${u.email})` : ""}${
+                        u.contact_no || u.phone_no ? ` — ${u.contact_no || u.phone_no}` : ""
+                      }`}
                     </option>
                   ))}
                 </select>
+                <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+                  <span>Showing {filteredTwilioUsers.length} user(s)</span>
+                  {donateUserSearch.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setDonateUserSearch("")}
+                      className="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300"
+                      disabled={saving || usersLoading}
+                    >
+                      Clear search
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>

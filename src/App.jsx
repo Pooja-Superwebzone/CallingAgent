@@ -16,6 +16,8 @@ import Callschedule from './Component/Pages/Callschedule';
 import ConversationCall from './Component/Pages/ConversationCall';
 import ChannelPartner from "./Component/Pages/ChannelPartner";
 import ChannelPartnerUsers from "./Component/Pages/ChannelPartnerUsers";
+import ChannelPartnerConnect from "./Component/Pages/ChannelPartnerConnect";
+import AdminCustomerCareHeadUsers from "./Component/Pages/AdminCustomerCareHeadUsers";
 import AgentsPage from './Component/Pages/AgentsPage';
 import SendOmniCall from './Component/Pages/SendOmniCall';
 import CreateAgentSendPage from './Component/Pages/CreateAgentSendPage';
@@ -32,6 +34,7 @@ import LandingPage from './Component/Pages/LandingPage';
 import ExamInfo from './Component/Pages/ExamInfo';
 import ExamMcq from './Component/Pages/ExamMcq';
 import CertificatePage from './Component/Pages/CertificatePage';
+import AiCertificateAdminPage from "./Component/Pages/AiCertificateAdminPage";
 import CertifiedAITrainingPage from './Component/Pages/CertifiedAITrainingPage';
 import RichaTrialPackPage from './Component/Pages/RichaTrialPackPage';
 import DemoCallPackPage from './Component/Pages/DemoCallPackPage';
@@ -42,6 +45,9 @@ import UpgradeMinutesPage from "./Component/Pages/UpgradeMinutesPage";
 import ChannelPartnerMinuteTransactions from "./Component/Pages/ChannelPartnerMinuteTransactions";
 import AgentsCategoryPage from "./Component/Pages/AgentsCategoryPage";
 import CreateAgentTopicPage from "./Component/Pages/CreateAgentTopicPage";
+import DynamicMinutePage from "./Component/Pages/DynamicMinutePage";
+import LanguageKeywordsPage from "./Component/Pages/LanguageKeywordsPage";
+import CallsDashboard from "./Component/Pages/CallsDashboard";
 
 function App() {
   const location = useLocation();
@@ -188,14 +194,56 @@ function App() {
             <Route path="/perplexity" element={<Perplexity />} />
             <Route path="/minutes" element={<MinutesPage />} />
             <Route path="/upgrade-minutes" element={<UpgradeMinutesPage />} />
+            <Route
+              path="/dynamic-minute"
+              element={
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <DynamicMinutePage />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
+            <Route
+              path="/ai-certificate"
+              element={
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <AiCertificateAdminPage />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
+            <Route
+              path="/language"
+              element={
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <LanguageKeywordsPage />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
             <Route path="/call-logs" element={<CallLogs />} />
             <Route path="/channel-partner" element={<ChannelPartner />} />
             <Route path="/channel-partner-users" element={<ChannelPartnerUsers />} />
+            <Route path="/channel-partner-connect" element={<ChannelPartnerConnect />} />
+            <Route
+              path="/admin/customer-care-head-users"
+              element={
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <AdminCustomerCareHeadUsers />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
             <Route
               path="/channel-partner-minute-transactions"
               element={<ChannelPartnerMinuteTransactions />}
             />
             <Route path="/agents-category" element={<AgentsCategoryPage />} />
+            <Route path="/dashboard" element={<CallsDashboard />} />
           </Route>
         )}
         {/* Catch-all */}

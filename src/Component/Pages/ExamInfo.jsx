@@ -116,7 +116,7 @@ const plans = [
 export default function ExamInfo() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const EXAM_FEE = 1999;
+  const EXAM_FEE = 199;
   const WEBINAR_FEE = 1999;
   const TUTOR_TRAINING_URL = "https://training.infinitybrains.com/";
   
@@ -577,73 +577,18 @@ export default function ExamInfo() {
     }
   };
 
-  // Handle Start Exam button click - complete payment, then login and navigate
-  const handleStartExam = async () => {
-    if (!requireAuthForPayment()) return;
-    if (!email) return;
-
-    setIsLoading(true);
-    try {
-      const customerName =
-        localStorage.getItem("userName") ||
-        Cookies.get("name") ||
-        "Exam Candidate";
-      const customerPhone = Cookies.get("contact_no") || "";
-
-      if (!customerPhone) {
-        throw new Error("Phone number not found. Please sign up again before starting the exam.");
-      }
-
-      if (!window.cashfree) {
-        throw new Error("Payment gateway is not ready yet. Please refresh and try again.");
-      }
-
-      const response = await createPaymentOrder({
-        name: customerName,
-        email,
-        phoneNumber: customerPhone,
-        totalPayment: EXAM_FEE,
-        orderDesc: "Certified AI Training Exam Fee",
-      });
-      const paymentSessionId = response?.payment_id || "";
-
-      if (!paymentSessionId) {
-        throw new Error("Payment session id was not returned from create order API.");
-      }
-
-      const result = await window.cashfree.checkout({
-        paymentSessionId,
-        redirectTarget: "_self",
-      });
-
-      if (result?.error) {
-        throw new Error(result.error?.message || "Payment failed.");
-      }
-
-      const isPaymentSuccessful =
-        result?.paymentDetails ||
-        result?.order?.order_status === "PAID" ||
-        result?.transaction?.txStatus === "SUCCESS";
-
-      if (!isPaymentSuccessful) {
-        if (result?.redirect) {
-          return;
-        }
-        throw new Error("Payment was not completed.");
-      }
-
-      toast.success("Payment successful. Starting your exam...");
-      await loginAndNavigateToExam();
-    } catch (error) {
-      console.error("Exam start error:", error);
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Unable to start exam. Please try again.";
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
+  // Redirect to certificate page (email + amount are dynamic)
+  const handleStartExam = async (amount) => {
+    if (!email) {
+      toast.error("Email is missing in URL.");
+      return;
     }
+
+    // Redirect to InfinityBrains certificate payment page
+    const url = `https://infinitybrains.com/ai-certificate?email=${encodeURIComponent(
+      email
+    )}&amount=${encodeURIComponent(String(amount))}`;
+    window.location.assign(url);
   };
 
   const tutorialTabs = [
@@ -1690,7 +1635,7 @@ export default function ExamInfo() {
                       <button
                         type="button"
                         className="group relative px-8 py-4 text-base font-bold text-white rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 shadow-lg shadow-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/60 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden"
-                        onClick={handleStartExam}
+                        onClick={() => handleStartExam(EXAM_FEE)}
                         disabled={isLoading}
                       >
                         {/* Animated background gradient */}
@@ -1743,7 +1688,7 @@ export default function ExamInfo() {
               <button
                 type="button"
                 className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={handleStartExam}
+                onClick={() => handleStartExam(EXAM_FEE)}
                 disabled={isLoading}
               >
                 {isLoading ? "Processing Payment..." : `Pay Rs. ${EXAM_FEE.toLocaleString("en-IN")} & Start Exam`}
@@ -1753,7 +1698,7 @@ export default function ExamInfo() {
                 onClick={() => setShowWebinarOptions(true)}
                 className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
               >
-                I want to learn from Tutore
+                I want to Learn Online From Tutor Rs 1999
               </button>
             </div>
           </div>
@@ -1781,7 +1726,7 @@ export default function ExamInfo() {
               </button>
 
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-2 text-center">
-                I want to learn from Tutore
+                I want to Learn Online From Tutor Rs 1999
               </h2>
               <p className="text-sm sm:text-base text-slate-600 text-center mb-6">
                 Choose how you want to continue, or open{" "}
