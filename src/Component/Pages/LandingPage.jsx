@@ -235,6 +235,7 @@ export default function LandingPage() {
     name: "",
     email: "",
     contact_no: "",
+    location: "",
     password: "",
     confirmPassword: "",
   });
@@ -1100,6 +1101,18 @@ export default function LandingPage() {
                       />
                     </div>
                     <div>
+                      <label className="text-sm font-semibold text-slate-700">Location</label>
+                      <input
+                        type="text"
+                        value={formValues.location}
+                        onChange={(e) =>
+                          setFormValues((v) => ({ ...v, location: e.target.value }))
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        placeholder="Enter your city or location"
+                      />
+                    </div>
+                    <div>
                       <label className="text-sm font-semibold text-slate-700">Email</label>
                       <input
                         type="email"
@@ -1180,6 +1193,7 @@ export default function LandingPage() {
                           !formValues.name ||
                           !formValues.contact_no ||
                           formValues.contact_no.length !== 10 ||
+                          !formValues.location.trim() ||
                           !formValues.password ||
                           formValues.password !== formValues.confirmPassword ||
                           (selectedPlan.id === "become_channel_partner" &&
@@ -1193,6 +1207,7 @@ export default function LandingPage() {
                               name: formValues.name,
                               email: formValues.email,
                               contact_no: formValues.contact_no,
+                              location: formValues.location.trim(),
                               password: formValues.password,
                               confirmPassword: formValues.confirmPassword,
                               minute: "10",

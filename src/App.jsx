@@ -47,6 +47,7 @@ import AgentsCategoryPage from "./Component/Pages/AgentsCategoryPage";
 import CreateAgentTopicPage from "./Component/Pages/CreateAgentTopicPage";
 import DynamicMinutePage from "./Component/Pages/DynamicMinutePage";
 import LanguageKeywordsPage from "./Component/Pages/LanguageKeywordsPage";
+import PaymentResultPage from "./Component/Pages/PaymentResultPage";
 import CallsDashboard from "./Component/Pages/CallsDashboard";
 
 function App() {
@@ -167,6 +168,9 @@ function App() {
 
         {/* Public: Privacy Policy */}
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+
+        {/* Public: Cashfree payment return */}
+        <Route path="/result" element={<PaymentResultPage />} />
 
         {/* Protected (wrapped in Sidebar) */}
         {authed && (

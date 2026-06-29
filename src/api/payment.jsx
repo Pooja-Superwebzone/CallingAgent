@@ -1,11 +1,61 @@
 import axios from "axios";
+import { service } from "./axios";
 
 const PAYMENT_ORDER_URL = "https://payment.ibdelight.in/api/createOrder";
 const CASHFREE_API_BASE_URL = "https://api.cashfree.com/pg/orders";
-const CASHFREE_WEBSITE_URL = "https://richa.infinitybrains.com";
-const CASHFREE_RETURN_URL = `${CASHFREE_WEBSITE_URL}/result?order_id=`;
+
+const CASHFREE_APP_ID = import.meta.env.VITE_CASHFREE_APP_ID;
+const CASHFREE_SECRET_KEY = import.meta.env.VITE_CASHFREE_SECRET_KEY;
+
+const APP_ORIGIN = String(
+  import.meta.env.VITE_APP_ORIGIN || window.location.origin
+).replace(/\/$/, "");
+
+const CASHFREE_RETURN_URL = `${APP_ORIGIN}/result?order_id=`;
 const ADD_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/add-subscription";
 const UPDATE_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/update-subscription";
+
+export const PENDING_MINUTE_PURCHASE_KEY = "pendingMinutePurchase";
+
+export function extractShareValueFromResponse(payload) {
+  const raw = payload?.data !== undefined ? payload.data : payload;
+  const d = raw?.data !== undefined ? raw.data : raw;
+  const candidates = [
+    d?.share_value,
+    d?.shareValue,
+    d?.value,
+    d?.shares,
+    d?.your_shares,
+    d?.yourShares,
+    typeof d === "number" || typeof d === "string" ? d : null,
+  ];
+  for (const c of candidates) {
+    if (c !== undefined && c !== null && String(c).trim() !== "") return c;
+  }
+  return null;
+}
+
+export async function getShareValue(authToken) {
+  const token = authToken || "";
+  const res = await service.get("share-value", {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  return extractShareValueFromResponse(res);
+}
+
+export async function postShareValue(value, authToken) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+
+  const token = authToken || "";
+
+  const res = await service.post(
+    "share-value",
+    { value: n },
+    { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+  );
+  return res.data;
+}
 
 
 export async function createPaymentOrder({
@@ -76,6 +126,28 @@ export async function updateSubscriptionPaymentStatus(planId) {
       error?.response?.data || error.message
     );
     throw error;
+  }
+}
+
+export async function creditMinutesAfterPayment({
+  email,
+  planId,
+  userId,
+  minutes,
+  authToken,
+}) {
+  if (email && planId) {
+    const subRes = await addSubscription({ email, planId });
+    const resolvedPlanId = subRes?.resolvedPlanId || subRes?.plan_id || planId;
+    await updateSubscriptionPaymentStatus(resolvedPlanId);
+  }
+
+  if (userId && minutes && authToken) {
+    await service.post(
+      "add-minute",
+      { minute: String(minutes), user_id: userId },
+      { headers: { Authorization: `Bearer ${authToken}` } }
+    );
   }
 }
 

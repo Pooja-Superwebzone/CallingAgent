@@ -17,6 +17,7 @@ export default function ChannelPartner() {
     name: "",
     email: "",
     phone_no: "",
+    location: "",
     minute: "",
   });
 
@@ -77,9 +78,10 @@ export default function ChannelPartner() {
           return {
             id: r.id ?? i + 1,
             user_id: r?.user_id ?? r?.userId ?? "",
-            name: r.name ?? "",
-            email: r.email ?? "",
-            phone_no: r.phone_no ?? "",
+            name: r.name ?? r?.user?.name ?? "",
+            email: r.email ?? r?.user?.email ?? "",
+            phone_no: r.phone_no ?? r?.user?.contact_no ?? r?.user?.phone_no ?? "",
+            location: r?.user?.location ?? r?.location ?? "",
             omni_minute: omniMinuteObj,
             minute: minuteRaw,
           };
@@ -97,19 +99,26 @@ export default function ChannelPartner() {
     loadRows();
   }, []);
 
+  const formatLocation = (value) => {
+    const text = String(value ?? "").trim();
+    if (!text || text.toLowerCase() === "null") return "-";
+    return text;
+  };
+
   const openEdit = (row) => {
     setEditing(row);
     setForm({
       name: row?.name ?? "",
       email: row?.email ?? "",
       phone_no: row?.phone_no ?? "",
+      location: formatLocation(row?.location) === "-" ? "" : String(row?.location ?? "").trim(),
       minute: row?.omni_minute?.minute ?? row?.minute ?? "",
     });
   };
 
   const closeEdit = () => {
     setEditing(null);
-    setForm({ name: "", email: "", phone_no: "", minute: "" });
+    setForm({ name: "", email: "", phone_no: "", location: "", minute: "" });
   };
 
   const onChange = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
@@ -138,6 +147,7 @@ export default function ChannelPartner() {
       name,
       email,
       phone_no,
+      location: String(form.location || "").trim(),
       ...(minute !== null ? { minute: minute } : {}),
     };
 
@@ -231,6 +241,7 @@ export default function ChannelPartner() {
               <th className="px-4 py-2">Sr No</th>
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Email</th>
+              <th className="px-4 py-2">Location</th>
               <th className="px-4 py-2">Phone No</th>
               <th className="px-4 py-2">Minute</th>
               <th className="px-4 py-2">Action</th>
@@ -239,13 +250,13 @@ export default function ChannelPartner() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-6">
+                <td colSpan={7} className="text-center py-6">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-6">
+                <td colSpan={7} className="text-center py-6">
                   No partners found
                 </td>
               </tr>
@@ -260,6 +271,7 @@ export default function ChannelPartner() {
                   </td>
                   <td className="px-4 py-2">{r.name}</td>
                   <td className="px-4 py-2">{r.email}</td>
+                  <td className="px-4 py-2">{formatLocation(r.location)}</td>
                   <td className="px-4 py-2">{r.phone_no}</td>
                   <td className="px-4 py-2">
                     {(() => {
@@ -326,6 +338,17 @@ export default function ChannelPartner() {
                   onChange={(e) => onChange("email", e.target.value)}
                   className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Email"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <input
+                  value={form.location}
+                  onChange={(e) => onChange("location", e.target.value)}
+                  className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="City or location"
                   disabled={saving}
                 />
               </div>

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import service from "../../api/axios";
+import { creditMinutesAfterPayment, createPaymentOrder, getShareValue, PENDING_MINUTE_PURCHASE_KEY, postShareValue } from "../../api/payment";
 
 
 const DEFAULT_PLAN_ID = "8";
@@ -58,56 +59,6 @@ const pickDisplayPriceForNullUserId = (rows) => {
 };
 const DYNAMIC_MINUTE_RATE_CACHE = new Map();
 
-const getPlanSummaryOrigin = () =>
-  String(import.meta.env.VITE_PLAN_SUMMARY_ORIGIN || "https://infinitybrains.com").replace(
-    /\/$/,
-    ""
-  );
-
-/** Token Richa already stores: CRM key in localStorage, then CallingAgent cookie (same as axios). */
-const getRichaSessionTokenForIb = () =>
-  String(localStorage.getItem("ibcrmtoken") || Cookies.get("CallingAgent") || "").trim();
-
-const isPlanSummaryPostHandoff = () => {
-  const v = String(import.meta.env.VITE_PLAN_SUMMARY_USE_POST_HANDOFF || "").toLowerCase();
-  return v === "true" || v === "1" || v === "yes";
-};
-
-const postPlanSummaryCheckout = (fields) => {
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = `${getPlanSummaryOrigin()}/plan-summary`;
-  form.enctype = "application/x-www-form-urlencoded";
-  form.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
-  form.setAttribute("autocomplete", "off");
-  for (const [name, value] of Object.entries(fields)) {
-    if (value === undefined || value === null) continue;
-    const str = String(value);
-    if (str === "") continue;
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = name;
-    input.value = str;
-    form.appendChild(input);
-  }
-  document.body.appendChild(form);
-  form.submit();
-};
-
-const resolvePlanSummaryUserType = ({ profileRole, cookieRole, twilioUser }) => {
-  const role = String(profileRole || cookieRole || "").trim().toLowerCase();
-  if (role === "channelpartner" || role === "channel_partner") {
-    return "channel_partner";
-  }
-
-  const tw = twilioUser === undefined || twilioUser === null ? "" : String(twilioUser).trim();
-  if (tw === "1") return "simple";
-  if (tw === "0") return "admin";
-
-  if (role === "admin") return "admin";
-  return "simple";
-};
-
 export default function MinutesPage() {
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -127,6 +78,8 @@ export default function MinutesPage() {
   const [dynamicNormalMinuteRate, setDynamicNormalMinuteRate] = useState(
     DEFAULT_NORMAL_MINUTE_RATE
   );
+  const [shareValue, setShareValue] = useState(null);
+  const [shareLoading, setShareLoading] = useState(true);
   const userEmail = Cookies.get("email") || "";
   const cookieRoleLower = String(Cookies.get("role") || "").trim().toLowerCase();
   const profileRoleLower = String(profileDetails.role || "").trim().toLowerCase();
@@ -163,6 +116,14 @@ export default function MinutesPage() {
   useEffect(() => {
     syncPlanDetails(userEmail);
   }, [syncPlanDetails, userEmail]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Cashfree) {
+      window.cashfree = window.Cashfree({
+        mode: "production",
+      });
+    }
+  }, []);
 
   const formatRate = (amount) => amount.toFixed(2);
 
@@ -225,49 +186,115 @@ export default function MinutesPage() {
 
     const customerEmail = profileDetails.email || userEmail;
     const customerPhone = profileDetails.phoneNumber || Cookies.get("contact_no") || "";
+    const customerName =
+      profileDetails.name ||
+      Cookies.get("name") ||
+      localStorage.getItem("userName") ||
+      "Customer";
 
     if (!customerPhone) {
       setError("Your phone number was not found. Please update your profile and try again.");
       return;
     }
+
+    if (!window.cashfree) {
+      const message =
+        "Payment gateway is not ready yet. Please refresh the page and try again.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setPaymentLoading(true);
     setError("");
 
+    const orderDesc = isChannelPartnerPlan
+      ? `Channel Partner Minutes Purchase - ${purchaseMinutes} minutes`
+      : `Richa Minutes Purchase - ${purchaseMinutes} minutes`;
+
     try {
-      const cookieRole = Cookies.get("role") || "";
-      const twilioFlag =
-        String(profileDetails.twilioUser ?? Cookies.get("twilio_user") ?? "0").trim();
-      const userTypeParam = resolvePlanSummaryUserType({
-        profileRole: profileDetails.role,
-        cookieRole,
-        twilioUser: twilioFlag,
+      sessionStorage.setItem(
+        PENDING_MINUTE_PURCHASE_KEY,
+        JSON.stringify({
+          minutes: purchaseMinutes,
+          userId: profileDetails.userId,
+          email: customerEmail,
+          planId: DEFAULT_PLAN_ID,
+          shareAmount: quote.total,
+        })
+      );
+
+      const response = await createPaymentOrder({
+        name: customerName,
+        email: customerEmail,
+        phoneNumber: customerPhone,
+        totalPayment: quote.totalWithTax,
+        orderDesc,
       });
-      const planLabel = isChannelPartnerPlan
-        ? displayedPlanTitle
-        : Cookies.get("user_plan_title")?.trim() ||
-          displayedPlanTitle ||
-          "Pro";
+
+      const paymentSessionId = response?.payment_id || "";
+      if (!paymentSessionId) {
+        throw new Error("Payment session id was not returned from create order API.");
+      }
+
+      const result = await window.cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: "_self",
+      });
+
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed.");
+      }
+
+      const isPaymentSuccessful =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!isPaymentSuccessful) {
+        if (result?.redirect) {
+          return;
+        }
+        throw new Error("Payment failed. Please try again.");
+      }
+
       const authToken =
         Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken") || "";
-      const params = new URLSearchParams({
-        email: customerEmail,
-        userType: userTypeParam,
-        minutes: String(purchaseMinutes),
-        plan: planLabel,
-        plan_id: DEFAULT_PLAN_ID,
-        ...(profileDetails.userId
-          ? { user_id: String(profileDetails.userId) }
-          : {}),
-        ...(authToken ? { token: String(authToken).trim() } : {}),
-      });
-      const planSummaryUrl = `${getPlanSummaryOrigin()}/plan-summary?${params.toString()}`;
-      window.location.assign(planSummaryUrl);
+
+      try {
+        await creditMinutesAfterPayment({
+          email: customerEmail,
+          planId: DEFAULT_PLAN_ID,
+          userId: profileDetails.userId,
+          minutes: purchaseMinutes,
+          authToken,
+        });
+      } catch (creditError) {
+        console.warn("Post-payment minute credit failed:", creditError);
+      }
+
+      try {
+        await postShareValue(quote.total, authToken);
+        const updatedShare = await getShareValue(authToken);
+        setShareValue(updatedShare);
+      } catch (shareError) {
+        console.warn("Post-payment share-value failed:", shareError);
+      }
+
+      sessionStorage.removeItem(PENDING_MINUTE_PURCHASE_KEY);
+      toast.success("Payment successful!");
+      await fetchMinutes();
     } catch (e) {
+      sessionStorage.removeItem(PENDING_MINUTE_PURCHASE_KEY);
       const rawMessage =
         e?.response?.data?.message ||
         e?.message ||
-        "Unable to complete purchase. Please try again.";
-      const message = rawMessage;
+        "Payment failed. Please try again.";
+      const message =
+        rawMessage.includes("Cashfree env vars are missing") ||
+        rawMessage.includes("VITE_CASHFREE")
+          ? "Payment is not configured. Set VITE_CASHFREE_APP_ID and VITE_CASHFREE_SECRET_KEY in .env and restart the dev server."
+          : rawMessage;
       setError(message);
       toast.error(message);
     } finally {
@@ -390,6 +417,30 @@ export default function MinutesPage() {
     fetchMinutes();
   }, [fetchMinutes]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchShareValue = async () => {
+      setShareLoading(true);
+      try {
+        const value = await getShareValue(Cookies.get("CallingAgent"));
+        if (!cancelled) {
+          setShareValue(value);
+        }
+      } catch {
+        if (!cancelled) setShareValue(null);
+      } finally {
+        if (!cancelled) setShareLoading(false);
+      }
+    };
+
+    fetchShareValue();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="p-4 sm:p-6 md:p-5 lg:p-6">
       <div className="mx-auto max-w-5xl">
@@ -437,6 +488,12 @@ export default function MinutesPage() {
             <div className="text-sm font-semibold text-slate-600">Two-way Minutes</div>
             <div className="mt-2 text-3xl font-extrabold text-slate-900">
               {loading ? "..." : twoWayMinutes}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-sm font-semibold text-slate-600">Your Shares</div>
+            <div className="mt-2 text-3xl font-extrabold text-slate-900">
+              {shareLoading ? "..." : shareValue ?? "-"}
             </div>
           </div>
         </div>
