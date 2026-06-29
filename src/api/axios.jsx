@@ -9,6 +9,7 @@ async function requestConfig(config) {
   if (!config.headers) {
     config.headers = {};
   }
+  
 
   try {
    config.headers.version = "1.0.0"; 

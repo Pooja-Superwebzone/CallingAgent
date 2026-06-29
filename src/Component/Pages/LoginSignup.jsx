@@ -117,6 +117,7 @@ export default function LoginSignup() {
     name: "",
     email: "",
     contact_no: "",
+    location: "",
     customer_care_head_no: "",
     password: "",
     confirmPassword: "",
@@ -166,6 +167,7 @@ export default function LoginSignup() {
     if (!signupData.name) errs.name = "Name is required";
     if (!signupData.email) errs.email = "Email is required";
     if (!signupData.contact_no) errs.contact_no = "Contact number is required";
+    if (!String(signupData.location || "").trim()) errs.location = "Location is required";
     if (!signupData.password) errs.password = "Password is required";
     if (signupData.password !== signupData.confirmPassword)
       errs.confirmPassword = "Passwords do not match";
@@ -228,6 +230,7 @@ export default function LoginSignup() {
       }
       const payload = {
         ...signupData,
+        location: String(signupData.location || "").trim(),
         minute: "10",
         role: getSignupRoleForPlan(signupPlanId),
       };
@@ -819,6 +822,20 @@ export default function LoginSignup() {
                       placeholder="Enter contact number"
                     />
                     {errors.contact_no && <p className="text-red-500 text-sm">{errors.contact_no}</p>}
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-gray-700 font-medium mb-1">Location</label>
+                    <input
+                      type="text"
+                      value={signupData.location}
+                      onChange={(e) =>
+                        setSignupData({ ...signupData, location: e.target.value })
+                      }
+                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${errors.location ? "border-red-500 focus:ring-red-300" : "focus:ring-blue-500"
+                        }`}
+                      placeholder="Enter your city or location"
+                    />
+                    {errors.location && <p className="text-red-500 text-sm">{errors.location}</p>}
                   </div>
                 </>
               )}

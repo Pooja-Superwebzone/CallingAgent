@@ -50,6 +50,12 @@ const SubAdmin = () => {
 
   const selectedRole = watch('role');
 
+  const formatLocation = (value) => {
+    const text = String(value ?? "").trim();
+    if (!text || text.toLowerCase() === "null") return "-";
+    return text;
+  };
+
   useEffect(() => {
     fetchAdmins();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,6 +104,7 @@ const onSubmit = async (data) => {
     name: data.name,
     email: data.email,
     contact_no: data.contact_no,
+    location: String(data.location || "").trim(),
     minute: data.oneWayMinute, // Keep legacy field for backward compatibility
     one_way: data.oneWayMinute,
     two_way: data.twoWayMinute,
@@ -144,6 +151,10 @@ const onSubmit = async (data) => {
     setValue('name', admin.name || '');
     setValue('email', admin.email || '');
     setValue('contact_no', admin.contact_no || '');
+    setValue(
+      'location',
+      formatLocation(admin.location) === "-" ? "" : String(admin.location ?? "").trim()
+    );
     setValue('oneWayMinute', admin.twilio_user_minute?.one_way || admin.twilio_user_minute?.oneWay || admin.twilio_user_minute?.outbound || admin.twilio_user_minute?.outbound_minute || admin.twilio_user_minute?.minute || '');
     setValue('twoWayMinute', admin.twilio_two_way_user_minute?.minute || admin.twilio_user_minute?.two_way || admin.twilio_user_minute?.twoWay || admin.twilio_user_minute?.inbound || admin.twilio_user_minute?.inbound_minute || '');
     setValue('internationalMinute', admin.twilio_user_minute?.international || admin.twilio_user_minute?.international_minute || admin.twilio_user_minute?.intl || '');
@@ -160,6 +171,7 @@ const onSubmit = async (data) => {
     setValue('name', '');
     setValue('email', '');
     setValue('contact_no', '');
+    setValue('location', '');
     setValue('password', '');
     setValue('role', '');
     setValue('oneWayMinute', '');
@@ -261,6 +273,7 @@ const onSubmit = async (data) => {
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Gender</th>
                 <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Location</th>
                 <th className="px-4 py-3">Minutes Used</th>
                 <th className="px-4 py-3">Customer Care Head No</th>
                 <th className="px-4 py-3">One-way Minutes</th>
@@ -273,7 +286,7 @@ const onSubmit = async (data) => {
             <tbody className="text-gray-700">
               {currentAdmins.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="text-center py-6">
+                  <td colSpan="14" className="text-center py-6">
                     No admins found
                   </td>
                 </tr>
@@ -289,6 +302,7 @@ const onSubmit = async (data) => {
                     <td className="px-4 py-2">{admin.contact_no || '-'}</td>
                     <td className="px-4 py-2 capitalize">{admin.gender || '-'}</td>
                     <td className="px-4 py-2 capitalize">{admin.role || '-'}</td>
+                    <td className="px-4 py-2">{formatLocation(admin.location)}</td>
                     <td className="px-4 py-2">{admin.total_duration_minutes || '-'}</td>
                     <td className="px-4 py-2">{admin.customer_care_head_no || '-'}</td>
                     <td className="px-4 py-2">
@@ -419,6 +433,14 @@ const onSubmit = async (data) => {
                   {...register('contact_no')}
                   className="w-full border px-2 py-1.5 rounded text-sm"
                   placeholder="Enter contact number"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700">Location</label>
+                <input
+                  {...register('location')}
+                  className="w-full border px-2 py-1.5 rounded text-sm"
+                  placeholder="Enter city or location"
                 />
               </div>
               <div>
