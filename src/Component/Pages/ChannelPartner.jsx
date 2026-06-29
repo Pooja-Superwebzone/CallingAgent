@@ -4,6 +4,7 @@ import {
   updateChannelPartner,
   getAllTwillioUsers,
   donateChannelPartnerMinute,
+  getChannelPartnerDocumentsByUserId,
 } from "../../hooks/useAuth";
 import { toast } from "react-hot-toast";
 
@@ -11,6 +12,14 @@ export default function ChannelPartner() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileRow, setProfileRow] = useState(null);
+  const [profileDocsLoading, setProfileDocsLoading] = useState(false);
+  const [profileDocs, setProfileDocs] = useState(null);
+  const [profileDocsError, setProfileDocsError] = useState("");
 
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
@@ -48,8 +57,23 @@ export default function ChannelPartner() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const pageRows = rows.slice((page - 1) * pageSize, page * pageSize);
+  const filteredRows = useMemo(() => {
+    const t = String(searchTerm || "").trim().toLowerCase();
+    if (!t) return rows;
+    return (Array.isArray(rows) ? rows : []).filter((r) => {
+      const name = String(r?.name ?? "").toLowerCase();
+      const email = String(r?.email ?? "").toLowerCase();
+      const phone = String(r?.phone_no ?? "").toLowerCase();
+      return name.includes(t) || email.includes(t) || phone.includes(t);
+    });
+  }, [rows, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const pageRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
 
   const loadRows = async () => {
     setLoading(true);
@@ -198,13 +222,20 @@ export default function ChannelPartner() {
 
     setSaving(true);
     try {
+      const donorUserIdRaw = String(donatingFrom?.user_id ?? "").trim();
+      if (!donorUserIdRaw) {
+        toast.error("No profile found");
+        return;
+      }
+
       const uidNum = Number(donateUserId);
-      const user_id = Number.isFinite(uidNum) ? uidNum : donateUserId;
+      const to_user_id = Number.isFinite(uidNum) ? uidNum : donateUserId;
+      const donorNum = Number(donorUserIdRaw);
+      const user_id = Number.isFinite(donorNum) ? donorNum : donorUserIdRaw;
       await donateChannelPartnerMinute({
-        channel_partner_id: donatingFrom.id,
         user_id,
+        to_user_id,
         minute: n,
-        channel_partner_name: donatingFrom?.name || "",
       });
       toast.success("Minutes donated successfully");
       closeDonate();
@@ -216,11 +247,67 @@ export default function ChannelPartner() {
     }
   };
 
+  const normalizeAssetUrl = (value) => {
+    if (!value) return "";
+    const s = String(value).trim();
+    if (!s) return "";
+    if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("blob:")) return s;
+    return s; // backend usually returns full URL; keep as-is for relative too
+  };
+
+  const isLikelyPdf = (value) => {
+    const s = String(value || "").toLowerCase();
+    return s.endsWith(".pdf") || s.includes("application/pdf");
+  };
+
+  const openProfile = async (row) => {
+    const uid = String(row?.user_id || "").trim();
+    if (!uid) return toast.error("No profile found");
+    setProfileRow(row);
+    setProfileDocs(null);
+    setProfileDocsError("");
+    setProfileOpen(true);
+    setProfileDocsLoading(true);
+    try {
+      const res = await getChannelPartnerDocumentsByUserId(uid);
+      if (res && typeof res === "object" && res.status === false) {
+        setProfileDocsError(res?.message || "No documents found");
+        setProfileDocs(null);
+        return;
+      }
+      const payload = res?.data?.data ?? res?.data ?? res ?? null;
+      const doc = Array.isArray(payload) ? payload[0] : payload;
+      setProfileDocs(doc && typeof doc === "object" ? doc : null);
+      if (!doc) setProfileDocsError("No documents found");
+    } catch (e) {
+      setProfileDocsError(e?.message || "Failed to load documents");
+      setProfileDocs(null);
+    } finally {
+      setProfileDocsLoading(false);
+    }
+  };
+
+  const closeProfile = () => {
+    setProfileOpen(false);
+    setProfileRow(null);
+    setProfileDocs(null);
+    setProfileDocsError("");
+    setProfileDocsLoading(false);
+  };
+
   return (
     <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-bold text-gray-700">Channel Partners</h2>
+        <div className="w-full sm:w-[360px]">
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search by name, email, phone..."
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
       </div>
 
       {/* Table */}
@@ -270,8 +357,15 @@ export default function ChannelPartner() {
                   <td className="px-4 py-2">
                     <button
                       type="button"
+                      onClick={() => openProfile(r)}
+                      className="px-3 py-1 rounded bg-slate-700 text-white hover:bg-slate-800"
+                    >
+                      View Profile
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => openEdit(r)}
-                      className="px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700"
+                      className="ml-2 px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700"
                     >
                       Edit
                     </button>
@@ -289,6 +383,147 @@ export default function ChannelPartner() {
           </tbody>
         </table>
       </div>
+
+      {/* View Profile Modal */}
+      {profileOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b">
+              <div className="min-w-0">
+                <div className="text-lg font-semibold text-gray-800">Channel Partner Profile</div>
+                <div className="mt-1 text-sm text-gray-600">
+                  {profileRow?.name || "-"}{" "}
+                  {profileRow?.email ? <span className="text-gray-500">({profileRow.email})</span> : null}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeProfile}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-5 py-5 space-y-5">
+              {profileDocsLoading ? (
+                <div className="py-10 text-center text-gray-600">Loading…</div>
+              ) : profileDocsError ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {profileDocsError}
+                </div>
+              ) : null}
+
+              {profileDocs ? (
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 p-4">
+                      <div className="text-xs font-semibold uppercase text-slate-500">Aadhar Number</div>
+                      <div className="mt-1 text-sm text-slate-800">
+                        {profileDocs?.aadhar_number || "-"}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 p-4">
+                      <div className="text-xs font-semibold uppercase text-slate-500">PAN Number</div>
+                      <div className="mt-1 text-sm text-slate-800">
+                        {profileDocs?.pan_number || "-"}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 p-4">
+                      <div className="text-xs font-semibold uppercase text-slate-500">GST Number</div>
+                      <div className="mt-1 text-sm text-slate-800">
+                        {profileDocs?.gst_number || "-"}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 p-4">
+                      <div className="text-xs font-semibold uppercase text-slate-500">Bank</div>
+                      <div className="mt-1 text-sm text-slate-800 space-y-1">
+                        <div>AC No: {profileDocs?.bank_account_number || profileDocs?.bank_ac_no || "-"}</div>
+                        <div>AC Name: {profileDocs?.bank_account_name || profileDocs?.bank_ac_name || "-"}</div>
+                        <div>
+                          Type:{" "}
+                          {profileDocs?.bank_account_type ||
+                            profileDocs?.account_type ||
+                            profileDocs?.type_of_account ||
+                            "-"}
+                        </div>
+                        <div>Bank: {profileDocs?.bank_name || "-"}</div>
+                        <div>IFSC: {profileDocs?.bank_ifsc || profileDocs?.ifsc || "-"}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    {[
+                      {
+                        label: "Aadhar Image",
+                        key: "aadhar_image",
+                        value: profileDocs?.aadhar_image,
+                      },
+                      {
+                        label: "PAN Image",
+                        key: "pan_image",
+                        value: profileDocs?.pan_image,
+                      },
+                      {
+                        label: "GST Certificate",
+                        key: "gst_certificate_image",
+                        value: profileDocs?.gst_certificate_image || profileDocs?.gst_image,
+                      },
+                      {
+                        label: "Bank Detail Image",
+                        key: "bank_detail_image",
+                        value: profileDocs?.bank_detail_image || profileDocs?.bank_image,
+                      },
+                    ].map((it) => {
+                      const url = normalizeAssetUrl(it.value);
+                      if (!url) {
+                        return (
+                          <div key={it.key} className="rounded-xl border border-slate-200 p-4">
+                            <div className="text-sm font-semibold text-slate-900">{it.label}</div>
+                            <div className="mt-2 text-sm text-slate-600">-</div>
+                          </div>
+                        );
+                      }
+
+                      const pdf = isLikelyPdf(url);
+                      return (
+                        <div key={it.key} className="rounded-xl border border-slate-200 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm font-semibold text-slate-900">{it.label}</div>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                            >
+                              Open
+                            </a>
+                          </div>
+                          <div className="mt-3">
+                            {pdf ? (
+                              <div className="text-sm text-slate-700">
+                                PDF uploaded. Click <span className="font-semibold">Open</span>.
+                              </div>
+                            ) : (
+                              <img
+                                src={url}
+                                alt={it.label}
+                                className="w-full max-h-[320px] object-contain rounded-lg bg-slate-50"
+                                loading="lazy"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Edit Modal */}
       {editing && (

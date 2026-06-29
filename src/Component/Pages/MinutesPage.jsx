@@ -9,6 +9,7 @@ const DEFAULT_PLAN_ID = "8";
 const CHANNEL_PARTNER_PLAN_LABEL = "Channel Partner";
 
 const DEFAULT_NORMAL_MINUTE_RATE = 15;
+const DEFAULT_CHANNEL_PARTNER_MINUTE_RATE = 13.5;
 
 const normalizeUserId = (v) =>
   v === undefined || v === null ? "" : String(v).trim();
@@ -127,6 +128,9 @@ export default function MinutesPage() {
   const [dynamicNormalMinuteRate, setDynamicNormalMinuteRate] = useState(
     DEFAULT_NORMAL_MINUTE_RATE
   );
+  const [dynamicChannelPartnerMinuteRate, setDynamicChannelPartnerMinuteRate] = useState(
+    DEFAULT_CHANNEL_PARTNER_MINUTE_RATE
+  );
   const userEmail = Cookies.get("email") || "";
   const cookieRoleLower = String(Cookies.get("role") || "").trim().toLowerCase();
   const profileRoleLower = String(profileDetails.role || "").trim().toLowerCase();
@@ -141,7 +145,7 @@ export default function MinutesPage() {
 
   const MINUTES_PER_PACKAGE = isChannelPartnerPlan ? 1000 : 100;
   const RATE_UP_TO_THRESHOLD = isChannelPartnerPlan
-    ? 13.50
+    ? dynamicChannelPartnerMinuteRate
     : dynamicNormalMinuteRate;
   const purchasePlaceholder = isChannelPartnerPlan ? "1000, 2000, 3000..." : "100, 200, 300...";
   const CGST_RATE = 0.09;
@@ -341,6 +345,26 @@ export default function MinutesPage() {
           profile?.twilio_user ?? Cookies.get("twilio_user") ?? "0"
         ).trim(),
       });
+
+      // Dynamic price for channel partner (from profile.dynamic_minute.price)
+      const dm =
+        profile?.dynamic_minute ??
+        profile?.dynamicMinute ??
+        profile?.dynamic_min ??
+        profile?.dynamicMin ??
+        null;
+      const dmPriceRaw =
+        (dm && typeof dm === "object" ? dm?.price : null) ??
+        profile?.dynamic_minute_price ??
+        profile?.dynamicMinutePrice ??
+        null;
+      const dmPrice = Number(dmPriceRaw);
+      if (Number.isFinite(dmPrice) && dmPrice > 0) {
+        setDynamicChannelPartnerMinuteRate(dmPrice);
+      } else {
+        setDynamicChannelPartnerMinuteRate(DEFAULT_CHANNEL_PARTNER_MINUTE_RATE);
+      }
+
       syncPlanDetails(profile?.email || profile?.emp_email || userEmail);
       localStorage.setItem("userRemainingMinutes", String(one));
 
@@ -447,11 +471,9 @@ export default function MinutesPage() {
           </div>
           <div className="w-full">
             <label className="block text-sm font-semibold text-slate-700 mb-1">
-              {isChannelPartnerPlan
-                ? "Mintues to Add 13.50 * add mintues in inpute ( below input type eg.1000,2000,3000 ...)"
-                : `Mintues to Add ${formatRate(
-                  dynamicNormalMinuteRate
-                )} * add mintues in inpute ( below input type eg.100,200,300 ...)`}
+              {`Mintues to Add ${formatRate(
+                RATE_UP_TO_THRESHOLD
+              )} * add mintues in inpute ( below input type eg.${isChannelPartnerPlan ? "1000,2000,3000" : "100,200,300"} ...)`}
             </label>
             <div className="grid w-full max-w-[28rem] grid-cols-[auto_auto_minmax(0,1fr)] gap-2 sm:grid-cols-[auto_auto_minmax(9rem,1fr)_auto_auto] sm:items-center">
               <span className="self-center text-base font-semibold text-slate-900">

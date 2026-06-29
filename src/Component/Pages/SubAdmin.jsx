@@ -18,6 +18,10 @@ const SubAdmin = () => {
   const [editId, setEditId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  // Filters (API: twillio-create-readall?last_days=7|30&role=admin|channelpartner)
+  const [filterRole, setFilterRole] = useState(""); // "" | "admin" | "channelpartner"
+  const [filterLastDays, setFilterLastDays] = useState(""); // "" | "7" | "30"
   
   // Two-way minutes edit modal state
   const [showTwoWayModal, setShowTwoWayModal] = useState(false);
@@ -48,7 +52,8 @@ const SubAdmin = () => {
 
   useEffect(() => {
     fetchAdmins();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterRole, filterLastDays]);
 
   useEffect(() => {
     if (editMode) return; // 🚫 Don't run when editing
@@ -67,8 +72,15 @@ const SubAdmin = () => {
   const fetchAdmins = async () => {
     setLoading(true);
     try {
-      const res = await getAllTwillioUsers();
-      setAdmins(res);
+      const params = {
+        ...(filterRole ? { role: filterRole } : {}),
+        ...(filterLastDays ? { last_days: filterLastDays } : {}),
+      };
+      const res = await getAllTwillioUsers(params);
+      const list = Array.isArray(res)
+        ? res
+        : res?.data || res?.data?.data || res?.users || [];
+      setAdmins(Array.isArray(list) ? list : []);
     } catch (err) {
       toast.error('Failed to load admins');
     } finally {
@@ -198,13 +210,40 @@ const onSubmit = async (data) => {
     <div className="p-4 sm:p-6 md:p-7 w-full">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-gray-700">SubAdmin</h2>
-        <button
-          onClick={handleCreateOpen}
-          // className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-           className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-        >
-          Create Admin
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={filterRole}
+            onChange={(e) => {
+              setFilterRole(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="rounded border px-3 py-2 text-sm text-gray-700"
+          >
+            <option value="">Role: All</option>
+            <option value="admin">Role: admin</option>
+            <option value="channelpartner">Role: channelpartner</option>
+          </select>
+
+          <select
+            value={filterLastDays}
+            onChange={(e) => {
+              setFilterLastDays(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="rounded border px-3 py-2 text-sm text-gray-700"
+          >
+            <option value="">All days</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+
+          <button
+            onClick={handleCreateOpen}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            Create Admin
+          </button>
+        </div>
       </div>
 
       {loading ? (

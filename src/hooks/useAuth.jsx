@@ -155,6 +155,156 @@ export function getAdminCustomerCareHeadUsers() {
     });
 }
 
+// Channel Partner Documents (multipart CRUD)
+export function createChannelPartnerDocuments(payload) {
+  const formData = new FormData();
+  const put = (key, value) => {
+    if (value === undefined || value === null) return;
+    formData.append(key, value);
+  };
+  const pick = (...vals) => vals.find((v) => v !== undefined && v !== null);
+
+  // For create: backend should take user_id from auth; keep optional for compatibility
+  put("user_id", payload?.user_id);
+
+  put("aadhar_number", pick(payload?.aadhar_number, payload?.aadharNumber));
+  put("aadhar_image", pick(payload?.aadhar_image, payload?.aadharImage));
+
+  put("pan_number", pick(payload?.pan_number, payload?.panNumber));
+  put("pan_image", pick(payload?.pan_image, payload?.panImage));
+
+  put("gst_number", pick(payload?.gst_number, payload?.gstNumber));
+  // API expects gst_certificate_image
+  put(
+    "gst_certificate_image",
+    pick(payload?.gst_certificate_image, payload?.gst_image, payload?.gstCertificateImage)
+  );
+
+  // API expects bank_detail_image
+  put(
+    "bank_detail_image",
+    pick(payload?.bank_detail_image, payload?.bank_image, payload?.bankDetailImage)
+  );
+  put(
+    "bank_account_number",
+    pick(payload?.bank_account_number, payload?.bank_ac_no, payload?.bankAccountNumber)
+  );
+  put(
+    "bank_account_name",
+    pick(payload?.bank_account_name, payload?.bank_ac_name, payload?.bankAccountName)
+  );
+  put(
+    "bank_account_type",
+    pick(payload?.bank_account_type, payload?.account_type, payload?.bankAccountType)
+  );
+  put("bank_name", pick(payload?.bank_name, payload?.bankName));
+  put("bank_ifsc", pick(payload?.bank_ifsc, payload?.ifsc, payload?.bankIfsc));
+
+  return service
+    .post("channel-partner-documents", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      const msg =
+        error?.response?.data?.message || error?.message || "Failed to create documents";
+      throw new Error(msg);
+    });
+}
+
+export function getAllChannelPartnerDocuments() {
+  return service
+    .get("channel-partner-documents")
+    .then((res) => res.data)
+    .catch((error) => {
+      const msg =
+        error?.response?.data?.message || error?.message || "Failed to fetch documents";
+      throw new Error(msg);
+    });
+}
+
+export function getChannelPartnerDocumentsByUserId(userId) {
+  const uid = String(userId || "").trim();
+  if (!uid) return Promise.reject(new Error("user_id is required"));
+  return service
+    .get(`channel-partner-documents/${uid}`)
+    .then((res) => res.data)
+    .catch((error) => {
+      const payload = error?.response?.data;
+      if (payload && typeof payload === "object") return payload;
+      const msg =
+        error?.message || "Failed to fetch channel partner documents";
+      throw new Error(msg);
+    });
+}
+
+export function updateChannelPartnerDocumentsByUserId(userId, payload) {
+  const uid = String(userId || "").trim();
+  if (!uid) return Promise.reject(new Error("user_id is required"));
+
+  const formData = new FormData();
+  const put = (key, value) => {
+    if (value === undefined || value === null || value === "") return;
+    formData.append(key, value);
+  };
+  const pick = (...vals) => vals.find((v) => v !== undefined && v !== null);
+
+  put("aadhar_number", pick(payload?.aadhar_number, payload?.aadharNumber));
+  put("aadhar_image", pick(payload?.aadhar_image, payload?.aadharImage));
+
+  put("pan_number", pick(payload?.pan_number, payload?.panNumber));
+  put("pan_image", pick(payload?.pan_image, payload?.panImage));
+
+  put("gst_number", pick(payload?.gst_number, payload?.gstNumber));
+  put(
+    "gst_certificate_image",
+    pick(payload?.gst_certificate_image, payload?.gst_image, payload?.gstCertificateImage)
+  );
+
+  put(
+    "bank_detail_image",
+    pick(payload?.bank_detail_image, payload?.bank_image, payload?.bankDetailImage)
+  );
+  put(
+    "bank_account_number",
+    pick(payload?.bank_account_number, payload?.bank_ac_no, payload?.bankAccountNumber)
+  );
+  put(
+    "bank_account_name",
+    pick(payload?.bank_account_name, payload?.bank_ac_name, payload?.bankAccountName)
+  );
+  put(
+    "bank_account_type",
+    pick(payload?.bank_account_type, payload?.account_type, payload?.bankAccountType)
+  );
+  put("bank_name", pick(payload?.bank_name, payload?.bankName));
+  put("bank_ifsc", pick(payload?.bank_ifsc, payload?.ifsc, payload?.bankIfsc));
+
+  return service
+    .post(`channel-partner-documents/${uid}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      const msg =
+        error?.response?.data?.message || error?.message || "Failed to update documents";
+      throw new Error(msg);
+    });
+}
+
+export function deleteChannelPartnerDocumentsByUserId(userId) {
+  const uid = String(userId || "").trim();
+  if (!uid) return Promise.reject(new Error("user_id is required"));
+  return service
+    .delete(`channel-partner-documents/${uid}`)
+    .then((res) => res.data)
+    .catch((error) => {
+      const msg =
+        error?.response?.data?.message || error?.message || "Failed to delete documents";
+      throw new Error(msg);
+    });
+}
+
 export function sendWhatsappTextMessage(payload) {
   return service
     .post("twilio/send-message-text", payload)
@@ -245,9 +395,9 @@ export function createTwillioUser(payload) {
     });
 }
 
-export function getAllTwillioUsers() {
+export function getAllTwillioUsers(params) {
   return service
-    .get("twillio-create-readall")
+    .get("twillio-create-readall", params ? { params } : undefined)
     .then(res => res.data)
     .catch((error) => {
       let errorMessage = "Failed to fetch Twillio users";

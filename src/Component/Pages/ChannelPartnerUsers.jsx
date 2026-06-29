@@ -34,6 +34,7 @@ export default function ChannelPartnerUsers() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+
   const resolveRowOmniMinute = (row) => {
     if (!row) return null;
     const om = row?.omni_minute ?? row?.omniMinute;
@@ -298,6 +299,7 @@ export default function ChannelPartnerUsers() {
     loadProfileUserId();
   }, []);
 
+
   useEffect(() => {
     const resolvedMinutes = Number(activeRow?.minute ?? 0);
     setAvailableMinutes(Number.isFinite(resolvedMinutes) ? resolvedMinutes : 0);
@@ -354,13 +356,13 @@ export default function ChannelPartnerUsers() {
     setSaving(true);
     try {
       const parsedUserId = Number(donateUserId);
-      const userId = Number.isFinite(parsedUserId) ? parsedUserId : donateUserId;
+      const to_user_id = Number.isFinite(parsedUserId) ? parsedUserId : donateUserId;
+      const donorNum = Number(String(profileUserId).trim());
+      const user_id = Number.isFinite(donorNum) ? donorNum : String(profileUserId).trim();
       await donateChannelPartnerMinute({
-        channel_partner_id: donatingFrom?.id || profileUserId,
-        user_id: userId,
+        user_id,
+        to_user_id,
         minute: parsedMinute,
-        channel_partner_name: profileName || donatingFrom?.name || "",
-        role: currentRole,
       });
       await loadRows();
       await loadDonationsFromApi(donatingFrom?.id || profileUserId, profileUserId);
@@ -401,12 +403,13 @@ export default function ChannelPartnerUsers() {
           </div>
         </div>
 
-        <div className="mb-3 rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-800">
-          Available remaining minutes :{" "}
-          <span className="font-semibold">{availableMinutesToUse}</span>
-        </div>
+        <>
+            <div className="mb-3 rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-800">
+              Available remaining minutes :{" "}
+              <span className="font-semibold">{availableMinutesToUse}</span>
+            </div>
 
-        {!hasDonations ? (
+            {!hasDonations ? (
           <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
               <table className="min-w-[720px] w-full text-sm">
@@ -453,9 +456,9 @@ export default function ChannelPartnerUsers() {
               </table>
             </div>
           </div>
-        ) : null}
+            ) : null}
 
-        {!hasDonations && rows.length > pageSize ? (
+            {!hasDonations && rows.length > pageSize ? (
           <div className="mt-4 flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-center sm:text-left">
               Showing {(page - 1) * pageSize + 1}-
@@ -493,18 +496,18 @@ export default function ChannelPartnerUsers() {
               </button>
             </div>
           </div>
-        ) : null}
+            ) : null}
 
-        {!hasDonations && rows.length > 0 ? (
+            {!hasDonations && rows.length > 0 ? (
           <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-white p-5 text-center shadow-sm sm:p-6">
             <h3 className="text-lg font-semibold text-slate-900">No user donated yet</h3>
             <p className="mt-2 text-sm text-slate-600">
               Click the <span className="font-semibold">Users</span> button to search a user and donate minutes from this profile.
             </p>
           </div>
-        ) : null}
+            ) : null}
 
-        {hasDonations ? (
+            {hasDonations ? (
           <div className="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
               <h3 className="text-lg font-semibold text-slate-900">Donated Users</h3>
@@ -542,7 +545,8 @@ export default function ChannelPartnerUsers() {
               </table>
             </div>
           </div>
-        ) : null}
+            ) : null}
+        </>
       </div>
 
       {donatingFrom && (

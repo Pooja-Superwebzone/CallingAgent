@@ -17,6 +17,7 @@ import ConversationCall from './Component/Pages/ConversationCall';
 import ChannelPartner from "./Component/Pages/ChannelPartner";
 import ChannelPartnerUsers from "./Component/Pages/ChannelPartnerUsers";
 import ChannelPartnerConnect from "./Component/Pages/ChannelPartnerConnect";
+import ChannelPartnerProfile from "./Component/Pages/ChannelPartnerProfile";
 import AdminCustomerCareHeadUsers from "./Component/Pages/AdminCustomerCareHeadUsers";
 import AgentsPage from './Component/Pages/AgentsPage';
 import SendOmniCall from './Component/Pages/SendOmniCall';
@@ -47,6 +48,7 @@ import AgentsCategoryPage from "./Component/Pages/AgentsCategoryPage";
 import CreateAgentTopicPage from "./Component/Pages/CreateAgentTopicPage";
 import DynamicMinutePage from "./Component/Pages/DynamicMinutePage";
 import LanguageKeywordsPage from "./Component/Pages/LanguageKeywordsPage";
+import CallsDashboard from "./Component/Pages/CallsDashboard";
 
 function App() {
   const location = useLocation();
@@ -227,6 +229,7 @@ function App() {
             <Route path="/channel-partner" element={<ChannelPartner />} />
             <Route path="/channel-partner-users" element={<ChannelPartnerUsers />} />
             <Route path="/channel-partner-connect" element={<ChannelPartnerConnect />} />
+            <Route path="/channel-partner-profile" element={<ChannelPartnerProfile />} />
             <Route
               path="/admin/customer-care-head-users"
               element={
@@ -242,6 +245,7 @@ function App() {
               element={<ChannelPartnerMinuteTransactions />}
             />
             <Route path="/agents-category" element={<AgentsCategoryPage />} />
+            <Route path="/dashboard" element={<CallsDashboard />} />
           </Route>
         )}
         {/* Catch-all */}
