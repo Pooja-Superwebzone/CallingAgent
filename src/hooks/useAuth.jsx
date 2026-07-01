@@ -305,6 +305,79 @@ export function deleteChannelPartnerDocumentsByUserId(userId) {
     });
 }
 
+// Users Documents (admin profile completion)
+export function getUsersDocuments() {
+  return service
+    .get("users-documents")
+    .then((res) => res.data)
+    .catch((error) => {
+      const payload = error?.response?.data;
+      if (payload && typeof payload === "object") return payload;
+      const msg = error?.message || "Failed to fetch user documents";
+      throw new Error(msg);
+    });
+}
+
+export function getAllUsersDocuments() {
+  return service
+    .get("users-documents/all")
+    .then((res) => res.data)
+    .catch((error) => {
+      const payload = error?.response?.data;
+      if (payload && typeof payload === "object") return payload;
+      const msg = error?.message || "Failed to fetch user documents";
+      throw new Error(msg);
+    });
+}
+
+export function createUsersDocuments(payload) {
+  const formData = new FormData();
+  const put = (key, value) => {
+    if (value === undefined || value === null || value === "") return;
+    formData.append(key, value);
+  };
+
+  put("gst_number", payload?.gst_number);
+  put("aadhar_card", payload?.aadhar_card);
+  put("gst", payload?.gst);
+  put("photo", payload?.photo);
+
+  return service
+    .post("users-documents", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      const msg =
+        error?.response?.data?.message || error?.message || "Failed to create user documents";
+      throw new Error(msg);
+    });
+}
+
+export function updateUsersDocuments(payload) {
+  const formData = new FormData();
+  const put = (key, value) => {
+    if (value === undefined || value === null || value === "") return;
+    formData.append(key, value);
+  };
+
+  put("gst_number", payload?.gst_number);
+  put("aadhar_card", payload?.aadhar_card);
+  put("gst", payload?.gst);
+  put("photo", payload?.photo);
+
+  return service
+    .post("users-documents/update", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((res) => res.data)
+    .catch((error) => {
+      const msg =
+        error?.response?.data?.message || error?.message || "Failed to update user documents";
+      throw new Error(msg);
+    });
+}
+
 export function sendWhatsappTextMessage(payload) {
   return service
     .post("twilio/send-message-text", payload)

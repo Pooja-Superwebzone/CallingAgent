@@ -19,6 +19,7 @@ import ChannelPartnerUsers from "./Component/Pages/ChannelPartnerUsers";
 import ChannelPartnerConnect from "./Component/Pages/ChannelPartnerConnect";
 import ChannelPartnerProfile from "./Component/Pages/ChannelPartnerProfile";
 import AdminCustomerCareHeadUsers from "./Component/Pages/AdminCustomerCareHeadUsers";
+import AdminUsersDocuments from "./Component/Pages/AdminUsersDocuments";
 import AgentsPage from './Component/Pages/AgentsPage';
 import SendOmniCall from './Component/Pages/SendOmniCall';
 import CreateAgentSendPage from './Component/Pages/CreateAgentSendPage';
@@ -239,6 +240,16 @@ function App() {
               element={
                 Cookies.get("email") === "paragshah.devac@gmail.com" ? (
                   <AdminCustomerCareHeadUsers />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
+            <Route
+              path="/admin/users-documents"
+              element={
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <AdminUsersDocuments />
                 ) : (
                   <Navigate to="/agents_page" replace />
                 )

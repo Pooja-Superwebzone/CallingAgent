@@ -15,6 +15,11 @@ import Cookies from "js-cookie";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import {
+  createUsersDocuments,
+  getUsersDocuments,
+  updateUsersDocuments,
+} from "../../hooks/useAuth";
+import {
   FiClock,
   FiAlertCircle,
   FiCreditCard,
@@ -62,6 +67,19 @@ const Sidebar = () => {
   const [oneWayMinutes, setOneWayMinutes] = useState(0);
   const [twoWayMinutes, setTwoWayMinutes] = useState(0);
   const [loadingMinutes, setLoadingMinutes] = useState(false);
+
+  // Restricted admin: profile completion popup (users-documents)
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
+  const [userDocsLoading, setUserDocsLoading] = useState(false);
+  const [userDocsSaving, setUserDocsSaving] = useState(false);
+  const [userDocs, setUserDocs] = useState(null);
+  const [userDocsExists, setUserDocsExists] = useState(false);
+  const [userDocsForm, setUserDocsForm] = useState({
+    gst_number: "",
+    aadhar_card: null,
+    gst: null,
+    photo: null,
+  });
 
   const onClose = () => setShowContactForm(false);
 
@@ -113,6 +131,119 @@ const Sidebar = () => {
   const isRestrictedChannelPartner = role === "channelpartner" && !isParagChannelPartner;
 
   const isRestrictedUser = isRestrictedAdmin || isRestrictedChannelPartner;
+
+  const normalizeAssetUrl = (value) => {
+    if (!value) return "";
+    const s = String(value).trim();
+    if (!s) return "";
+    if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("blob:")) return s;
+    return s;
+  };
+
+  const parseUsersDocuments = (res) => {
+    const payload = res?.data?.data ?? res?.data ?? res ?? null;
+    const doc = Array.isArray(payload) ? payload[0] : payload;
+    return doc && typeof doc === "object" ? doc : null;
+  };
+
+  const isUsersDocumentsComplete = (doc) => {
+    if (!doc) return false;
+    const a = !!(doc?.aadhar_card || doc?.aadharCard);
+    const g = !!(doc?.gst);
+    const p = !!(doc?.photo);
+    return a && g && p;
+  };
+
+  const fetchUsersDocuments = async () => {
+    setUserDocsLoading(true);
+    try {
+      const res = await getUsersDocuments();
+      if (res && typeof res === "object" && res.status === false) {
+        setUserDocs(null);
+        setUserDocsExists(false);
+        setUserDocsForm((p) => ({ ...p, gst_number: "" }));
+        return null;
+      }
+      const doc = parseUsersDocuments(res);
+      setUserDocs(doc);
+      // Use CREATE until documents are fully completed.
+      // Only after completion we switch to UPDATE flow.
+      setUserDocsExists(isUsersDocumentsComplete(doc));
+      setUserDocsForm((p) => ({
+        ...p,
+        gst_number: String(doc?.gst_number ?? doc?.gstNumber ?? p.gst_number ?? "").trim(),
+        aadhar_card: null,
+        gst: null,
+        photo: null,
+      }));
+      return doc;
+    } catch (e) {
+      setUserDocs(null);
+      setUserDocsExists(false);
+      return null;
+    } finally {
+      setUserDocsLoading(false);
+    }
+  };
+
+  const openCompleteProfile = async () => {
+    await fetchUsersDocuments();
+    setShowCompleteProfileModal(true);
+  };
+
+  useEffect(() => {
+    if (!isRestrictedAdmin) return;
+    let cancelled = false;
+    const run = async () => {
+      const doc = await fetchUsersDocuments();
+      if (cancelled) return;
+      if (!isUsersDocumentsComplete(doc)) {
+        setShowCompleteProfileModal(true);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRestrictedAdmin]);
+
+  const saveUsersDocuments = async () => {
+    const gstNumber = String(userDocsForm.gst_number || "").trim();
+    const missingAadhar = !normalizeAssetUrl(userDocs?.aadhar_card) && !userDocsForm.aadhar_card;
+    const missingGst = !normalizeAssetUrl(userDocs?.gst) && !userDocsForm.gst;
+    const missingPhoto = !normalizeAssetUrl(userDocs?.photo) && !userDocsForm.photo;
+
+    if (missingAadhar) return toast.error("Please upload Aadhar card image");
+    if (missingGst) return toast.error("Please upload GST document");
+    if (!gstNumber) return toast.error("Please enter GST number");
+    if (missingPhoto) return toast.error("Please upload passport size photo");
+
+    setUserDocsSaving(true);
+    try {
+      const payload = {
+        gst_number: gstNumber,
+        aadhar_card: userDocsForm.aadhar_card,
+        gst: userDocsForm.gst,
+        photo: userDocsForm.photo,
+      };
+      if (userDocsExists) {
+        await updateUsersDocuments(payload);
+        toast.success("Profile updated");
+      } else {
+        await createUsersDocuments(payload);
+        toast.success("Profile completed");
+      }
+      const doc = await fetchUsersDocuments();
+      if (isUsersDocumentsComplete(doc)) {
+        setShowCompleteProfileModal(false);
+      }
+    } catch (e) {
+      toast.error(e?.message || "Failed to save profile");
+    } finally {
+      setUserDocsSaving(false);
+    }
+  };
 
   useEffect(() => {
     const fetchProfileMinutes = async () => {
@@ -356,6 +487,19 @@ const Sidebar = () => {
               <li>
                 <button
                   onClick={() => {
+                    openCompleteProfile();
+                    setMobileOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
+                >
+                  <User size={18} className="flex-shrink-0" />
+                  <span className="whitespace-nowrap">Profile</span>
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
                     navigate("/perplexity");
                     setMobileOpen(false);
                   }}
@@ -525,7 +669,7 @@ const Sidebar = () => {
             </button>
           </li>
 
-          <li>
+          {/* <li>
             <button
               onClick={() => {
                 navigate("/dashboard");
@@ -540,7 +684,7 @@ const Sidebar = () => {
               <LayoutDashboard size={18} />
               Dashboard
             </button>
-          </li>
+          </li> */}
 
           <li>
             <button
@@ -646,6 +790,25 @@ const Sidebar = () => {
               >
                 <FaUsers size={18} />
                 Channel Partner Users
+              </button>
+            </li>
+          )}
+
+          {role === "admin" && Cookies.get("email") === "paragshah.devac@gmail.com" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/admin/users-documents");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/admin/users-documents"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FaUsers size={18} />
+                Users Documents
               </button>
             </li>
           )}
@@ -1428,6 +1591,148 @@ const Sidebar = () => {
             </div>
           </div>
         )}
+
+        {showCompleteProfileModal && isRestrictedAdmin ? (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4">
+            <div className="relative w-full max-w-2xl rounded-3xl bg-white shadow-2xl overflow-hidden">
+              <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-5">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Complete your profile</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Upload required documents to continue.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCompleteProfileModal(false)}
+                  className="text-slate-500 hover:text-slate-700 text-2xl"
+                  disabled={userDocsSaving}
+                  title="Close"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="px-6 py-6 space-y-5">
+                {userDocsLoading ? (
+                  <div className="py-8 text-center text-slate-600">Loading…</div>
+                ) : null}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">
+                      GST Number
+                    </label>
+                    <input
+                      value={userDocsForm.gst_number}
+                      onChange={(e) =>
+                        setUserDocsForm((p) => ({ ...p, gst_number: e.target.value }))
+                      }
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter GST number"
+                      disabled={userDocsSaving}
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                    <div className="font-semibold text-slate-800">Current status</div>
+                    <div className="mt-1">
+                      {isUsersDocumentsComplete(userDocs) ? (
+                        <span className="text-emerald-700 font-semibold">Completed</span>
+                      ) : (
+                        <span className="text-amber-700 font-semibold">Pending</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <div className="text-sm font-semibold text-slate-900">Aadhar card</div>
+                    {normalizeAssetUrl(userDocs?.aadhar_card) ? (
+                      <img
+                        src={normalizeAssetUrl(userDocs?.aadhar_card)}
+                        alt="Aadhar"
+                        className="mt-3 w-full h-28 object-contain rounded-lg bg-slate-50"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="mt-3 text-xs text-slate-500">No file uploaded</div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="mt-3 w-full text-sm"
+                      onChange={(e) =>
+                        setUserDocsForm((p) => ({ ...p, aadhar_card: e.target.files?.[0] || null }))
+                      }
+                      disabled={userDocsSaving}
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <div className="text-sm font-semibold text-slate-900">GST document</div>
+                    {normalizeAssetUrl(userDocs?.gst) ? (
+                      <a
+                        href={normalizeAssetUrl(userDocs?.gst)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-block text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                      >
+                        Open uploaded GST
+                      </a>
+                    ) : (
+                      <div className="mt-3 text-xs text-slate-500">No file uploaded</div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,application/pdf"
+                      className="mt-3 w-full text-sm"
+                      onChange={(e) =>
+                        setUserDocsForm((p) => ({ ...p, gst: e.target.files?.[0] || null }))
+                      }
+                      disabled={userDocsSaving}
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <div className="text-sm font-semibold text-slate-900">Passport photo</div>
+                    {normalizeAssetUrl(userDocs?.photo) ? (
+                      <img
+                        src={normalizeAssetUrl(userDocs?.photo)}
+                        alt="Photo"
+                        className="mt-3 w-full h-28 object-contain rounded-lg bg-slate-50"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="mt-3 text-xs text-slate-500">No file uploaded</div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="mt-3 w-full text-sm"
+                      onChange={(e) =>
+                        setUserDocsForm((p) => ({ ...p, photo: e.target.files?.[0] || null }))
+                      }
+                      disabled={userDocsSaving}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-5">
+                <button
+                  type="button"
+                  onClick={saveUsersDocuments}
+                  disabled={userDocsSaving}
+                  className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {userDocsSaving ? "Saving..." : userDocsExists ? "Update" : "Submit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {showContactForm && (
           <ContactFormModal showContactForm={showContactForm} setShowContactForm={setShowContactForm} />

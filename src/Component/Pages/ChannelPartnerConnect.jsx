@@ -13,7 +13,7 @@ export default function ChannelPartnerConnect() {
         ok: null,
         message: "",
         contactNo: "",
-        user: null,
+        users: [],
         raw: null,
       };
     }
@@ -30,8 +30,7 @@ export default function ChannelPartnerConnect() {
           ? r.data.results
           : [];
 
-    const user = dataArray?.[0] || null;
-    return { ok, message, contactNo, user, raw: r };
+    return { ok, message, contactNo, users: dataArray, raw: r };
   }, [result]);
 
   const fetchData = async () => {
@@ -77,18 +76,20 @@ export default function ChannelPartnerConnect() {
                       Loading...
                     </td>
                   </tr>
-                ) : parsed?.ok === true && parsed?.user ? (
-                  <tr className="border-t border-slate-100 text-slate-800">
-                    <td className="px-4 py-3">{parsed?.user?.name || "-"}</td>
-                    <td className="px-4 py-3">{parsed?.user?.email || "-"}</td>
-                    <td className="px-4 py-3">
-                      {parsed?.user?.contact_no ||
-                        parsed?.user?.contactNo ||
-                        parsed?.contactNo ||
-                        parsed?.user?.customer_care_head_no ||
-                        "-"}
-                    </td>
-                  </tr>
+                ) : parsed?.ok === true && Array.isArray(parsed?.users) && parsed.users.length > 0 ? (
+                  parsed.users.map((u) => (
+                    <tr key={u?.id ?? `${u?.email ?? ""}-${u?.contact_no ?? ""}`} className="border-t border-slate-100 text-slate-800">
+                      <td className="px-4 py-3">{u?.name || "-"}</td>
+                      <td className="px-4 py-3">{u?.email || "-"}</td>
+                      <td className="px-4 py-3">
+                        {u?.contact_no ||
+                          u?.contactNo ||
+                          parsed?.contactNo ||
+                          u?.customer_care_head_no ||
+                          "-"}
+                      </td>
+                    </tr>
+                  ))
                 ) : (
                   <tr className="border-t border-slate-100">
                     <td colSpan={3} className="px-4 py-6">
