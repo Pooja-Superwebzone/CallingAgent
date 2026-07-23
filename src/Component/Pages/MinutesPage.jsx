@@ -11,6 +11,37 @@ const CHANNEL_PARTNER_PLAN_LABEL = "Channel Partner";
 
 const DEFAULT_NORMAL_MINUTE_RATE = 15;
 const DEFAULT_CHANNEL_PARTNER_MINUTE_RATE = 13.5;
+const DEFAULT_CHANNEL_PARTNER_TIER3_RATE = 11.44;
+
+const pickPurchaseRate = ({ isChannelPartnerPlan, isAdminPlan, minutes, channelPartnerDynamicRate, normalRate }) => {
+  const m = Number(minutes);
+  const safeM = Number.isFinite(m) ? m : 0;
+
+  if (isChannelPartnerPlan) {
+    // Channelpartner slabs:
+    // 1000 -> 13.50
+    // 2000 -> 12.50
+    // >=3000 -> dynamic (fallback 11.44 if null)
+    if (safeM >= 3000) {
+      const dyn = Number(channelPartnerDynamicRate);
+      return Number.isFinite(dyn) && dyn > 0 ? dyn : DEFAULT_CHANNEL_PARTNER_TIER3_RATE;
+    }
+    if (safeM >= 2000) return 12.5;
+    return 13.5;
+  }
+
+  if (isAdminPlan) {
+    // Admin slabs:
+    // 500 -> 14
+    // 1000 -> 13.50
+    // >=2000 -> 12.50
+    if (safeM >= 2000) return 13;
+    if (safeM >= 1000) return 13.5;
+    return 14;
+  }
+
+  return Number(normalRate);
+};
 
 const normalizeUserId = (v) =>
   v === undefined || v === null ? "" : String(v).trim();
@@ -87,6 +118,7 @@ export default function MinutesPage() {
   const userEmail = Cookies.get("email") || "";
   const cookieRoleLower = String(Cookies.get("role") || "").trim().toLowerCase();
   const profileRoleLower = String(profileDetails.role || "").trim().toLowerCase();
+  const isAdminPlan = cookieRoleLower === "admin" || profileRoleLower === "admin";
   const isChannelPartnerPlan =
     cookieRoleLower === "channelpartner" ||
     cookieRoleLower === "channel_partner" ||
@@ -96,11 +128,24 @@ export default function MinutesPage() {
     ? CHANNEL_PARTNER_PLAN_LABEL
     : userPlanTitle || "Become Channel Partner";
 
-  const MINUTES_PER_PACKAGE = isChannelPartnerPlan ? 1000 : 100;
-  const RATE_UP_TO_THRESHOLD = isChannelPartnerPlan
-    ? dynamicChannelPartnerMinuteRate
-    : dynamicNormalMinuteRate;
-  const purchasePlaceholder = isChannelPartnerPlan ? "1000, 2000, 3000..." : "100, 200, 300...";
+  const parsedPurchaseMinutes = Number(purchaseMinutesInput);
+  const purchaseMinutes = Number.isFinite(parsedPurchaseMinutes)
+    ? Math.floor(parsedPurchaseMinutes)
+    : 0;
+
+  const MINUTES_PER_PACKAGE = isChannelPartnerPlan ? 1000 : isAdminPlan ? 500 : 100;
+  const RATE_UP_TO_THRESHOLD = pickPurchaseRate({
+    isChannelPartnerPlan,
+    isAdminPlan,
+    minutes: purchaseMinutes,
+    channelPartnerDynamicRate: dynamicChannelPartnerMinuteRate,
+    normalRate: dynamicNormalMinuteRate,
+  });
+  const purchasePlaceholder = isChannelPartnerPlan
+    ? "1000, 2000, 3000..."
+    : isAdminPlan
+      ? "500, 1000, 2000..."
+      : "100, 200, 300...";
   const CGST_RATE = 0.09;
   const SGST_RATE = 0.09;
   const roundToTwo = (amount) => Number(amount.toFixed(2));
@@ -130,11 +175,6 @@ export default function MinutesPage() {
   }, []);
 
   const formatRate = (amount) => amount.toFixed(2);
-
-  const parsedPurchaseMinutes = Number(purchaseMinutesInput);
-  const purchaseMinutes = Number.isFinite(parsedPurchaseMinutes)
-    ? Math.floor(parsedPurchaseMinutes)
-    : 0;
 
   const purchaseValidation =
     purchaseMinutesInput.trim() === ""
@@ -403,11 +443,11 @@ export default function MinutesPage() {
         setDynamicChannelPartnerMinuteRate(
           Number.isFinite(dmPrice) && dmPrice > 0
             ? dmPrice
-            : DEFAULT_CHANNEL_PARTNER_MINUTE_RATE
+            : 0
         );
         setDynamicNormalMinuteRate(DEFAULT_NORMAL_MINUTE_RATE);
       } else {
-        setDynamicChannelPartnerMinuteRate(DEFAULT_CHANNEL_PARTNER_MINUTE_RATE);
+        setDynamicChannelPartnerMinuteRate(0);
         let normalRate = DEFAULT_NORMAL_MINUTE_RATE;
         const normalizedUserId = normalizeUserId(resolvedUserId);
         const cacheKey = normalizedUserId || "__null_user__";
@@ -534,7 +574,9 @@ export default function MinutesPage() {
             <label className="block text-sm font-semibold text-slate-700 mb-1">
               {`Mintues to Add ${formatRate(
                 RATE_UP_TO_THRESHOLD
-              )} * add mintues in inpute ( below input type eg.${isChannelPartnerPlan ? "1000,2000,3000" : "100,200,300"} ...)`}
+              )} * add mintues in inpute ( below input type eg.${
+                isChannelPartnerPlan ? "1000,2000,3000" : isAdminPlan ? "500,1000,2000" : "100,200,300"
+              } ...)`}
             </label>
             <div className="grid w-full max-w-[28rem] grid-cols-[auto_auto_minmax(0,1fr)] gap-2 sm:grid-cols-[auto_auto_minmax(9rem,1fr)_auto_auto] sm:items-center">
               <span className="self-center text-base font-semibold text-slate-900">
@@ -561,7 +603,9 @@ export default function MinutesPage() {
             <div className="mt-2 text-xs text-slate-500">
               {isChannelPartnerPlan
                 ? "Talk time can be purchased in multiples of 1000 only."
-                : "Talk time can be purchased in multiples of 100 only."}
+                : isAdminPlan
+                  ? "Talk time can be purchased in multiples of 500 only."
+                  : "Talk time can be purchased in multiples of 100 only."}
             </div>
           </div>
           <div className="mt-5 max-w-2xl">

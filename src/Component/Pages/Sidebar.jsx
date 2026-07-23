@@ -379,7 +379,7 @@ const Sidebar = () => {
                   }`}
                 >
                   <TbCloudDataConnection size={18} />
-                  <span className="whitespace-nowrap">Channel partner connect</span>
+                  <span className="whitespace-nowrap">Client List</span>
                 </button>
               </li>
 
@@ -846,7 +846,7 @@ const Sidebar = () => {
                 }`}
               >
                 <TbCloudDataConnection size={18} />
-                Channel Partner Connect
+                Client List
               </button>
             </li>
           )}

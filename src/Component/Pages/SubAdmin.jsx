@@ -19,9 +19,7 @@ const SubAdmin = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // Initial page filter popup (API: twillio-create-readall?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&role=admin|channelpartner)
-  const [showFilterPopup, setShowFilterPopup] = useState(true);
-  const [filtersApplied, setFiltersApplied] = useState(false);
+  // Filters in header (API: twillio-create-readall?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&role=admin|channelpartner)
   const [filterRole, setFilterRole] = useState(""); // "admin" | "channelpartner"
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
@@ -60,10 +58,11 @@ const SubAdmin = () => {
   };
 
   useEffect(() => {
-    if (!filtersApplied) return;
+    // Load all data initially and refetch whenever filters change.
+    if (filterStartDate && filterEndDate && filterStartDate > filterEndDate) return;
     fetchAdmins();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersApplied, filterRole, filterStartDate, filterEndDate]);
+  }, [filterRole, filterStartDate, filterEndDate]);
 
   useEffect(() => {
     if (editMode) return; // 🚫 Don't run when editing
@@ -105,18 +104,13 @@ const SubAdmin = () => {
   const totalPages = Math.ceil(admins.length / adminsPerPage);
 
   const applyFilters = () => {
-    const role = String(filterRole || "").trim();
     const start = String(filterStartDate || "").trim();
     const end = String(filterEndDate || "").trim();
 
-    if (!role) return toast.error("Please select role");
-    if (!start) return toast.error("Please select start date");
-    if (!end) return toast.error("Please select end date");
-    if (start > end) return toast.error("Start date must be before end date");
+    if (start && end && start > end) return toast.error("Start date must be before end date");
 
     setCurrentPage(1);
-    setShowFilterPopup(false);
-    setFiltersApplied(true);
+    fetchAdmins();
   };
 
 const onSubmit = async (data) => {
@@ -240,98 +234,74 @@ const onSubmit = async (data) => {
 
   return (
     <div className="p-4 sm:p-6 md:p-7 w-full">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-bold text-gray-700">SubAdmin</h2>
-        <div className="flex items-center gap-2 flex-wrap">
-          {filtersApplied ? (
-            <div className="text-sm text-gray-600">
-              <span className="font-semibold">Role:</span> {filterRole}{" "}
-              <span className="mx-2 text-gray-300">|</span>
-              <span className="font-semibold">Date:</span> {filterStartDate} to {filterEndDate}
-            </div>
-          ) : null}
 
-          <button
-            type="button"
-            onClick={() => setShowFilterPopup(true)}
-            className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800"
-          >
-            Change Filter
-          </button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 mb-1">Role</label>
+              <select
+                value={filterRole}
+                onChange={(e) => {
+                  setFilterRole(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-gray-700 bg-white"
+              >
+                <option value="">All roles</option>
+                <option value="admin">admin</option>
+                <option value="channelpartner">channelpartner</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 mb-1">Start date</label>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => {
+                  setFilterStartDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-gray-700 bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 mb-1">End date</label>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => {
+                  setFilterEndDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-gray-700 bg-white"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={applyFilters}
+              className="h-[38px] px-4 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+            >
+              Apply
+            </button>
+          </div>
 
           <button
             onClick={handleCreateOpen}
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            className="h-[38px] px-4 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm font-semibold"
           >
             Create Admin
           </button>
         </div>
       </div>
 
-      {showFilterPopup ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
-            <div className="border-b px-5 py-4">
-              <div className="text-lg font-semibold text-gray-800">Select Filters</div>
-              <div className="mt-1 text-sm text-gray-600">
-                Choose role and date range to load users.
-              </div>
-            </div>
-            <div className="px-5 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  value={filterRole}
-                  onChange={(e) => setFilterRole(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="">Select role</option>
-                  <option value="admin">admin</option>
-                  <option value="channelpartner">channelpartner</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start date</label>
-                  <input
-                    type="date"
-                    value={filterStartDate}
-                    onChange={(e) => setFilterStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End date</label>
-                  <input
-                    type="date"
-                    value={filterEndDate}
-                    onChange={(e) => setFilterEndDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t px-5 py-4">
-              <button
-                type="button"
-                onClick={applyFilters}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {loading ? (
         <div className="flex flex-col justify-center items-center h-[50vh] gap-4 bg-white rounded-xl shadow">
           <div className="animate-spin h-10 w-10 rounded-full border-4 border-blue-500 border-t-transparent" />
-        </div>
-      ) : !filtersApplied ? (
-        <div className="flex flex-col justify-center items-center h-[50vh] gap-2 bg-white rounded-xl shadow">
-          <div className="text-sm text-gray-700 font-semibold">Select filters to continue</div>
-          <div className="text-xs text-gray-500">Role + Start date + End date</div>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl shadow">

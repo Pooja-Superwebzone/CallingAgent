@@ -54,7 +54,7 @@ export default function ChannelPartnerConnect() {
   return (
     <div className="p-4 sm:p-6">
       <div className="w-full mx-auto">
-        <h2 className="text-2xl font-bold text-gray-800">Channel Partner Connect</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Client List</h2>
         <p className="mt-1 text-sm text-gray-600">
           Fetching customer care head details.
         </p>

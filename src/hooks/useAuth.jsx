@@ -829,6 +829,19 @@ export function createAgent(payload) {
     });
 }
 
+export function updateAgent(payload) {
+  const id = payload?.id;
+  if (!id) return Promise.reject(new Error("Agent id is required"));
+  return service
+    .post("agents-update", payload)
+    .then((res) => res.data)
+    .catch((error) => {
+      let msg = "Failed to update agent.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
 export function startAgentTopic(payload) {
   return service
     .post("start", payload)
