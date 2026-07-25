@@ -478,10 +478,10 @@ const CallsDashboard = () => {
 
       {/* Totals row */}
       {totals && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3">
           {[
             { label: "Total Duration", value: `${totals.total_duration_minutes} min` },
-            { label: "Total Call Cost", value: `₹${totals.total_call_cost}` },
+            // { label: "Total Call Cost", value: `₹${totals.total_call_cost}` },
             { label: "Signup Calls", value: totals.signup_calls },
             { label: "Regular Calls", value: totals.regular_calls?.toLocaleString() },
             // {
@@ -581,7 +581,7 @@ const CallsDashboard = () => {
                   <th className="px-4 py-3">Phone</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Duration</th>
-                  <th className="px-4 py-3">Cost</th>
+                  {/* <th className="px-4 py-3">Cost</th> */}
                   <th className="px-4 py-3">Direction</th>
                   <th className="px-4 py-3">Lead Type</th>
                   <th className="px-4 py-3">Sentiment</th>
@@ -599,7 +599,7 @@ const CallsDashboard = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{call.duration_minutes} min</td>
-                    <td className="px-4 py-3 text-gray-600">₹{call.call_cost ?? "0.00"}</td>
+                    {/* <td className="px-4 py-3 text-gray-600">₹{call.call_cost ?? "0.00"}</td> */}
                     <td className="px-4 py-3 text-gray-600 capitalize">{call.direction}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${leadBadge(call.lead_type)}`}>

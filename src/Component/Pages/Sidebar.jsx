@@ -311,6 +311,23 @@ const Sidebar = () => {
 
         {/* ---------- MENU ---------- */}
         <ul className="mt-6 space-y-2 px-4">
+          <li>
+            <button
+              onClick={() => {
+                navigate("/dashboard");
+                setMobileOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                location.pathname === "/dashboard"
+                  ? "bg-gray-700 text-gray-300"
+                  : "hover:bg-gray-700 text-gray-300"
+              }`}
+            >
+              <LayoutDashboard size={18} />
+              Dashboard
+            </button>
+          </li>
+
           {role === "channelpartner" ? (
             <>
               {twilioUser === 1 && (
@@ -655,40 +672,6 @@ const Sidebar = () => {
           <li>
             <button
               onClick={() => {
-                navigate("/dashboard");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/dashboard"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <LayoutDashboard size={18} />
-              Dashboard
-            </button>
-          </li>
-
-          {/* <li>
-            <button
-              onClick={() => {
-                navigate("/dashboard");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/dashboard"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <LayoutDashboard size={18} />
-              Dashboard
-            </button>
-          </li> */}
-
-          <li>
-            <button
-              onClick={() => {
                 navigate("/agents-category");
                 setMobileOpen(false);
               }}
@@ -789,7 +772,7 @@ const Sidebar = () => {
                 }`}
               >
                 <FaUsers size={18} />
-                Channel Partner Users
+                ASA Users
               </button>
             </li>
           )}
@@ -1181,7 +1164,7 @@ const Sidebar = () => {
                 }`}
               >
                 <FaUsers size={18} />
-                channel partner
+                ASA
               </button>
             </li>
           )}
@@ -1585,7 +1568,7 @@ const Sidebar = () => {
                   className="bg-green-600 hover:bg-green-700 text-white text-lg px-6 py-3 rounded-lg font-semibold flex items-center gap-3 justify-center"
                 >
                   <FiPhoneCall size={30} />
-                  Contact Channel Partner
+                  Contact ASA
                 </button>
               </div>
             </div>
