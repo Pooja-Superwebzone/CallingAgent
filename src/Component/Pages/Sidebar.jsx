@@ -328,6 +328,35 @@ const Sidebar = () => {
             </button>
           </li>
 
+          {(role === "admin" || role === "channelpartner") && (
+            <>
+              <li>
+                <button
+                  onClick={() => {
+                    toast.success("Coming soon !!");
+                    setMobileOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
+                >
+                  <FiSmile size={18} />
+                  Tithi
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => {
+                    toast.success("Coming soon !!");
+                    setMobileOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
+                >
+                  <FiSmile size={18} />
+                  AI Sahaya
+                </button>
+              </li>
+            </>
+          )}
+
           {role === "channelpartner" ? (
             <>
               {twilioUser === 1 && (
