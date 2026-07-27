@@ -112,7 +112,7 @@ export default function ChannelPartner() {
         })
       );
     } catch (e) {
-      toast.error(e.message || "Failed to fetch channel partners");
+      toast.error(e.message || "Failed to fetch ASAs");
       setRows([]);
     } finally {
       setLoading(false);
@@ -178,11 +178,11 @@ export default function ChannelPartner() {
     setSaving(true);
     try {
       await updateChannelPartner(editing.id, payload);
-      toast.success("Channel partner updated");
+      toast.success("ASA updated");
       closeEdit();
       await loadRows();
     } catch (e) {
-      toast.error(e.message || "Failed to update channel partner");
+      toast.error(e.message || "Failed to update ASA");
     } finally {
       setSaving(false);
     }
@@ -227,7 +227,7 @@ export default function ChannelPartner() {
     if (!Number.isFinite(n) || n <= 0) return toast.error("Enter valid donate minutes");
 
     if (n > available) {
-      return toast.error("Donate minutes cannot be greater than channel partner minutes");
+      return toast.error("Donate minutes cannot be greater than ASA minutes");
     }
 
     setSaving(true);
@@ -309,7 +309,7 @@ export default function ChannelPartner() {
     <div className="p-4 sm:p-6">
       {/* Header */}
       <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold text-gray-700">Channel Partners</h2>
+        <h2 className="text-2xl font-bold text-gray-700">ASAs</h2>
         <div className="w-full sm:w-[360px]">
           <input
             value={searchTerm}
@@ -542,7 +542,7 @@ export default function ChannelPartner() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
             <div className="flex items-center justify-between px-5 py-4 border-b">
-              <div className="text-lg font-semibold text-gray-800">Update Channel Partner</div>
+              <div className="text-lg font-semibold text-gray-800">Update ASA</div>
               <button
                 type="button"
                 onClick={closeEdit}
@@ -655,7 +655,7 @@ export default function ChannelPartner() {
 
             <div className="px-5 py-4 space-y-4">
               <div className="text-sm text-gray-700">
-                Available minutes (channel partner):{" "}
+                Available minutes (ASA):{" "}
                 <span className="font-semibold">
                   {Number(donatingFrom?.omni_minute?.minute ?? donatingFrom?.minute ?? 0) || 0}
                 </span>
@@ -714,7 +714,7 @@ export default function ChannelPartner() {
               </div>
 
               <div className="text-xs text-gray-500">
-                Note: Donate minutes cannot be greater than channel partner minutes.
+                Note: Donate minutes cannot be greater than ASA minutes.
               </div>
             </div>
 

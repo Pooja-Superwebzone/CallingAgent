@@ -105,7 +105,7 @@ const plans = [
   },  
   {
     id: "become_channel_partner",
-    title: "Become Channel Partner",
+    title: "Become ASA",
     subtitle: "",
     price: "₹ 9,999 + GST",
     link: "richa-mini-pack"

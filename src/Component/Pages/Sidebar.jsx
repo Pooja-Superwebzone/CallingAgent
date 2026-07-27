@@ -829,7 +829,7 @@ const Sidebar = () => {
                 }`}
               >
                 <TbCloudDataConnection size={18} />
-                Client List
+                ASA Connect
               </button>
             </li>
           )}
@@ -1169,7 +1169,7 @@ const Sidebar = () => {
             </li>
           )}
 
-          {/* Channel partner minute transactions (admin & twilioUser===0) */}
+          {/* ASA minute transactions (admin & twilioUser===0) */}
           {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
             <li>
               <button
@@ -1568,6 +1568,7 @@ const Sidebar = () => {
                   className="bg-green-600 hover:bg-green-700 text-white text-lg px-6 py-3 rounded-lg font-semibold flex items-center gap-3 justify-center"
                 >
                   <FiPhoneCall size={30} />
+                  Contact ASA
                   Contact ASA
                 </button>
               </div>

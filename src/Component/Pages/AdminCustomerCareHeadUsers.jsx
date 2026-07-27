@@ -54,7 +54,7 @@ export default function AdminCustomerCareHeadUsers() {
   return (
     <div className="p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
-        <h2 className="text-2xl font-bold text-gray-800">Channel Partner Users</h2>
+        <h2 className="text-2xl font-bold text-gray-800">ASA Users</h2>
 
         <div className="mt-5 rounded-2xl bg-white shadow p-4 sm:p-6 overflow-x-auto">
           <table className="min-w-[760px] w-full text-sm">
@@ -63,7 +63,7 @@ export default function AdminCustomerCareHeadUsers() {
                 <th className="px-4 py-3 font-semibold">Name</th>
                 <th className="px-4 py-3 font-semibold">Email</th>
                 <th className="px-4 py-3 font-semibold">Contact No</th>
-                <th className="px-4 py-3 font-semibold">Channel Partner</th>
+                <th className="px-4 py-3 font-semibold">ASA</th>
               </tr>
             </thead>
             <tbody>

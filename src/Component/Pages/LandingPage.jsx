@@ -5,7 +5,30 @@ import richaHero from "/Richa.png";
 import franchiseAgreementDocUrl from "../../assets/franchisee-agreement.docx?url";
 import { signupTwillioUser, login, resendTwillioOtp } from "../../hooks/useAuth";
 import service from "../../api/axios";
+import {
+  completePlanSubscriptionAfterPayment,
+  createPaymentOrder,
+  extractPaymentSessionId,
+  PENDING_PLAN_PURCHASE_KEY,
+} from "../../api/payment";
 import toast from "react-hot-toast";
+
+const PLAN_GST_RATE = 0.18;
+
+const extractPlanBaseAmount = (price = "") => {
+  if (!price || /free/i.test(String(price))) return 0;
+  // Keep digits only so Indian format like 1,99,000 → 199000
+  const digits = String(price).replace(/[^0-9]/g, "");
+  const amount = Number(digits);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+};
+
+const resolvePlanPayableAmount = (plan) => {
+  const base = extractPlanBaseAmount(plan?.price);
+  if (!base) return 0;
+  // Match working Cashfree orders: whole-rupee amount (base + 18% GST)
+  return Math.round(base + base * PLAN_GST_RATE);
+};
 
 export const plans = [
   {
@@ -82,7 +105,7 @@ export const plans = [
   },
   {
     id: "become_training_channel_partner",
-    title: "Become Training Channel Partner",
+    title: "Become Training ASA",
     subtitle: "",
     price: "₹ 9,999 + GST",
     // original: "Rs. 98,000/-",
@@ -90,7 +113,7 @@ export const plans = [
   },
   {
     id: "richa_executive_pack",
-    title: "Sales executive subscription Training Channel Partner",
+    title: "Sales executive subscription Training ASA",
     subtitle: "You need any one plans pack then after you can purchase subscription pack",
     price: "₹ 9,999/Month + GST",
     // original: "Rs. 98,000/-",
@@ -98,7 +121,7 @@ export const plans = [
   },
   {
     id: "richa_executive_pack_advance",
-    title: "Sales executive subscription Training Channel Partner",
+    title: "Sales executive subscription Training ASA",
     subtitle: "You need any one plans pack then after you can purchase subscription pack (additional benefit local indian number support)",
     price: "₹ 12,999/Month + GST",
     // original: "Rs. 98,000/-",
@@ -210,9 +233,9 @@ export const getCashbackPercentage = (plan) => {
       return null; // No cashback
     case "demo_call": // Demo call
       return null; // No cashback
-    case "become_channel_partner": // Become channel partner
+    case "become_channel_partner": // Become ASA
       return null; // No cashback
-    case "become_training_channel_partner": // Become training channel partner
+    case "become_training_channel_partner": // Become training ASA
       return null; // No cashback
     default:
       // For other plans, check if they include Sales Executive (100% cashback)
@@ -510,13 +533,104 @@ export default function LandingPage() {
       return;
     }
 
-    const url = new URL(`https://ibcrm.in/${selectedPlan.link}`);
-    url.searchParams.set("email", email);
-    if (tokenToUse) url.searchParams.set("token", tokenToUse);
-    closeSignupModal();
-    setTimeout(() => {
-      window.location.href = url.toString();
-    }, 50);
+    const payableAmount = resolvePlanPayableAmount(selectedPlan);
+    if (!payableAmount) {
+      toast.error("Unable to resolve plan amount for payment.");
+      return;
+    }
+
+    if (!resolvedContactNo) {
+      toast.error("Phone number is required to continue with payment.");
+      return;
+    }
+
+    if (!window.cashfree) {
+      toast.error(
+        "Payment gateway is not ready yet. Please refresh and try again."
+      );
+      return;
+    }
+
+    const subscriptionPlanId = resolveSubscriptionPlanIdFromRole(
+      roleCookie,
+      getResolvedStoredPlanId(roleCookie)
+    );
+
+    try {
+      sessionStorage.setItem(
+        PENDING_PLAN_PURCHASE_KEY,
+        JSON.stringify({
+          email: normalizedEmail || email,
+          planId: subscriptionPlanId,
+          planTitle: selectedPlan.title,
+          link: selectedPlan.link,
+        })
+      );
+
+      const response = await createPaymentOrder({
+        name: resolvedName || "Richa Customer",
+        email: normalizedEmail || email,
+        phoneNumber: String(resolvedContactNo),
+        totalPayment: payableAmount,
+        orderDesc: `${selectedPlan.title} - ${selectedPlan.link}`,
+      });
+
+      const paymentSessionId =
+        extractPaymentSessionId(response) || response?.payment_id || "";
+      if (!paymentSessionId) {
+        throw new Error(
+          "Payment session id was not returned from create order API."
+        );
+      }
+
+      closeSignupModal();
+
+      const result = await window.cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: "_self",
+      });
+
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed.");
+      }
+
+      const isPaymentSuccessful =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!isPaymentSuccessful) {
+        if (result?.redirect) {
+          return;
+        }
+        throw new Error("Payment was not completed.");
+      }
+
+      try {
+        await completePlanSubscriptionAfterPayment({
+          email: normalizedEmail || email,
+          planId: subscriptionPlanId,
+        });
+      } catch (subErr) {
+        console.warn("Post-payment subscription update failed:", subErr);
+      }
+
+      sessionStorage.removeItem(PENDING_PLAN_PURCHASE_KEY);
+      toast.success("Payment successful!");
+      navigate("/agents_page", { replace: true });
+    } catch (paymentError) {
+      sessionStorage.removeItem(PENDING_PLAN_PURCHASE_KEY);
+      const rawMessage =
+        paymentError?.response?.data?.message ||
+        paymentError?.message ||
+        "Unable to start payment. Please try again.";
+      const message =
+        String(rawMessage).includes("Cashfree env vars are missing") ||
+        String(rawMessage).includes("VITE_CASHFREE")
+          ? "Payment is not configured. Set VITE_CASHFREE_APP_ID and VITE_CASHFREE_SECRET_KEY in .env and restart the dev server."
+          : rawMessage;
+      toast.error(message);
+    }
   };
 
   const submitPlanCheckoutLogin = async () => {

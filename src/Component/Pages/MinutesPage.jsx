@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import service from "../../api/axios";
-import { creditMinutesAfterPayment, createPaymentOrder, getShareValue, PENDING_MINUTE_PURCHASE_KEY, postShareValue } from "../../api/payment";
+import { creditMinutesAfterPayment, createPaymentOrder, extractPaymentSessionId, getShareValue, PENDING_MINUTE_PURCHASE_KEY, postShareValue } from "../../api/payment";
 
 
 const DEFAULT_PLAN_ID = "8";
 
-const CHANNEL_PARTNER_PLAN_LABEL = "Channel Partner";
+const CHANNEL_PARTNER_PLAN_LABEL = "ASA";
 
 const DEFAULT_NORMAL_MINUTE_RATE = 15;
 const DEFAULT_CHANNEL_PARTNER_MINUTE_RATE = 13.5;
@@ -110,9 +110,6 @@ export default function MinutesPage() {
   const [dynamicNormalMinuteRate, setDynamicNormalMinuteRate] = useState(
     DEFAULT_NORMAL_MINUTE_RATE
   );
-  const [dynamicChannelPartnerMinuteRate, setDynamicChannelPartnerMinuteRate] = useState(
-    DEFAULT_CHANNEL_PARTNER_MINUTE_RATE
-  );
   const [shareValue, setShareValue] = useState(null);
   const [shareLoading, setShareLoading] = useState(true);
   const userEmail = Cookies.get("email") || "";
@@ -165,6 +162,14 @@ export default function MinutesPage() {
   useEffect(() => {
     syncPlanDetails(userEmail);
   }, [syncPlanDetails, userEmail]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Cashfree) {
+      window.cashfree = window.Cashfree({
+        mode: "production",
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.Cashfree) {
@@ -249,6 +254,15 @@ export default function MinutesPage() {
       return;
     }
 
+
+    if (!window.cashfree) {
+      const message =
+        "Payment gateway is not ready yet. Please refresh the page and try again.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setPaymentLoading(true);
     setError("");
 
@@ -274,9 +288,32 @@ export default function MinutesPage() {
         phoneNumber: customerPhone,
         totalPayment: quote.totalWithTax,
         orderDesc,
+    const orderDesc = isChannelPartnerPlan
+      ? `Channel Partner Minutes Purchase - ${purchaseMinutes} minutes`
+      : `Richa Minutes Purchase - ${purchaseMinutes} minutes`;
+
+    try {
+      sessionStorage.setItem(
+        PENDING_MINUTE_PURCHASE_KEY,
+        JSON.stringify({
+          minutes: purchaseMinutes,
+          userId: profileDetails.userId,
+          email: customerEmail,
+          planId: DEFAULT_PLAN_ID,
+          shareAmount: quote.total,
+        })
+      );
+
+      const response = await createPaymentOrder({
+        name: customerName,
+        email: customerEmail,
+        phoneNumber: customerPhone,
+        totalPayment: quote.totalWithTax,
+        orderDesc,
       });
 
-      const paymentSessionId = response?.payment_id || "";
+      const paymentSessionId =
+        extractPaymentSessionId(response) || response?.payment_id || "";
       if (!paymentSessionId) {
         throw new Error("Payment session id was not returned from create order API.");
       }
@@ -503,6 +540,30 @@ export default function MinutesPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchShareValue = async () => {
+      setShareLoading(true);
+      try {
+        const value = await getShareValue(Cookies.get("CallingAgent"));
+        if (!cancelled) {
+          setShareValue(value);
+        }
+      } catch {
+        if (!cancelled) setShareValue(null);
+      } finally {
+        if (!cancelled) setShareLoading(false);
+      }
+    };
+
+    fetchShareValue();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="p-4 sm:p-6 md:p-5 lg:p-6">
       <div className="mx-auto max-w-5xl">
@@ -556,6 +617,12 @@ export default function MinutesPage() {
             <div className="text-sm font-semibold text-slate-600">Two-way Minutes</div>
             <div className="mt-2 text-3xl font-extrabold text-slate-900">
               {loading ? "..." : twoWayMinutes}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-sm font-semibold text-slate-600">Your Shares</div>
+            <div className="mt-2 text-3xl font-extrabold text-slate-900">
+              {shareLoading ? "..." : shareValue ?? "-"}
             </div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -382,7 +382,7 @@ export default function ChannelPartnerUsers() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
             <div className="min-w-0 flex-1">
               <h2 className="text-[24px] font-bold tracking-tight text-gray-700 sm:text-3xl">
-                Channel Partner Users
+                ASA Users
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                 Manage your profile, donate minutes to users, and track donated user data.
@@ -434,7 +434,7 @@ export default function ChannelPartnerUsers() {
                       <td colSpan={5} className="py-12 text-center text-slate-500">
                         <div className="flex flex-col items-center gap-4 px-4">
                           <span className="text-sm sm:text-base">
-                            No channel partner data found for this account
+                            No ASA data found for this account
                           </span>
                         </div>
                       </td>
@@ -556,7 +556,7 @@ export default function ChannelPartnerUsers() {
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Donate Minutes</h2>
                 <p className="text-sm text-slate-500">
-                  Transfer available minutes from this channel partner account.
+                  Transfer available minutes from this ASA account.
                 </p>
               </div>
               <button
@@ -637,8 +637,8 @@ export default function ChannelPartnerUsers() {
 
               <div className="text-xs text-slate-500">
                 {currentRole === "channelpartner"
-                  ? "Note: for channel partner role, donation uses the profile matched two-way minutes."
-                  : "Note: donation must be within both channel partner minutes and profile matched user's two-way minutes."}
+                  ? "Note: for ASA role, donation uses the profile matched two-way minutes."
+                  : "Note: donation must be within both ASA minutes and profile matched user's two-way minutes."}
               </div>
             </div>
 

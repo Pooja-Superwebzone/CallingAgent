@@ -68,7 +68,7 @@ function ContactFormModal({ showContactForm, setShowContactForm, onSuccess }) {
             <FiX />
           </button>
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-700 mb-6">
-            Contact Channel Partner
+            Contact ASA
           </h2>
 
           <form className="space-y-4 text-left" onSubmit={handleSubmit}>

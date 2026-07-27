@@ -51,6 +51,7 @@ import DynamicMinutePage from "./Component/Pages/DynamicMinutePage";
 import LanguageKeywordsPage from "./Component/Pages/LanguageKeywordsPage";
 import PaymentResultPage from "./Component/Pages/PaymentResultPage";
 import CallsDashboard from "./Component/Pages/CallsDashboard";
+import PaymentResultPage from "./Component/Pages/PaymentResultPage";
 
 function App() {
   const location = useLocation();

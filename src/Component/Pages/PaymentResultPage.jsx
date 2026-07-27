@@ -2,7 +2,13 @@ import React, { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
-import { creditMinutesAfterPayment, PENDING_MINUTE_PURCHASE_KEY, postShareValue } from "../../api/payment";
+import {
+  completePlanSubscriptionAfterPayment,
+  creditMinutesAfterPayment,
+  PENDING_MINUTE_PURCHASE_KEY,
+  PENDING_PLAN_PURCHASE_KEY,
+  postShareValue,
+} from "../../api/payment";
 
 export default function PaymentResultPage() {
   const [searchParams] = useSearchParams();
@@ -19,37 +25,55 @@ export default function PaymentResultPage() {
         return;
       }
 
-      let pending = null;
+      let pendingMinutes = null;
+      let pendingPlan = null;
       try {
-        const raw = sessionStorage.getItem(PENDING_MINUTE_PURCHASE_KEY);
-        pending = raw ? JSON.parse(raw) : null;
+        const rawMinutes = sessionStorage.getItem(PENDING_MINUTE_PURCHASE_KEY);
+        pendingMinutes = rawMinutes ? JSON.parse(rawMinutes) : null;
       } catch {
-        pending = null;
+        pendingMinutes = null;
+      }
+      try {
+        const rawPlan = sessionStorage.getItem(PENDING_PLAN_PURCHASE_KEY);
+        pendingPlan = rawPlan ? JSON.parse(rawPlan) : null;
+      } catch {
+        pendingPlan = null;
       }
 
+      const authToken =
+        Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken") || "";
+
       try {
-        const authToken =
-          Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken") || "";
-        await creditMinutesAfterPayment({
-          email: pending?.email,
-          planId: pending?.planId,
-          userId: pending?.userId,
-          minutes: pending?.minutes,
-          authToken,
-        });
-        if (pending?.shareAmount != null) {
-          await postShareValue(pending.shareAmount, authToken);
+        if (pendingMinutes) {
+          await creditMinutesAfterPayment({
+            email: pendingMinutes?.email,
+            planId: pendingMinutes?.planId,
+            userId: pendingMinutes?.userId,
+            minutes: pendingMinutes?.minutes,
+            authToken,
+          });
+          if (pendingMinutes?.shareAmount != null) {
+            await postShareValue(pendingMinutes.shareAmount, authToken);
+          }
+        } else if (pendingPlan) {
+          await completePlanSubscriptionAfterPayment({
+            email: pendingPlan?.email,
+            planId: pendingPlan?.planId,
+          });
         }
       } catch (e) {
-        console.warn("Post-payment minute credit failed:", e);
+        console.warn("Post-payment fulfillment failed:", e);
       }
 
       sessionStorage.removeItem(PENDING_MINUTE_PURCHASE_KEY);
+      sessionStorage.removeItem(PENDING_PLAN_PURCHASE_KEY);
 
       if (cancelled) return;
 
       toast.success("Payment successful!");
-      navigate("/minutes", { replace: true });
+      navigate(pendingPlan && !pendingMinutes ? "/agents_page" : "/minutes", {
+        replace: true,
+      });
     };
 
     handleReturn();
@@ -63,7 +87,9 @@ export default function PaymentResultPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="rounded-2xl border border-slate-200 bg-white px-6 py-8 text-center shadow-sm">
         <p className="text-lg font-semibold text-slate-900">Processing payment…</p>
-        <p className="mt-2 text-sm text-slate-600">Please wait while we confirm your purchase.</p>
+        <p className="mt-2 text-sm text-slate-600">
+          Please wait while we confirm your purchase.
+        </p>
       </div>
     </div>
   );
