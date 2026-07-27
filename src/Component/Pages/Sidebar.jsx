@@ -777,25 +777,6 @@ const Sidebar = () => {
             </li>
           )}
 
-          {role === "admin" && Cookies.get("email") === "paragshah.devac@gmail.com" && (
-            <li>
-              <button
-                onClick={() => {
-                  navigate("/admin/users-documents");
-                  setMobileOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                  location.pathname === "/admin/users-documents"
-                    ? "bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-700 text-gray-300"
-                }`}
-              >
-                <FaUsers size={18} />
-                Users Documents
-              </button>
-            </li>
-          )}
-
           {role === "channelpartner" && (
             <li>
               <button
@@ -1149,8 +1130,8 @@ const Sidebar = () => {
             </li>
           )}
 
-          {/* Channel partner (admin & twilioUser===0 original) */}
-          {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
+          {/* ASA (admin & twilioUser===0 original) */}
+          {twilioUser === 0 && role === "admin" && (
             <li>
               <button
                 onClick={() => {
@@ -1170,7 +1151,7 @@ const Sidebar = () => {
           )}
 
           {/* ASA minute transactions (admin & twilioUser===0) */}
-          {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
+          {twilioUser === 0 && role === "admin" && (
             <li>
               <button
                 onClick={() => {
@@ -1568,7 +1549,6 @@ const Sidebar = () => {
                   className="bg-green-600 hover:bg-green-700 text-white text-lg px-6 py-3 rounded-lg font-semibold flex items-center gap-3 justify-center"
                 >
                   <FiPhoneCall size={30} />
-                  Contact ASA
                   Contact ASA
                 </button>
               </div>

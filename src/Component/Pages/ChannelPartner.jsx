@@ -308,16 +308,8 @@ export default function ChannelPartner() {
   return (
     <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-gray-700">ASAs</h2>
-        <div className="w-full sm:w-[360px]">
-          <input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by name, email, phone..."
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
       </div>
 
       {/* Table */}

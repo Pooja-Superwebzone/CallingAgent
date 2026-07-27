@@ -2,8 +2,14 @@ import React, { useCallback, useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import service from "../../api/axios";
-import { creditMinutesAfterPayment, createPaymentOrder, extractPaymentSessionId, getShareValue, PENDING_MINUTE_PURCHASE_KEY, postShareValue } from "../../api/payment";
-
+import {
+  creditMinutesAfterPayment,
+  createPaymentOrder,
+  extractPaymentSessionId,
+  getShareValue,
+  PENDING_MINUTE_PURCHASE_KEY,
+  postShareValue,
+} from "../../api/payment";
 
 const DEFAULT_PLAN_ID = "8";
 
@@ -13,7 +19,13 @@ const DEFAULT_NORMAL_MINUTE_RATE = 15;
 const DEFAULT_CHANNEL_PARTNER_MINUTE_RATE = 13.5;
 const DEFAULT_CHANNEL_PARTNER_TIER3_RATE = 11.44;
 
-const pickPurchaseRate = ({ isChannelPartnerPlan, isAdminPlan, minutes, channelPartnerDynamicRate, normalRate }) => {
+const pickPurchaseRate = ({
+  isChannelPartnerPlan,
+  isAdminPlan,
+  minutes,
+  channelPartnerDynamicRate,
+  normalRate,
+}) => {
   const m = Number(minutes);
   const safeM = Number.isFinite(m) ? m : 0;
 
@@ -86,7 +98,7 @@ const pickDisplayPriceForNullUserId = (rows) => {
     const n = Number(price);
     if (Number.isFinite(n) && n > 0) return n;
   }
-  
+
   return null;
 };
 const DYNAMIC_MINUTE_RATE_CACHE = new Map();
@@ -110,6 +122,8 @@ export default function MinutesPage() {
   const [dynamicNormalMinuteRate, setDynamicNormalMinuteRate] = useState(
     DEFAULT_NORMAL_MINUTE_RATE
   );
+  const [dynamicChannelPartnerMinuteRate, setDynamicChannelPartnerMinuteRate] =
+    useState(0);
   const [shareValue, setShareValue] = useState(null);
   const [shareLoading, setShareLoading] = useState(true);
   const userEmail = Cookies.get("email") || "";
@@ -171,14 +185,6 @@ export default function MinutesPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.Cashfree) {
-      window.cashfree = window.Cashfree({
-        mode: "production",
-      });
-    }
-  }, []);
-
   const formatRate = (amount) => amount.toFixed(2);
 
   const purchaseValidation =
@@ -209,7 +215,7 @@ export default function MinutesPage() {
         const firstSlabAmount = roundToTwo(
           firstSlabMinutes * RATE_UP_TO_THRESHOLD
         );
-        
+
         const secondSlabAmount = 0;
         const total = roundToTwo(firstSlabAmount + secondSlabAmount);
         const cgstAmount = roundToTwo(total * CGST_RATE);
@@ -240,20 +246,16 @@ export default function MinutesPage() {
       Cookies.get("name") ||
       localStorage.getItem("userName") ||
       "Customer";
+    const customerName =
+      profileDetails.name ||
+      Cookies.get("name") ||
+      localStorage.getItem("userName") ||
+      "Customer";
 
     if (!customerPhone) {
       setError("Your phone number was not found. Please update your profile and try again.");
       return;
     }
-
-    if (!window.cashfree) {
-      const message =
-        "Payment gateway is not ready yet. Please refresh the page and try again.";
-      setError(message);
-      toast.error(message);
-      return;
-    }
-
 
     if (!window.cashfree) {
       const message =
@@ -310,7 +312,57 @@ export default function MinutesPage() {
         phoneNumber: customerPhone,
         totalPayment: quote.totalWithTax,
         orderDesc,
+    const orderDesc = isChannelPartnerPlan
+      ? `Channel Partner Minutes Purchase - ${purchaseMinutes} minutes`
+      : `Richa Minutes Purchase - ${purchaseMinutes} minutes`;
+
+    try {
+      sessionStorage.setItem(
+        PENDING_MINUTE_PURCHASE_KEY,
+        JSON.stringify({
+          minutes: purchaseMinutes,
+          userId: profileDetails.userId,
+          email: customerEmail,
+          planId: DEFAULT_PLAN_ID,
+          shareAmount: quote.total,
+        })
+      );
+
+      const response = await createPaymentOrder({
+        name: customerName,
+        email: customerEmail,
+        phoneNumber: customerPhone,
+        totalPayment: quote.totalWithTax,
+        orderDesc,
       });
+
+      const paymentSessionId =
+        extractPaymentSessionId(response) || response?.payment_id || "";
+      if (!paymentSessionId) {
+        throw new Error("Payment session id was not returned from create order API.");
+      }
+
+      const result = await window.cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: "_self",
+      });
+
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed.");
+      }
+
+      const isPaymentSuccessful =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!isPaymentSuccessful) {
+        if (result?.redirect) {
+          return;
+        }
+        throw new Error("Payment failed. Please try again.");
+      }
+
 
       const paymentSessionId =
         extractPaymentSessionId(response) || response?.payment_id || "";
@@ -416,7 +468,6 @@ export default function MinutesPage() {
       setOneWayMinutes(one);
       setTwoWayMinutes(Number.isFinite(two) ? two : 0);
       const resolvedUserId =
-
         twoWayMinsObj?.user_id ||
         mins?.user_id ||
         profile?.id ||
@@ -478,9 +529,7 @@ export default function MinutesPage() {
           null;
         const dmPrice = Number(dmPriceRaw);
         setDynamicChannelPartnerMinuteRate(
-          Number.isFinite(dmPrice) && dmPrice > 0
-            ? dmPrice
-            : 0
+          Number.isFinite(dmPrice) && dmPrice > 0 ? dmPrice : 0
         );
         setDynamicNormalMinuteRate(DEFAULT_NORMAL_MINUTE_RATE);
       } else {
@@ -515,6 +564,30 @@ export default function MinutesPage() {
   useEffect(() => {
     fetchMinutes();
   }, [fetchMinutes]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchShareValue = async () => {
+      setShareLoading(true);
+      try {
+        const value = await getShareValue(Cookies.get("CallingAgent"));
+        if (!cancelled) {
+          setShareValue(value);
+        }
+      } catch {
+        if (!cancelled) setShareValue(null);
+      } finally {
+        if (!cancelled) setShareLoading(false);
+      }
+    };
+
+    fetchShareValue();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -617,12 +690,6 @@ export default function MinutesPage() {
             <div className="text-sm font-semibold text-slate-600">Two-way Minutes</div>
             <div className="mt-2 text-3xl font-extrabold text-slate-900">
               {loading ? "..." : twoWayMinutes}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-sm font-semibold text-slate-600">Your Shares</div>
-            <div className="mt-2 text-3xl font-extrabold text-slate-900">
-              {shareLoading ? "..." : shareValue ?? "-"}
             </div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

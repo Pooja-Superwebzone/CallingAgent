@@ -1,6 +1,5 @@
 import axios from "axios";
 import { service } from "./axios";
-import { service } from "./axios";
 
 const PAYMENT_ORDER_URL = "https://payment.ibdelight.in/api/createOrder";
 const CASHFREE_API_BASE_URL = "https://api.cashfree.com/pg/orders";
