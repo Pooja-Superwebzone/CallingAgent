@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
-import { startPerplexityCall, startPerplexityCallExcel } from "../../hooks/useAuth";
+import { startPerplexityCallExcel } from "../../hooks/useAuth";
 import { PhoneNumberUtil, PhoneNumberFormat } from "google-libphonenumber";
 import service from "../../api/axios";
 
@@ -20,6 +20,31 @@ export default function Perplexity() {
   const [countryCode, setCountryCode] = useState("IN");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const startPlivoAgentFlowCall = async ({ keyword, phone_number }) => {
+    const url =
+      "https://agentflow.plivo.com/v1/account/MAZDGWYZRMMZCTYJA2YS/flow/4d00448a-7504-450a-8fae-4f2351a9c203";
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        keyword,
+        phone_number,
+      }),
+    });
+
+    const payload = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg =
+        (payload && (payload.message || payload.error)) ||
+        `Failed to start call (HTTP ${res.status})`;
+      throw new Error(msg);
+    }
+    return payload;
+  };
 
   useEffect(() => {
     const loadVoiceAgents = async () => {
@@ -151,13 +176,12 @@ export default function Perplexity() {
         setMobile("");
         setError("");
       } else {
-        const payload = {
-          phone: toNumber,
-          agent: selectedVoiceAgentKeyword,
-        };
-        const res = await startPerplexityCall(payload);
-        console.log("start-call response:", res);
-        toast.success(res?.message || "Call started successfully!");
+        const res = await startPlivoAgentFlowCall({
+          keyword: selectedVoiceAgentKeyword,
+          phone_number: toNumber,
+        });
+        console.log("plivo agentflow response:", res);
+        toast.success("Call started successfully!");
         setMobile("");
         setError("");
       }

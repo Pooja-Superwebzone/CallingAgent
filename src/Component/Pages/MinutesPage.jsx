@@ -7,7 +7,7 @@ import { creditMinutesAfterPayment, createPaymentOrder, getShareValue, PENDING_M
 
 const DEFAULT_PLAN_ID = "8";
 
-const CHANNEL_PARTNER_PLAN_LABEL = "Channel Partner";
+const CHANNEL_PARTNER_PLAN_LABEL = "ASA";
 
 const DEFAULT_NORMAL_MINUTE_RATE = 15;
 const DEFAULT_CHANNEL_PARTNER_MINUTE_RATE = 13.5;
@@ -66,6 +66,7 @@ export default function MinutesPage() {
   const [error, setError] = useState("");
   const [oneWayMinutes, setOneWayMinutes] = useState(0);
   const [twoWayMinutes, setTwoWayMinutes] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(null);
   const [userPlanTitle, setUserPlanTitle] = useState("");
   const [purchaseMinutesInput, setPurchaseMinutesInput] = useState("");
   const [profileDetails, setProfileDetails] = useState({
@@ -94,7 +95,7 @@ export default function MinutesPage() {
     profileRoleLower === "channel_partner";
   const displayedPlanTitle = isChannelPartnerPlan
     ? CHANNEL_PARTNER_PLAN_LABEL
-    : userPlanTitle || "Become Channel Partner";
+    : userPlanTitle || "Become ASA";
 
   const MINUTES_PER_PACKAGE = isChannelPartnerPlan ? 1000 : 100;
   const RATE_UP_TO_THRESHOLD = isChannelPartnerPlan
@@ -213,7 +214,7 @@ export default function MinutesPage() {
     setError("");
 
     const orderDesc = isChannelPartnerPlan
-      ? `Channel Partner Minutes Purchase - ${purchaseMinutes} minutes`
+      ? `ASA Minutes Purchase - ${purchaseMinutes} minutes`
       : `Richa Minutes Purchase - ${purchaseMinutes} minutes`;
 
     try {
@@ -372,6 +373,20 @@ export default function MinutesPage() {
           profile?.twilio_user ?? Cookies.get("twilio_user") ?? "0"
         ).trim(),
       });
+
+      const walletRaw =
+        profile?.wallet ??
+        profile?.wallet_balance ??
+        profile?.walletBalance ??
+        profile?.wallet_amount ??
+        profile?.walletAmount ??
+        profile?.balance ??
+        profile?.account_balance ??
+        profile?.accountBalance ??
+        null;
+      const walletNum = walletRaw == null ? null : Number(walletRaw);
+      setWalletBalance(Number.isFinite(walletNum) ? walletNum : null);
+
       syncPlanDetails(profile?.email || profile?.emp_email || userEmail);
       localStorage.setItem("userRemainingMinutes", String(one));
 
@@ -505,7 +520,7 @@ export default function MinutesPage() {
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="text-sm font-semibold text-slate-600">Free Minutes</div>
             <div className="mt-2 text-3xl font-extrabold text-slate-900">
@@ -522,6 +537,12 @@ export default function MinutesPage() {
             <div className="text-sm font-semibold text-slate-600">Your Shares</div>
             <div className="mt-2 text-3xl font-extrabold text-slate-900">
               {shareLoading ? "..." : shareValue ?? "-"}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-sm font-semibold text-slate-600">Wallet</div>
+            <div className="mt-2 text-3xl font-extrabold text-slate-900">
+              {loading ? "..." : walletBalance == null ? "0" : formatINR(walletBalance)}
             </div>
           </div>
         </div>

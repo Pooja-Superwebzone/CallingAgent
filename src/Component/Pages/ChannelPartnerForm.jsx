@@ -116,7 +116,7 @@ export default function ChannelPartnerForm() {
         },
       });
 
-      toast.success("Channel Partner form submitted successfully!");
+      toast.success("ASA form submitted successfully!");
       setUploadedFiles({
         applicationForm: null,
         agreement: null,
@@ -147,7 +147,7 @@ export default function ChannelPartnerForm() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Become Channel Partner</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Become ASA</h1>
           <p className="text-gray-600">Registration Form</p>
         </div>
 

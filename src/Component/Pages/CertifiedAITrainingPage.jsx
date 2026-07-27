@@ -4,6 +4,12 @@ import { signupTwillioUser } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
+import Cookies from "js-cookie";
+import {
+  createPaymentOrder,
+  creditMinutesAfterPayment,
+  PENDING_PAYMENT_KEY,
+} from "../../api/payment";
 
 const plan = {
   id: "certified_ai_training",
@@ -61,6 +67,9 @@ export default function CertifiedAITrainingPage() {
 
   useEffect(() => {
     setStoredToken(getStoredToken(plan.id));
+    if (typeof window !== "undefined" && window.Cashfree && !window.cashfree) {
+      window.cashfree = window.Cashfree({ mode: "production" });
+    }
   }, []);
 
   return (
@@ -572,18 +581,41 @@ export default function CertifiedAITrainingPage() {
                         tokenToUse
                       )}; path=/; max-age=31536000; SameSite=Strict`;
                     }
-                    const url = new URL(`https://ibcrm.in/`);
-                    url.searchParams.set("plan", plan.id);
-                    url.searchParams.set("price", plan.price);
-                    url.searchParams.set("planTitle", plan.title);
-                    if (tokenToUse) url.searchParams.set("token", tokenToUse);
-                    setTimeout(() => {
-                      window.location.href = `https://ibcrm.in/${plan.link}?email="${formValues.email}"`;
-                    }, 50);
+
+                    Cookies.set("CallingAgent", tokenToUse, { expires: 365 });
+                    Cookies.set("email", formValues.email, { expires: 365 });
+                    Cookies.set("name", formValues.name, { expires: 365 });
+                    Cookies.set("contact_no", formValues.contact_no, { expires: 365 });
+                    Cookies.set("role", "admin", { expires: 365 });
+
+                    // Training itself is free: go to exam-info inside this app (no external redirect).
+                    sessionStorage.setItem(
+                      PENDING_PAYMENT_KEY,
+                      JSON.stringify({
+                        type: "plan",
+                        email: formValues.email,
+                        planId: 8,
+                        planTitle: plan.title,
+                      })
+                    );
+
+                    // No payment here; just ensure subscription is present and route user.
+                    await creditMinutesAfterPayment({
+                      email: formValues.email,
+                      planId: 8,
+                      authToken: tokenToUse,
+                    });
+
+                    sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+                    toast.success("Signup successful!");
+                    navigate(`/exam-info?email=${encodeURIComponent(formValues.email)}`, {
+                      replace: true,
+                    });
                   } catch (err) {
                     const message = err?.message || "Signup failed. Please try again.";
                     setSignupError(message);
                     toast.error(message);
+                    sessionStorage.removeItem(PENDING_PAYMENT_KEY);
                   } finally {
                     setSubmitting(false);
                   }

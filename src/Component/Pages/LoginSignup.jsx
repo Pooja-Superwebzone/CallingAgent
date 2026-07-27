@@ -22,7 +22,7 @@ const PLAN_ID_MAP = {
   default: "8",
 };
 const PLAN_TITLE_MAP = {
-  become_channel_partner: "Become Channel Partner",
+  become_channel_partner: "Become ASA",
 };
 const DEFAULT_PLAN_ID = PLAN_ID_MAP.default;
 const DEFAULT_PLAN_TITLE = "Richa Trial Pack";

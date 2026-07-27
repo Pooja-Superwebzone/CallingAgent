@@ -16,6 +16,7 @@ const ADD_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/add-subscription";
 const UPDATE_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/update-subscription";
 
 export const PENDING_MINUTE_PURCHASE_KEY = "pendingMinutePurchase";
+export const PENDING_PAYMENT_KEY = "pendingPayment";
 
 export function extractShareValueFromResponse(payload) {
   const raw = payload?.data !== undefined ? payload.data : payload;
@@ -69,6 +70,11 @@ export async function createPaymentOrder({
     throw new Error("Cashfree env vars are missing. Set VITE_CASHFREE_APP_ID and VITE_CASHFREE_SECRET_KEY.");
   }
 
+  const orderAmount = String(totalPayment ?? "").trim();
+  if (!orderAmount) {
+    throw new Error("Order amount is required.");
+  }
+
   try {
     const response = await axios.post(
       PAYMENT_ORDER_URL,
@@ -80,7 +86,7 @@ export async function createPaymentOrder({
         UserName: name,
         UserEmail: email,
         UserMobile: phoneNumber,
-        OrderAmount: totalPayment,
+        OrderAmount: orderAmount,
         OrderDesc: orderDesc,
       },
       {

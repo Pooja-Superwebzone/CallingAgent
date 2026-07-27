@@ -4,6 +4,7 @@ import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { calculateDiscountPercentage, getCashbackPercentage, plans } from "./LandingPage";
 import { FiArrowRight, FiClock, FiCreditCard } from "react-icons/fi";
+import { createPaymentOrder, creditMinutesAfterPayment, PENDING_PAYMENT_KEY } from "../../api/payment";
 
 export default function UpgradeMinutesPage() {
   const navigate = useNavigate();
@@ -12,16 +13,105 @@ export default function UpgradeMinutesPage() {
 
   const userEmail = useMemo(() => Cookies.get("email") || "", []);
 
-  const redirectToIbcrmPlan = (plan) => {
+  const extractNumber = (str) => {
+    if (!str) return 0;
+    const cleaned = String(str).replace(/[₹Rs.,\s\/-]/g, "");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const startCashfreePlanPayment = async (plan) => {
     if (!userEmail) {
       toast.error("Email not found. Please login again.");
       return;
     }
-    if (!plan?.link) {
-      toast.error("Plan link not available.");
+    if (!plan?.title) {
+      toast.error("Plan not available.");
       return;
     }
-    window.location.href = `https://ibcrm.in/${plan.link}?email=${encodeURIComponent(userEmail)}`;
+    if (!window.cashfree) {
+      if (typeof window !== "undefined" && window.Cashfree) {
+        window.cashfree = window.Cashfree({ mode: "production" });
+      }
+    }
+    if (!window.cashfree) {
+      toast.error("Payment gateway is not ready yet. Please refresh and try again.");
+      return;
+    }
+
+    const baseAmount = extractNumber(plan.price);
+    if (!baseAmount || baseAmount <= 0) {
+      toast.error("This plan cannot be purchased from here.");
+      return;
+    }
+
+    const totalWithTax = Number((baseAmount * 1.18).toFixed(2));
+    const customerName =
+      Cookies.get("name") || localStorage.getItem("userName") || "Customer";
+    const customerPhone = Cookies.get("contact_no") || "";
+    if (!customerPhone) {
+      toast.error("Phone number not found. Please update profile and try again.");
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(
+        PENDING_PAYMENT_KEY,
+        JSON.stringify({
+          type: "plan",
+          email: userEmail,
+          planId: Cookies.get("role") === "channelpartner" ? 18 : 8,
+          planTitle: plan.title,
+        })
+      );
+
+      const response = await createPaymentOrder({
+        name: customerName,
+        email: userEmail,
+        phoneNumber: customerPhone,
+        totalPayment: totalWithTax,
+        orderDesc: `Richa Plan Purchase - ${plan.title}`,
+      });
+
+      const paymentSessionId = response?.payment_id || "";
+      if (!paymentSessionId) {
+        throw new Error("Payment session id was not returned from create order API.");
+      }
+
+      const result = await window.cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: "_self",
+      });
+
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed.");
+      }
+
+      const ok =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!ok) {
+        if (result?.redirect) return;
+        throw new Error("Payment was not completed.");
+      }
+
+      // If payment completes without redirect, finalize immediately.
+      const authToken =
+        Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken") || "";
+      await creditMinutesAfterPayment({
+        email: userEmail,
+        planId: Cookies.get("role") === "channelpartner" ? 18 : 8,
+        authToken,
+      });
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+      toast.success("Payment successful!");
+      navigate("/agents_page", { replace: true });
+    } catch (e) {
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+      toast.error(e?.message || "Payment failed. Please try again.");
+    }
   };
 
   const kingPlan = useMemo(() => {
@@ -117,7 +207,7 @@ export default function UpgradeMinutesPage() {
             </div>
             <button
               type="button"
-              onClick={() => redirectToIbcrmPlan(kingPlan)}
+              onClick={() => startCashfreePlanPayment(kingPlan)}
               className="mt-4 w-full rounded-xl bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-semibold py-2.5 transition focus:outline-none focus:ring-2 focus:ring-fuchsia-500"
             >
               Buy King Pack
@@ -147,7 +237,7 @@ export default function UpgradeMinutesPage() {
                   <button
                     key={`${plan.link}-${plan.title}`}
                     type="button"
-                    onClick={() => redirectToIbcrmPlan(plan)}
+                    onClick={() => startCashfreePlanPayment(plan)}
                     className="group relative flex min-h-[320px] w-full flex-col rounded-3xl border border-slate-200 bg-white p-6 text-left text-slate-900 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
                   >
                     {calculateDiscountPercentage(plan) && (

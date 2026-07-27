@@ -379,7 +379,7 @@ const Sidebar = () => {
                   }`}
                 >
                   <TbCloudDataConnection size={18} />
-                  <span className="whitespace-nowrap">Channel partner connect</span>
+                  <span className="whitespace-nowrap">ASA connect</span>
                 </button>
               </li>
 
@@ -789,7 +789,7 @@ const Sidebar = () => {
                 }`}
               >
                 <FaUsers size={18} />
-                Channel Partner Users
+                ASA Users
               </button>
             </li>
           )}
@@ -846,7 +846,7 @@ const Sidebar = () => {
                 }`}
               >
                 <TbCloudDataConnection size={18} />
-                Channel Partner Connect
+                ASA Connect
               </button>
             </li>
           )}
@@ -1166,7 +1166,7 @@ const Sidebar = () => {
             </li>
           )}
 
-          {/* Channel partner (admin & twilioUser===0 original) */}
+          {/* ASA (admin & twilioUser===0 original) */}
           {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
             <li>
               <button
@@ -1181,12 +1181,12 @@ const Sidebar = () => {
                 }`}
               >
                 <FaUsers size={18} />
-                channel partner
+                ASA
               </button>
             </li>
           )}
 
-          {/* Channel partner minute transactions (admin & twilioUser===0) */}
+          {/* ASA minute transactions (admin & twilioUser===0) */}
           {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
             <li>
               <button
@@ -1585,7 +1585,7 @@ const Sidebar = () => {
                   className="bg-green-600 hover:bg-green-700 text-white text-lg px-6 py-3 rounded-lg font-semibold flex items-center gap-3 justify-center"
                 >
                   <FiPhoneCall size={30} />
-                  Contact Channel Partner
+                  Contact ASA
                 </button>
               </div>
             </div>

@@ -155,7 +155,7 @@ export function getAdminCustomerCareHeadUsers() {
     });
 }
 
-// Channel Partner Documents (multipart CRUD)
+// ASA Documents (multipart CRUD)
 export function createChannelPartnerDocuments(payload) {
   const formData = new FormData();
   const put = (key, value) => {
@@ -233,7 +233,7 @@ export function getChannelPartnerDocumentsByUserId(userId) {
       const payload = error?.response?.data;
       if (payload && typeof payload === "object") return payload;
       const msg =
-        error?.message || "Failed to fetch channel partner documents";
+        error?.message || "Failed to fetch ASA documents";
       throw new Error(msg);
     });
 }
@@ -650,7 +650,7 @@ export function getChannelPartners() {
       return out;
     })
     .catch((error) => {
-      let msg = "Failed to fetch channel partners.";
+      let msg = "Failed to fetch ASAs.";
       if (error.response?.data?.message) msg = error.response.data.message;
       throw new Error(msg);
     });
@@ -665,19 +665,19 @@ export function createChannelPartner(payload) {
       return res.data;
     })
     .catch((error) => {
-      throw new Error(error.response?.data?.message || "Failed to create channel partner");
+      throw new Error(error.response?.data?.message || "Failed to create ASA");
     });
 }
 
 export function updateChannelPartner(channelPartnerId, payload) {
   if (!channelPartnerId) {
-    return Promise.reject(new Error("Channel partner id is required"));
+    return Promise.reject(new Error("ASA id is required"));
   }
   return service
     .post(`channel-partner/${channelPartnerId}`, payload)
     .then((res) => res.data)
     .catch((error) => {
-      throw new Error(error.response?.data?.message || "Failed to update channel partner");
+      throw new Error(error.response?.data?.message || "Failed to update ASA");
     });
 }
 
@@ -743,7 +743,7 @@ export function getChannelPartnerMinuteTransactions() {
       throw new Error(
         error.response?.data?.message ||
         error.message ||
-        "Failed to fetch channel partner minute transactions"
+        "Failed to fetch ASA minute transactions"
       );
     });
 }

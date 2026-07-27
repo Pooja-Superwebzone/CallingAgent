@@ -2,7 +2,13 @@ import React, { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
-import { creditMinutesAfterPayment, PENDING_MINUTE_PURCHASE_KEY, postShareValue } from "../../api/payment";
+import service from "../../api/axios";
+import {
+  creditMinutesAfterPayment,
+  PENDING_MINUTE_PURCHASE_KEY,
+  PENDING_PAYMENT_KEY,
+  postShareValue,
+} from "../../api/payment";
 
 export default function PaymentResultPage() {
   const [searchParams] = useSearchParams();
@@ -15,13 +21,15 @@ export default function PaymentResultPage() {
     const handleReturn = async () => {
       if (!orderId) {
         toast.error("Payment failed. Please try again.");
-        navigate("/minutes", { replace: true });
+        navigate("/", { replace: true });
         return;
       }
 
       let pending = null;
       try {
-        const raw = sessionStorage.getItem(PENDING_MINUTE_PURCHASE_KEY);
+        const raw =
+          sessionStorage.getItem(PENDING_PAYMENT_KEY) ||
+          sessionStorage.getItem(PENDING_MINUTE_PURCHASE_KEY);
         pending = raw ? JSON.parse(raw) : null;
       } catch {
         pending = null;
@@ -30,26 +38,73 @@ export default function PaymentResultPage() {
       try {
         const authToken =
           Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken") || "";
-        await creditMinutesAfterPayment({
-          email: pending?.email,
-          planId: pending?.planId,
-          userId: pending?.userId,
-          minutes: pending?.minutes,
-          authToken,
-        });
-        if (pending?.shareAmount != null) {
-          await postShareValue(pending.shareAmount, authToken);
+
+        const pendingType =
+          pending?.type ||
+          (pending?.minutes ? "minutes" : pending?.selectedDate ? "webinar" : "plan");
+
+        if (pendingType === "minutes") {
+          await creditMinutesAfterPayment({
+            email: pending?.email,
+            planId: pending?.planId,
+            userId: pending?.userId,
+            minutes: pending?.minutes,
+            authToken,
+          });
+          if (pending?.shareAmount != null) {
+            await postShareValue(pending.shareAmount, authToken);
+          }
+        } else if (pendingType === "webinar") {
+          const email = String(pending?.email || "").trim();
+          const date = String(pending?.selectedDate || "").trim();
+          const time = String(pending?.time || "10:00").trim();
+          if (email && date) {
+            await service.post("store-name-date", {
+              name: email,
+              date: `${date} ${time}:00`,
+            });
+          }
+        } else if (pendingType === "exam") {
+          // no server-side action required; just route user
+        } else {
+          // default: plan/subscription purchase
+          await creditMinutesAfterPayment({
+            email: pending?.email,
+            planId: pending?.planId,
+            authToken,
+          });
         }
       } catch (e) {
-        console.warn("Post-payment minute credit failed:", e);
+        console.warn("Post-payment handler failed:", e);
       }
 
       sessionStorage.removeItem(PENDING_MINUTE_PURCHASE_KEY);
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
 
       if (cancelled) return;
 
       toast.success("Payment successful!");
-      navigate("/minutes", { replace: true });
+
+      const pendingType =
+        pending?.type ||
+        (pending?.minutes ? "minutes" : pending?.selectedDate ? "webinar" : "plan");
+
+      if (pendingType === "minutes") {
+        navigate("/minutes", { replace: true });
+      } else if (pendingType === "webinar") {
+        const email = String(pending?.email || "").trim();
+        const params = new URLSearchParams();
+        if (email) params.set("email", email);
+        params.set("webinar", "paid");
+        navigate(`/exam-info?${params.toString()}`, { replace: true });
+      } else if (pendingType === "exam") {
+        const email = String(pending?.email || "").trim();
+        navigate(`/exam-start?email=${encodeURIComponent(email)}`, {
+          replace: true,
+        });
+      } else {
+        navigate("/agents_page", { replace: true });
+      }
     };
 
     handleReturn();

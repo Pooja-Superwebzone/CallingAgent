@@ -4,6 +4,12 @@ import { signupTwillioUser } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
+import Cookies from "js-cookie";
+import {
+  createPaymentOrder,
+  creditMinutesAfterPayment,
+  PENDING_PAYMENT_KEY,
+} from "../../api/payment";
 
 const plan = {
   id: "demo_call",
@@ -30,6 +36,13 @@ const getStoredToken = (planId) => {
   const planToken = localStorage.getItem(`plan_token_${planId}`) || "";
   const genericToken = localStorage.getItem("signup_token") || "";
   return planToken || genericToken || "";
+};
+
+const extractNumber = (str) => {
+  if (!str) return 0;
+  const cleaned = String(str).replace(/[₹Rs.,\s\/-]/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
 };
 
 export default function DemoCallPackPage() {
@@ -70,6 +83,9 @@ export default function DemoCallPackPage() {
 
   useEffect(() => {
     setStoredToken(getStoredToken(plan.id));
+    if (typeof window !== "undefined" && window.Cashfree && !window.cashfree) {
+      window.cashfree = window.Cashfree({ mode: "production" });
+    }
   }, []);
 
   return (
@@ -581,18 +597,78 @@ export default function DemoCallPackPage() {
                         tokenToUse
                       )}; path=/; max-age=31536000; SameSite=Strict`;
                     }
-                    const url = new URL(`https://ibcrm.in/`);
-                    url.searchParams.set("plan", plan.id);
-                    url.searchParams.set("price", plan.price);
-                    url.searchParams.set("planTitle", plan.title);
-                    if (tokenToUse) url.searchParams.set("token", tokenToUse);
-                    setTimeout(() => {
-                      window.location.href = `https://ibcrm.in/${plan.link}?email="${formValues.email}"`;
-                    }, 50);
+
+                    Cookies.set("CallingAgent", tokenToUse, { expires: 365 });
+                    Cookies.set("email", formValues.email, { expires: 365 });
+                    Cookies.set("name", formValues.name, { expires: 365 });
+                    Cookies.set("contact_no", formValues.contact_no, { expires: 365 });
+                    Cookies.set("role", "admin", { expires: 365 });
+
+                    if (!window.cashfree && window.Cashfree) {
+                      window.cashfree = window.Cashfree({ mode: "production" });
+                    }
+                    if (!window.cashfree) {
+                      throw new Error("Payment gateway is not ready yet. Please refresh and try again.");
+                    }
+
+                    const baseAmount = extractNumber(plan.price);
+                    const totalWithTax = Number((baseAmount * 1.18).toFixed(2));
+
+                    sessionStorage.setItem(
+                      PENDING_PAYMENT_KEY,
+                      JSON.stringify({
+                        type: "plan",
+                        email: formValues.email,
+                        planId: 8,
+                        planTitle: plan.title,
+                      })
+                    );
+
+                    const orderRes = await createPaymentOrder({
+                      name: formValues.name,
+                      email: formValues.email,
+                      phoneNumber: formValues.contact_no,
+                      totalPayment: totalWithTax,
+                      orderDesc: `Richa Plan Purchase - ${plan.title}`,
+                    });
+
+                    const paymentSessionId = orderRes?.payment_id || "";
+                    if (!paymentSessionId) {
+                      throw new Error("Payment session id was not returned from create order API.");
+                    }
+
+                    const result = await window.cashfree.checkout({
+                      paymentSessionId,
+                      redirectTarget: "_self",
+                    });
+
+                    if (result?.error) {
+                      throw new Error(result.error?.message || "Payment failed.");
+                    }
+
+                    const ok =
+                      result?.paymentDetails ||
+                      result?.order?.order_status === "PAID" ||
+                      result?.transaction?.txStatus === "SUCCESS";
+
+                    if (!ok) {
+                      if (result?.redirect) return;
+                      throw new Error("Payment was not completed.");
+                    }
+
+                    await creditMinutesAfterPayment({
+                      email: formValues.email,
+                      planId: 8,
+                      authToken: tokenToUse,
+                    });
+                    sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+                    toast.success("Payment successful!");
+                    navigate("/agents_page", { replace: true });
                   } catch (err) {
                     const message = err?.message || "Signup failed. Please try again.";
                     setSignupError(message);
                     toast.error(message);
+                    sessionStorage.removeItem(PENDING_PAYMENT_KEY);
                   } finally {
                     setSubmitting(false);
                   }

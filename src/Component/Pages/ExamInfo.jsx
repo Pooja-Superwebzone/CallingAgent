@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import service from "../../api/axios";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
-import { createPaymentOrder } from "../../api/payment";
+import { createPaymentOrder, PENDING_PAYMENT_KEY } from "../../api/payment";
 import {
   login,
   signupTwillioUser,
@@ -105,7 +105,7 @@ const plans = [
   },  
   {
     id: "become_channel_partner",
-    title: "Become Channel Partner",
+    title: "Become ASA",
     subtitle: "",
     price: "₹ 9,999 + GST",
     link: "richa-mini-pack"
@@ -527,6 +527,16 @@ export default function ExamInfo() {
         );
       }
 
+      sessionStorage.setItem(
+        PENDING_PAYMENT_KEY,
+        JSON.stringify({
+          type: "webinar",
+          email,
+          selectedDate,
+          time: FIXED_TIME,
+        })
+      );
+
       const response = await createPaymentOrder({
         name: customerName,
         email,
@@ -563,10 +573,13 @@ export default function ExamInfo() {
         throw new Error("Payment was not completed.");
       }
 
+      // If payment completes without redirect, book immediately.
       toast.success("Payment successful. Booking your slot...");
       await handleScheduleSubmit();
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
     } catch (error) {
       console.error("Webinar booking error:", error);
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
       const message =
         error?.response?.data?.message ||
         error?.message ||
@@ -579,16 +592,78 @@ export default function ExamInfo() {
 
   // Redirect to certificate page (email + amount are dynamic)
   const handleStartExam = async (amount) => {
+    if (!requireAuthForPayment()) return;
     if (!email) {
       toast.error("Email is missing in URL.");
       return;
     }
 
-    // Redirect to InfinityBrains certificate payment page
-    const url = `https://infinitybrains.com/ai-certificate?email=${encodeURIComponent(
-      email
-    )}&amount=${encodeURIComponent(String(amount))}`;
-    window.location.assign(url);
+    const customerName =
+      localStorage.getItem("userName") || Cookies.get("name") || "Student";
+    const customerPhone = Cookies.get("contact_no") || "";
+
+    if (!customerPhone) {
+      toast.error("Phone number not found. Please update profile and try again.");
+      return;
+    }
+
+    if (!window.cashfree) {
+      toast.error("Payment gateway is not ready yet. Please refresh and try again.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      sessionStorage.setItem(
+        PENDING_PAYMENT_KEY,
+        JSON.stringify({
+          type: "exam",
+          email,
+          amount,
+        })
+      );
+
+      const response = await createPaymentOrder({
+        name: customerName,
+        email,
+        phoneNumber: customerPhone,
+        totalPayment: Number(amount) || EXAM_FEE,
+        orderDesc: "AI Certification Exam Fee",
+      });
+
+      const paymentSessionId = response?.payment_id || "";
+      if (!paymentSessionId) {
+        throw new Error("Payment session id was not returned from create order API.");
+      }
+
+      const result = await window.cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: "_self",
+      });
+
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed.");
+      }
+
+      const isPaymentSuccessful =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!isPaymentSuccessful) {
+        if (result?.redirect) return;
+        throw new Error("Payment was not completed.");
+      }
+
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+      toast.success("Payment successful!");
+      navigate(`/exam-start?email=${encodeURIComponent(email)}`);
+    } catch (err) {
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+      toast.error(err?.message || "Payment failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const tutorialTabs = [

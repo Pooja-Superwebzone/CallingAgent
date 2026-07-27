@@ -211,10 +211,10 @@ export default function ChannelPartnerMinuteTransactions() {
       <div className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:mb-4 sm:p-5">
         <div>
           <h2 className="text-xl font-bold leading-tight text-gray-700 sm:text-2xl">
-            Channel Partner Minute Transactions
+            ASA Minute Transactions
           </h2>
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-            Shows minutes donated to users by channel partners.
+            Shows minutes donated to users by ASAs.
           </p>
         </div>
       </div>
@@ -236,7 +236,7 @@ export default function ChannelPartnerMinuteTransactions() {
           <thead className="bg-slate-50 text-left text-slate-600">
             <tr>
               <th className="px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wide sm:px-4 sm:py-3 sm:text-xs">Sr No</th>
-              <th className="px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wide sm:px-4 sm:py-3 sm:text-xs">From Channel Partner</th>
+              <th className="px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wide sm:px-4 sm:py-3 sm:text-xs">From ASA</th>
               <th className="px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wide sm:px-4 sm:py-3 sm:text-xs">Minutes</th>
               <th className="px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wide sm:px-4 sm:py-3 sm:text-xs">To Username</th>
             </tr>

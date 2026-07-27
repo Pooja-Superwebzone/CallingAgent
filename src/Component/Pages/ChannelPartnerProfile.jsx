@@ -199,7 +199,7 @@ export default function ChannelPartnerProfile() {
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900">Channel Partner Documents</h3>
+              <h3 className="text-lg font-semibold text-slate-900">ASA Documents</h3>
               <p className="mt-1 text-sm text-slate-500">
                 Aadhar, PAN, GST and bank details.
               </p>
