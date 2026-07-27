@@ -453,6 +453,48 @@ export function startPerplexityCallExcel({ file, agent }) {
     });
 }
 
+// Plivo Agentflow (external endpoint)
+export async function startPlivoAgentflow({ keyword, phone_number }) {
+  const url =
+    "https://agentflow.plivo.com/v1/account/MAZDGWYZRMMZCTYJA2YS/flow/4d00448a-7504-450a-8fae-4f2351a9c203";
+  const payload = {
+    keyword: String(keyword || "").trim(),
+    phone_number: String(phone_number || "").trim(),
+  };
+
+  if (!payload.keyword) throw new Error("keyword is required");
+  if (!payload.phone_number) throw new Error("phone_number is required");
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    // Common in browser if CORS is not enabled by remote server
+    throw new Error(e?.message || "Failed to call Agentflow API");
+  }
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // ignore
+  }
+
+  if (!res.ok) {
+    const msg =
+      data?.message ||
+      data?.error ||
+      `Agentflow API failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data ?? { status: true };
+}
+
 
 export function createTwillioUser(payload) {
   return service

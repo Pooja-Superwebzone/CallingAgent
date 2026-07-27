@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import moment from "moment";
+import Cookies from "js-cookie";
 import {
   BarChart,
   Bar,
@@ -350,6 +351,9 @@ const CallsDashboard = () => {
   const calls = data?.calls;
   const totals = data?.totals;
 
+  const currentRole = String(Cookies.get("role") || "").trim().toLowerCase();
+  const showComingSoonLine = currentRole === "admin" || currentRole === "channelpartner";
+
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -360,6 +364,18 @@ const CallsDashboard = () => {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
+      {showComingSoonLine ? (
+        <div className="w-full rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2">
+          <marquee
+            behavior="scroll"
+            direction="left"
+            scrollAmount="8"
+            className="w-full text-indigo-700 font-extrabold text-lg sm:text-2xl"
+          >
+            Tithi and AI Sahaya is coming soon !!
+          </marquee>
+        </div>
+      ) : null}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>

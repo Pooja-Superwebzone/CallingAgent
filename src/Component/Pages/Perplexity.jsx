@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
-import { startPerplexityCall, startPerplexityCallExcel } from "../../hooks/useAuth";
+import { startPerplexityCallExcel, startPlivoAgentflow } from "../../hooks/useAuth";
 import { PhoneNumberUtil, PhoneNumberFormat } from "google-libphonenumber";
 import service from "../../api/axios";
 
@@ -151,12 +151,11 @@ export default function Perplexity() {
         setMobile("");
         setError("");
       } else {
-        const payload = {
-          phone: toNumber,
-          agent: selectedVoiceAgentKeyword,
-        };
-        const res = await startPerplexityCall(payload);
-        console.log("start-call response:", res);
+        const res = await startPlivoAgentflow({
+          keyword: selectedVoiceAgentKeyword,
+          phone_number: toNumber,
+        });
+        console.log("agentflow response:", res);
         toast.success(res?.message || "Call started successfully!");
         setMobile("");
         setError("");
