@@ -22,7 +22,7 @@ const PLAN_ID_MAP = {
   default: "8",
 };
 const PLAN_TITLE_MAP = {
-  become_channel_partner: "Become ASA",
+  become_channel_partner: "Become ASA Person",
 };
 const DEFAULT_PLAN_ID = PLAN_ID_MAP.default;
 const DEFAULT_PLAN_TITLE = "Richa Trial Pack";
@@ -360,6 +360,19 @@ export default function LoginSignup() {
           }
         } catch (e) {
           console.warn("start-call after OTP verify failed:", e);
+        }
+
+        // After ASA (channel partner) account + OTP: send them to ASA exam
+        if (signupPlanId === "become_channel_partner") {
+          navigate(`/exam-info?email=${encodeURIComponent(signupData.email || "")}`, {
+            replace: true,
+            state: {
+              examType: "asa",
+              showWelcome: true,
+              trialMinutes: "10",
+            },
+          });
+          return;
         }
 
         // ✅ Navigate with welcome popup

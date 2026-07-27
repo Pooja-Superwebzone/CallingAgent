@@ -515,9 +515,11 @@ export default function LandingPage() {
       }
       toast.success(channelPartnerSuccessToast || "Success");
       closeSignupModal();
-      navigate("/minutes", {
+      // After ASA account creation, send them to the ASA exam
+      navigate(`/exam-info?email=${encodeURIComponent(email)}`, {
         replace: true,
         state: {
+          examType: "asa",
           showWelcome: true,
           trialMinutes: "10",
         },

@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import service from "../../api/axios";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
@@ -105,7 +105,7 @@ const plans = [
   },  
   {
     id: "become_channel_partner",
-    title: "Become ASA",
+    title: "Become ASA Person",
     subtitle: "",
     price: "₹ 9,999 + GST",
     link: "richa-mini-pack"
@@ -115,10 +115,12 @@ const plans = [
 // Simple standalone page (no routing) with description and scheduling UI.
 export default function ExamInfo() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const EXAM_FEE = 199;
   const WEBINAR_FEE = 1999;
   const TUTOR_TRAINING_URL = "https://training.infinitybrains.com/";
+  const isAsaExam = location.state?.examType === "asa";
   
   const urlEmail = useMemo(() => {
     const emailParam = searchParams.get("email");
@@ -790,11 +792,21 @@ export default function ExamInfo() {
 
       <div className="mx-auto flex max-w-7xl flex-col gap-10">
         <header className="space-y-5">
+          {isAsaExam && (
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4 text-indigo-900">
+              <p className="text-sm font-semibold">ASA Person certification</p>
+              <p className="text-sm mt-1">
+                Your ASA Person account is ready. Complete this exam to earn your ASA certificate.
+              </p>
+            </div>
+          )}
           <p className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-            Digital Marketing + AI Training
+            {isAsaExam ? "ASA Person Exam" : "Digital Marketing + AI Training"}
           </p>
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
-            1. What You Will Learn in This Training Program
+            {isAsaExam
+              ? "ASA Person Exam — Get Certified"
+              : "1. What You Will Learn in This Training Program"}
           </h1>
           <p className="max-w-5xl text-lg text-slate-600 leading-relaxed">
             This training program is designed to transform beginners into job-ready digital professionals.

@@ -7,19 +7,17 @@ import {
   getChannelPartnerDocumentsByUserId,
 } from "../../hooks/useAuth";
 import { toast } from "react-hot-toast";
+import service from "../../api/axios";
 
 export default function ChannelPartner() {
+  const [activeTab, setActiveTab] = useState("persons"); // persons | certificates
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profileRow, setProfileRow] = useState(null);
-  const [profileDocsLoading, setProfileDocsLoading] = useState(false);
-  const [profileDocs, setProfileDocs] = useState(null);
-  const [profileDocsError, setProfileDocsError] = useState("");
+  const [certLoading, setCertLoading] = useState(false);
+  const [examResults, setExamResults] = useState([]);
+  const [certSummary, setCertSummary] = useState({ total: 0, passed: 0, failed: 0 });
 
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
@@ -123,10 +121,47 @@ export default function ChannelPartner() {
     loadRows();
   }, []);
 
-  const formatLocation = (value) => {
-    const text = String(value ?? "").trim();
-    if (!text || text.toLowerCase() === "null") return "-";
-    return text;
+  const loadCertificates = async () => {
+    setCertLoading(true);
+    try {
+      const res = await service.get("exam-results");
+      const list = Array.isArray(res?.data?.data)
+        ? res.data.data
+        : Array.isArray(res?.data)
+          ? res.data
+          : [];
+      setExamResults(list);
+      setCertSummary({
+        total: res?.data?.total ?? list.length,
+        passed: res?.data?.passed ?? list.filter((r) => String(r?.status || "").toLowerCase() === "pass" || String(r?.status || "").toLowerCase() === "passed").length,
+        failed: res?.data?.failed ?? list.filter((r) => String(r?.status || "").toLowerCase() === "fail" || String(r?.status || "").toLowerCase() === "failed").length,
+      });
+    } catch (e) {
+      toast.error(e?.response?.data?.message || e?.message || "Failed to fetch certificates");
+      setExamResults([]);
+      setCertSummary({ total: 0, passed: 0, failed: 0 });
+    } finally {
+      setCertLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "certificates") {
+      loadCertificates();
+    }
+  }, [activeTab]);
+
+  const formatExamDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return String(dateString);
+    return date.toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const openEdit = (row) => {
@@ -308,10 +343,43 @@ export default function ChannelPartner() {
   return (
     <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-700">ASAs</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-700">ASA Person</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Manage ASA persons and view ASA exam certificates (after account creation they take the ASA exam).
+          </p>
+        </div>
       </div>
 
+      {/* Same-page tabs: ASA Person list + Certificates */}
+      <div className="flex gap-2 mb-4 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setActiveTab("persons")}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition ${
+            activeTab === "persons"
+              ? "border-indigo-600 text-indigo-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          ASA Persons
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("certificates")}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition ${
+            activeTab === "certificates"
+              ? "border-indigo-600 text-indigo-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Certificates
+        </button>
+      </div>
+
+      {activeTab === "persons" && (
+        <>
       {/* Table */}
       <div className="overflow-x-auto rounded-xl shadow">
         <table className="min-w-full bg-white text-sm">
@@ -335,8 +403,8 @@ export default function ChannelPartner() {
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-6">
-                  No partners found
+                <td colSpan={6} className="text-center py-6">
+                  No ASA persons found
                 </td>
               </tr>
             ) : (
@@ -388,153 +456,135 @@ export default function ChannelPartner() {
         </table>
       </div>
 
-      {/* View Profile Modal */}
-      {profileOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-4">
-          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b">
-              <div className="min-w-0">
-                <div className="text-lg font-semibold text-gray-800">Channel Partner Profile</div>
-                <div className="mt-1 text-sm text-gray-600">
-                  {profileRow?.name || "-"}{" "}
-                  {profileRow?.email ? <span className="text-gray-500">({profileRow.email})</span> : null}
-                </div>
-              </div>
+      {rows.length > pageSize && (
+        <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+          <div>
+            Showing {(page - 1) * pageSize + 1}–
+            {Math.min(page * pageSize, rows.length)} of {rows.length}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              disabled={page === 1}
+            >
+              Prev
+            </button>
+            {[...Array(totalPages)].map((_, idx) => (
               <button
-                type="button"
-                onClick={closeProfile}
-                className="text-gray-500 hover:text-gray-700"
+                key={idx}
+                onClick={() => setPage(idx + 1)}
+                className={`px-3 py-1 border rounded ${
+                  page === idx + 1 ? "bg-indigo-600 text-white" : ""
+                }`}
               >
-                ✕
+                {idx + 1}
               </button>
-            </div>
-
-            <div className="px-5 py-5 space-y-5">
-              {profileDocsLoading ? (
-                <div className="py-10 text-center text-gray-600">Loading…</div>
-              ) : profileDocsError ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  {profileDocsError}
-                </div>
-              ) : null}
-
-              {profileDocs ? (
-                <>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="rounded-xl border border-slate-200 p-4">
-                      <div className="text-xs font-semibold uppercase text-slate-500">Aadhar Number</div>
-                      <div className="mt-1 text-sm text-slate-800">
-                        {profileDocs?.aadhar_number || "-"}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 p-4">
-                      <div className="text-xs font-semibold uppercase text-slate-500">PAN Number</div>
-                      <div className="mt-1 text-sm text-slate-800">
-                        {profileDocs?.pan_number || "-"}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 p-4">
-                      <div className="text-xs font-semibold uppercase text-slate-500">GST Number</div>
-                      <div className="mt-1 text-sm text-slate-800">
-                        {profileDocs?.gst_number || "-"}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 p-4">
-                      <div className="text-xs font-semibold uppercase text-slate-500">Bank</div>
-                      <div className="mt-1 text-sm text-slate-800 space-y-1">
-                        <div>AC No: {profileDocs?.bank_account_number || profileDocs?.bank_ac_no || "-"}</div>
-                        <div>AC Name: {profileDocs?.bank_account_name || profileDocs?.bank_ac_name || "-"}</div>
-                        <div>
-                          Type:{" "}
-                          {profileDocs?.bank_account_type ||
-                            profileDocs?.account_type ||
-                            profileDocs?.type_of_account ||
-                            "-"}
-                        </div>
-                        <div>Bank: {profileDocs?.bank_name || "-"}</div>
-                        <div>IFSC: {profileDocs?.bank_ifsc || profileDocs?.ifsc || "-"}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    {[
-                      {
-                        label: "Aadhar Image",
-                        key: "aadhar_image",
-                        value: profileDocs?.aadhar_image,
-                      },
-                      {
-                        label: "PAN Image",
-                        key: "pan_image",
-                        value: profileDocs?.pan_image,
-                      },
-                      {
-                        label: "GST Certificate",
-                        key: "gst_certificate_image",
-                        value: profileDocs?.gst_certificate_image || profileDocs?.gst_image,
-                      },
-                      {
-                        label: "Bank Detail Image",
-                        key: "bank_detail_image",
-                        value: profileDocs?.bank_detail_image || profileDocs?.bank_image,
-                      },
-                    ].map((it) => {
-                      const url = normalizeAssetUrl(it.value);
-                      if (!url) {
-                        return (
-                          <div key={it.key} className="rounded-xl border border-slate-200 p-4">
-                            <div className="text-sm font-semibold text-slate-900">{it.label}</div>
-                            <div className="mt-2 text-sm text-slate-600">-</div>
-                          </div>
-                        );
-                      }
-
-                      const pdf = isLikelyPdf(url);
-                      return (
-                        <div key={it.key} className="rounded-xl border border-slate-200 p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-sm font-semibold text-slate-900">{it.label}</div>
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
-                            >
-                              Open
-                            </a>
-                          </div>
-                          <div className="mt-3">
-                            {pdf ? (
-                              <div className="text-sm text-slate-700">
-                                PDF uploaded. Click <span className="font-semibold">Open</span>.
-                              </div>
-                            ) : (
-                              <img
-                                src={url}
-                                alt={it.label}
-                                className="w-full max-h-[320px] object-contain rounded-lg bg-slate-50"
-                                loading="lazy"
-                              />
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : null}
-            </div>
+            ))}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              disabled={page === totalPages}
+            >
+              Next
+            </button>
           </div>
         </div>
-      ) : null}
+      )}
+        </>
+      )}
+
+      {activeTab === "certificates" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <p className="text-xs font-medium text-gray-500">Total attempts</p>
+              <p className="text-2xl font-bold text-gray-800 mt-1">{certSummary.total}</p>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+              <p className="text-xs font-medium text-emerald-700">Passed</p>
+              <p className="text-2xl font-bold text-emerald-900 mt-1">{certSummary.passed}</p>
+            </div>
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm">
+              <p className="text-xs font-medium text-red-700">Failed</p>
+              <p className="text-2xl font-bold text-red-900 mt-1">{certSummary.failed}</p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl shadow">
+            <table className="min-w-full bg-white text-sm">
+              <thead className="bg-gray-100 text-left text-gray-600">
+                <tr>
+                  <th className="px-4 py-2">ID</th>
+                  <th className="px-4 py-2">Name</th>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Marks</th>
+                  <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Attempt</th>
+                  <th className="px-4 py-2">Exam Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {certLoading ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-6">
+                      Loading certificates…
+                    </td>
+                  </tr>
+                ) : examResults.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-6 text-gray-500">
+                      No ASA exam certificates found
+                    </td>
+                  </tr>
+                ) : (
+                  examResults.map((result) => {
+                    const status = String(result?.status || "").toLowerCase();
+                    const passed =
+                      status === "pass" || status === "passed" || result?.passed === true;
+                    return (
+                      <tr key={result.id} className="border-b hover:bg-gray-50 text-gray-700">
+                        <td className="px-4 py-2">#{result.id}</td>
+                        <td className="px-4 py-2">
+                          {result.user_name || result.name || "-"}
+                        </td>
+                        <td className="px-4 py-2">{result.email || "-"}</td>
+                        <td className="px-4 py-2">
+                          {result.marks ?? result.score ?? "-"}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${
+                              passed
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {result.status || (passed ? "Passed" : "Failed")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2">
+                          {result.attempt != null ? `#${result.attempt}` : "-"}
+                        </td>
+                        <td className="px-4 py-2">
+                          {formatExamDate(result.exam_date || result.created_at)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
             <div className="flex items-center justify-between px-5 py-4 border-b">
-              <div className="text-lg font-semibold text-gray-800">Update ASA</div>
+              <div className="text-lg font-semibold text-gray-800">Update ASA Person</div>
               <button
                 type="button"
                 onClick={closeEdit}
@@ -728,42 +778,6 @@ export default function ChannelPartner() {
                 {saving ? "Donating..." : "Donate"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {rows.length > pageSize && (
-        <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-          <div>
-            Showing {(page - 1) * pageSize + 1}–
-            {Math.min(page * pageSize, rows.length)} of {rows.length}
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-3 py-1 border rounded disabled:opacity-50"
-              disabled={page === 1}
-            >
-              Prev
-            </button>
-            {[...Array(totalPages)].map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setPage(idx + 1)}
-                className={`px-3 py-1 border rounded ${
-                  page === idx + 1 ? "bg-indigo-600 text-white" : ""
-                }`}
-              >
-                {idx + 1}
-              </button>
-            ))}
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="px-3 py-1 border rounded disabled:opacity-50"
-              disabled={page === totalPages}
-            >
-              Next
-            </button>
           </div>
         </div>
       )}

@@ -1130,7 +1130,7 @@ const Sidebar = () => {
             </li>
           )}
 
-          {/* ASA (admin & twilioUser===0 original) */}
+          {/* ASA Person (admin & twilioUser===0 original) — previously Channel Partner */}
           {twilioUser === 0 && role === "admin" && (
             <li>
               <button
@@ -1145,7 +1145,7 @@ const Sidebar = () => {
                 }`}
               >
                 <FaUsers size={18} />
-                ASA
+                ASA Person
               </button>
             </li>
           )}

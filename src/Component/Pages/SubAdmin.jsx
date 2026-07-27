@@ -493,7 +493,7 @@ const onSubmit = async (data) => {
                   <option value="">Select Role</option>
                   <option value="admin">Admin</option>
                   <option value="franchise">Franchise</option>
-                  <option value="channelpartner">ASA</option>
+                  <option value="channelpartner">ASA Person</option>
                 </select>
                 {errors.role && <p className="text-red-500 text-sm">{errors.role.message}</p>}
               </div>
