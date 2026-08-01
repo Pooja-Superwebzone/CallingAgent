@@ -3,15 +3,38 @@ import { service } from "./axios";
 
 const PAYMENT_ORDER_URL = "https://payment.ibdelight.in/api/createOrder";
 const CASHFREE_API_BASE_URL = "https://api.cashfree.com/pg/orders";
+const DEFAULT_HTTPS_APP_ORIGIN = "https://richa.infinitybrains.com";
 
 const CASHFREE_APP_ID = import.meta.env.VITE_CASHFREE_APP_ID;
 const CASHFREE_SECRET_KEY = import.meta.env.VITE_CASHFREE_SECRET_KEY;
 
-const APP_ORIGIN = String(
-  import.meta.env.VITE_APP_ORIGIN || window.location.origin
-).replace(/\/$/, "");
+const resolvePaymentReturnOrigin = () => {
+  const fromEnv = String(import.meta.env.VITE_APP_ORIGIN || "")
+    .trim()
+    .replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
 
+  const origin = String(window.location.origin).replace(/\/$/, "");
+  if (origin.startsWith("https://")) return origin;
+
+  return DEFAULT_HTTPS_APP_ORIGIN;
+};
+
+const APP_ORIGIN = resolvePaymentReturnOrigin();
 const CASHFREE_RETURN_URL = `${APP_ORIGIN}/result?order_id=`;
+
+const extractPaymentOrderError = (error) => {
+  const payload = error?.response?.data;
+  const nested = payload?.error;
+  const cashfreeMessage =
+    nested?.response?.data?.message ||
+    nested?.message ||
+    payload?.message ||
+    payload?.msg;
+  if (cashfreeMessage) return String(cashfreeMessage);
+  if (typeof payload === "string" && payload.trim()) return payload;
+  return error?.message || "Payment failed. Please try again.";
+};
 const ADD_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/add-subscription";
 const UPDATE_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/update-subscription";
 
@@ -99,8 +122,9 @@ export async function createPaymentOrder({
     console.log("createOrder response.data:", response.data);
     return response.data;
   } catch (error) {
-    console.error("Payment API Error:", error?.response?.data || error.message);
-    throw error;
+    const message = extractPaymentOrderError(error);
+    console.error("Payment API Error:", error?.response?.data || message);
+    throw new Error(message);
   }
 }
 
