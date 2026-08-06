@@ -31,6 +31,10 @@ import AgentConnection from './Component/Pages/AgentConnection';
 import AgentConnectionCreate from './Component/Pages/AgentConnectionCreate';
 import EmailTemplateList from './Component/Pages/EmailTemplateList';
 import WhatsappSendMsg from './Component/Pages/WhatsappSendMsg';
+import WhatsAppInbox from './Component/Pages/whatsapp/WhatsAppInbox';
+import WhatsAppTemplatesPlivo from './Component/Pages/whatsapp/WhatsAppTemplates';
+import WhatsAppSend from './Component/Pages/whatsapp/WhatsAppSend';
+import WhatsAppBulkSend from './Component/Pages/whatsapp/WhatsAppBulkSend';
 import Perplexity from './Component/Pages/Perplexity';
 import LandingPage from './Component/Pages/LandingPage';
 import ExamInfo from './Component/Pages/ExamInfo';
@@ -197,6 +201,10 @@ function App() {
             <Route path="/agent-connection/new" element={<AgentConnectionCreate />} />
             <Route path="/email-template" element={<EmailTemplateList />} />
             <Route path="/whatsapp-send-message" element={<WhatsappSendMsg />} />
+            <Route path="/plivo-whatsapp/inbox" element={<WhatsAppInbox />} />
+            <Route path="/plivo-whatsapp/templates" element={<WhatsAppTemplatesPlivo />} />
+            <Route path="/plivo-whatsapp/send" element={<WhatsAppSend />} />
+            <Route path="/plivo-whatsapp/bulk" element={<WhatsAppBulkSend />} />
             <Route path="/perplexity" element={<Perplexity />} />
             <Route path="/minutes" element={<MinutesPage />} />
             <Route path="/upgrade-minutes" element={<UpgradeMinutesPage />} />

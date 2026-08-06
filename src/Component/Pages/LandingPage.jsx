@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
-import franchiseAgreementDocUrl from "../../assets/franchisee-agreement.docx?url";
 import { signupTwillioUser, login, resendTwillioOtp } from "../../hooks/useAuth";
 import service from "../../api/axios";
 import toast from "react-hot-toast";
@@ -182,9 +181,47 @@ const getResolvedStoredPlanId = (role = "") => {
 
 const extractNumber = (str) => {
   if (!str) return 0;
-  const cleaned = String(str).replace(/[₹Rs.,\s\/-]/g, "");
-  const n = Number(cleaned);
+  const match = String(str).match(/[\d,]+(?:\.\d+)?/);
+  if (!match) return 0;
+  const n = Number(match[0].replace(/,/g, ""));
   return Number.isFinite(n) ? n : 0;
+};
+
+const formatPhoneForPayment = (contactNo = "") => {
+  const digits = String(contactNo).replace(/\D/g, "");
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
+  if (String(contactNo).trim().startsWith("+")) return String(contactNo).trim();
+  return digits ? `+${digits}` : String(contactNo || "").trim();
+};
+
+const ensureCashfreeReady = async (maxWaitMs = 8000) => {
+  if (typeof window === "undefined") {
+    throw new Error("Payment gateway is not available.");
+  }
+  if (window.cashfree) return window.cashfree;
+  if (window.Cashfree) {
+    window.cashfree = window.Cashfree({ mode: "production" });
+    return window.cashfree;
+  }
+
+  const started = Date.now();
+  while (Date.now() - started < maxWaitMs) {
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    if (window.Cashfree) {
+      window.cashfree = window.Cashfree({ mode: "production" });
+      return window.cashfree;
+    }
+  }
+
+  throw new Error("Payment gateway is not ready yet. Please refresh and try again.");
+};
+
+const resolvePlanIdForCheckout = (plan, roleCookie) => {
+  if (plan?.id === "become_channel_partner" || roleCookie === "channelpartner") {
+    return 18;
+  }
+  return 8;
 };
 
 const isFreePlan = (plan) =>
@@ -192,6 +229,30 @@ const isFreePlan = (plan) =>
   String(plan.price || "")
     .trim()
     .toLowerCase() === "free";
+
+const FRANCHISE_AGREEMENT_FILE = "Franchisee Agreement.docx";
+
+const downloadFranchiseAgreement = async (event) => {
+  event?.preventDefault();
+  try {
+    const response = await fetch(`/${encodeURIComponent(FRANCHISE_AGREEMENT_FILE)}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch file");
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = FRANCHISE_AGREEMENT_FILE;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Error downloading franchise agreement:", error);
+    toast.error("Failed to download Terms and Conditions. Please try again.");
+  }
+};
 
 // Calculate discount percentage for a plan
 export const calculateDiscountPercentage = (plan) => {
@@ -537,12 +598,7 @@ export default function LandingPage() {
 
     // Paid plan: use Cashfree (no external redirects).
     try {
-      if (!window.cashfree && window.Cashfree) {
-        window.cashfree = window.Cashfree({ mode: "production" });
-      }
-      if (!window.cashfree) {
-        throw new Error("Payment gateway is not ready yet. Please refresh and try again.");
-      }
+      const cashfree = await ensureCashfreeReady();
 
       const baseAmount = extractNumber(selectedPlan.price);
       if (!baseAmount || baseAmount <= 0) {
@@ -550,7 +606,7 @@ export default function LandingPage() {
       }
 
       const totalWithTax = Number((baseAmount * 1.18).toFixed(2));
-      const planId = resolveStoredPlanIdFromRole(roleCookie);
+      const planId = resolvePlanIdForCheckout(selectedPlan, roleCookie);
 
       sessionStorage.setItem(
         PENDING_PAYMENT_KEY,
@@ -559,15 +615,14 @@ export default function LandingPage() {
           email,
           planId: Number(planId),
           planTitle: selectedPlan.title,
+          authToken: tokenToUse,
         })
       );
-
-      closeSignupModal();
 
       const response = await createPaymentOrder({
         name: resolvedName || "Customer",
         email,
-        phoneNumber: resolvedContactNo,
+        phoneNumber: formatPhoneForPayment(resolvedContactNo),
         totalPayment: totalWithTax,
         orderDesc: `Richa Plan Purchase - ${selectedPlan.title}`,
       });
@@ -577,7 +632,9 @@ export default function LandingPage() {
         throw new Error("Payment session id was not returned from create order API.");
       }
 
-      const result = await window.cashfree.checkout({
+      closeSignupModal();
+
+      const result = await cashfree.checkout({
         paymentSessionId,
         redirectTarget: "_self",
       });
@@ -608,8 +665,10 @@ export default function LandingPage() {
       navigate("/agents_page", { replace: true });
     } catch (err) {
       sessionStorage.removeItem(PENDING_PAYMENT_KEY);
-      toast.error(err?.message || "Payment failed. Please try again.");
-      navigate("/agents_page", { replace: true });
+      const message = err?.message || "Payment failed. Please try again.";
+      toast.error(message);
+      setSignupError(message);
+      setShowSignup(true);
     }
   };
 
@@ -1255,12 +1314,11 @@ export default function LandingPage() {
                               I agree with this{" "}
                             </label>
                             <a
-                              href={franchiseAgreementDocUrl}
-                              download="Franchisee Agreement.docx"
+                              href={`/${encodeURIComponent(FRANCHISE_AGREEMENT_FILE)}`}
+                              onClick={downloadFranchiseAgreement}
                               className="font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
-                              rel="noopener noreferrer"
                             >
-                             Terms and Conditions
+                              Terms and Conditions
                             </a>
                             <span>.</span>
                           </div>

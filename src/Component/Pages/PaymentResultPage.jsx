@@ -37,7 +37,10 @@ export default function PaymentResultPage() {
 
       try {
         const authToken =
-          Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken") || "";
+          pending?.authToken ||
+          Cookies.get("CallingAgent") ||
+          localStorage.getItem("ibcrmtoken") ||
+          "";
 
         const pendingType =
           pending?.type ||

@@ -9,13 +9,15 @@ const CASHFREE_APP_ID = import.meta.env.VITE_CASHFREE_APP_ID;
 const CASHFREE_SECRET_KEY = import.meta.env.VITE_CASHFREE_SECRET_KEY;
 
 const resolvePaymentReturnOrigin = () => {
+  if (typeof window !== "undefined") {
+    const liveOrigin = String(window.location.origin).replace(/\/$/, "");
+    if (liveOrigin.startsWith("https://")) return liveOrigin;
+  }
+
   const fromEnv = String(import.meta.env.VITE_APP_ORIGIN || "")
     .trim()
     .replace(/\/$/, "");
   if (fromEnv) return fromEnv;
-
-  const origin = String(window.location.origin).replace(/\/$/, "");
-  if (origin.startsWith("https://")) return origin;
 
   return DEFAULT_HTTPS_APP_ORIGIN;
 };

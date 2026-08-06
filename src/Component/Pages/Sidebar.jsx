@@ -132,6 +132,12 @@ const Sidebar = () => {
 
   const isRestrictedUser = isRestrictedAdmin || isRestrictedChannelPartner;
 
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  const isSalesPerson =
+    twilioUser === 0 &&
+    normalizedRole !== "admin" &&
+    normalizedRole !== "channelpartner";
+
   const normalizeAssetUrl = (value) => {
     if (!value) return "";
     const s = String(value).trim();
@@ -953,25 +959,6 @@ const Sidebar = () => {
                 </li>
               )}
 
-              {!isRestrictedUser && (
-                <li>
-                  <button
-                    onClick={() => {
-                      navigate("/whatsapp-logs");
-                      setMobileOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                      location.pathname === "/whatsapp-logs"
-                        ? "bg-gray-700 text-gray-300"
-                        : "hover:bg-gray-700 text-gray-300"
-                    }`}
-                  >
-                    <MessageSquareText size={18} />
-                    Whatsapp Logs
-                  </button>
-                </li>
-              )}
-
               <li>
                 <button
                   onClick={() => {
@@ -1038,22 +1025,6 @@ const Sidebar = () => {
 
           {/* Calls Log (/calling) hidden from sidebar */}
 
-          {/* Whatsapp Template */}
-          {!isRestrictedUser && (
-            <li>
-              <button
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
-                onClick={() => {
-                  navigate("/whatsapp-temp");
-                  setMobileOpen(false);
-                }}
-              >
-                <BiLogoWhatsapp size={18} />
-                Whatsapp Template
-              </button>
-            </li>
-          )}
-
           {/* Email Template (originally only for twilioUser===0 && role==='admin') - keep that behaviour but hide if combined block above shown */}
           {!(twilioUser === 1 && role === "admin") && twilioUser === 0 && role === "admin" && !isRestrictedUser && (
             <li>
@@ -1093,55 +1064,22 @@ const Sidebar = () => {
             </li>
           )}
 
-          {/* Send Conversation call (non-admin twilioUser===0) */}
-          {twilioUser === 0 && role !== "admin" && (
-            <li>
-              <button
-                onClick={() => navigate("/call-coversation")}
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition hover:bg-gray-700 text-gray-300"
-              >
-                <BiPhoneCall size={18} />
-                Send Conversation call
-              </button>
-            </li>
-          )}
-
-          {/* Whatsapp Logs (originally shown for twilioUser===0), hide when combined block present */}
-          {!(twilioUser === 1 && role === "admin") && !isRestrictedUser && (twilioUser === 0 && (
+          {/* Send two way call (sales person — replaces conversation call) */}
+          {isSalesPerson && (
             <li>
               <button
                 onClick={() => {
-                  navigate("/whatsapp-logs");
+                  navigate("/perplexity");
                   setMobileOpen(false);
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                  location.pathname === "/whatsapp-logs"
+                  location.pathname === "/perplexity"
                     ? "bg-gray-700 text-gray-300"
                     : "hover:bg-gray-700 text-gray-300"
                 }`}
               >
-                <MessageSquareText size={18} />
-                WhatsApp Logs
-              </button>
-            </li>
-          ))}
-
-          {/* WhatsApp main (admin-only, original) */}
-          {role === "admin" && !(twilioUser === 1 && role === "admin") && (
-            <li>
-              <button
-                onClick={() => {
-                  navigate("/whats-app");
-                  setMobileOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                  location.pathname === "/whats-app"
-                    ? "bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-700 text-gray-300"
-                }`}
-              >
-                <Smartphone size={18} />
-                WhatsApp
+                <BsChatTextFill size={18} className="flex-shrink-0" />
+                <span className="whitespace-nowrap">Send two way call</span>
               </button>
             </li>
           )}
@@ -1286,8 +1224,8 @@ const Sidebar = () => {
             </li> */}
        
 
-          {/* Call Log (admin & twilioUser===0 original) - hidden if combined block */}
-          {twilioUser === 0 && role === "admin" && !isRestrictedUser && (
+          {/* Call Log (admin & sales person) */}
+          {((twilioUser === 0 && role === "admin" && !isRestrictedUser) || isSalesPerson) && (
             <li>
               <button
                 onClick={() => {
@@ -1344,26 +1282,74 @@ const Sidebar = () => {
             </li>
           )}
 
-
-
-
+          {/* Plivo WhatsApp */}
           {!isRestrictedUser && (
-            <li>
-              <button
-                onClick={() => {
-                  navigate("/whatsapp-send-message");
-                  setMobileOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                  location.pathname === "/whatsapp-send-message"
-                    ? "bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-700 text-gray-300"
-                }`}
-              >
-                <BsChatTextFill size={18} className="flex-shrink-0" />
-                <span className="whitespace-nowrap">Whatsapp Send Message</span>
-              </button>
-            </li>
+            <>
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/plivo-whatsapp/inbox");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/plivo-whatsapp/inbox"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <BiLogoWhatsapp size={18} />
+                  <span className="whitespace-nowrap">WA Inbox</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/plivo-whatsapp/templates");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/plivo-whatsapp/templates"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <BiLogoWhatsapp size={18} />
+                  <span className="whitespace-nowrap">WA Templates</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/plivo-whatsapp/send");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/plivo-whatsapp/send"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <BsChatTextFill size={18} className="flex-shrink-0" />
+                  <span className="whitespace-nowrap">WA Send Message</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/plivo-whatsapp/bulk");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/plivo-whatsapp/bulk"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <BsChatTextFill size={18} className="flex-shrink-0" />
+                  <span className="whitespace-nowrap">WA Bulk Send</span>
+                </button>
+              </li>
+            </>
           )}
 
           
@@ -1391,7 +1377,9 @@ const Sidebar = () => {
     </div>
   );
 
-  const isWhatsAppFull = location.pathname === "/whats-app";
+  const isWhatsAppFull =
+    location.pathname === "/whats-app" ||
+    location.pathname === "/plivo-whatsapp/inbox";
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-100 text-gray-900 relative">

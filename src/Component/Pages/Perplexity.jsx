@@ -1,8 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "react-hot-toast";
-import { startPerplexityCallExcel } from "../../hooks/useAuth";
+import Cookies from "js-cookie";
+import * as XLSX from "xlsx";
 import { PhoneNumberUtil, PhoneNumberFormat } from "google-libphonenumber";
 import service from "../../api/axios";
+
+const PLIVO_AGENT_FLOW_URL =
+  "https://agentflow.plivo.com/v1/account/MAZDGWYZRMMZCTYJA2YS/flow/4d00448a-7504-450a-8fae-4f2351a9c203";
+const BULK_CALL_DELAY_MS = 2000;
+const PHONE_HEADERS = ["phone", "number", "mobile", "contact", "whatsapp"];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function Perplexity() {
   const phoneUtil = PhoneNumberUtil.getInstance();
@@ -20,12 +28,18 @@ export default function Perplexity() {
   const [countryCode, setCountryCode] = useState("IN");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [twoWayMinutes, setTwoWayMinutes] = useState(0);
+  const [loadingMinutes, setLoadingMinutes] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(null);
+
+  const isSalesPerson = useMemo(() => {
+    const role = String(Cookies.get("role") || "").trim().toLowerCase();
+    const twilioUser = Number(Cookies.get("twilio_user") || "0");
+    return twilioUser === 0 && role !== "admin" && role !== "channelpartner";
+  }, []);
 
   const startPlivoAgentFlowCall = async ({ keyword, phone_number }) => {
-    const url =
-      "https://agentflow.plivo.com/v1/account/MAZDGWYZRMMZCTYJA2YS/flow/4d00448a-7504-450a-8fae-4f2351a9c203";
-
-    const res = await fetch(url, {
+    const res = await fetch(PLIVO_AGENT_FLOW_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,6 +83,44 @@ export default function Perplexity() {
     };
     loadVoiceAgents();
   }, []);
+
+  useEffect(() => {
+    if (!isSalesPerson) return;
+
+    const fetchProfileMinutes = async () => {
+      setLoadingMinutes(true);
+      try {
+        const res = await service.get("Profile", {
+          headers: { Authorization: `Bearer ${Cookies.get("CallingAgent")}` },
+        });
+
+        const minuteObj = res?.data?.data?.twilio_user_minute || {};
+        const twoWayMinuteObj = res?.data?.data?.twilio_two_way_user_minute || {};
+
+        let two = 0;
+        if (twoWayMinuteObj && typeof twoWayMinuteObj === "object") {
+          two = Number(twoWayMinuteObj.minute ?? 0);
+        } else {
+          two = Number(
+            minuteObj?.two_way ??
+              minuteObj?.twoWay ??
+              minuteObj?.inbound ??
+              minuteObj?.inbound_minute ??
+              0
+          );
+        }
+
+        setTwoWayMinutes(Number.isFinite(two) ? two : 0);
+      } catch (err) {
+        console.warn("Could not fetch profile minutes:", err);
+        setTwoWayMinutes(0);
+      } finally {
+        setLoadingMinutes(false);
+      }
+    };
+
+    fetchProfileMinutes();
+  }, [isSalesPerson]);
 
   useEffect(() => {
     try {
@@ -118,28 +170,115 @@ export default function Perplexity() {
   };
 
 
+  const formatPhoneFallback = (raw) => {
+    const digits = String(raw || "").replace(/\D/g, "");
+    if (digits.length === 10) return `+91${digits}`;
+    if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
+    if (String(raw || "").trim().startsWith("+")) return String(raw).trim();
+    return digits.length >= 10 ? `+${digits}` : null;
+  };
+
+  const normalizePhoneFromCell = (cell) => {
+    const raw = String(cell ?? "").trim();
+    if (!raw) return null;
+    return parseAndValidateToE164(raw, countryCode) || formatPhoneFallback(raw);
+  };
+
+  const parsePhonesFromExcel = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          if (!rows.length) {
+            reject(new Error("Excel file is empty"));
+            return;
+          }
+
+          const headers = (rows[0] || []).map((h) => String(h || "").trim().toLowerCase());
+          let colIdx = headers.findIndex((h) => PHONE_HEADERS.includes(h));
+          if (colIdx < 0) colIdx = 0;
+
+          const phones = [];
+          for (let i = 1; i < rows.length; i++) {
+            const phone = normalizePhoneFromCell(rows[i]?.[colIdx]);
+            if (phone) phones.push(phone);
+          }
+
+          if (!phones.length) {
+            reject(
+              new Error(
+                "No valid phone numbers found. Use a column named phone, number, mobile, contact, or whatsapp."
+              )
+            );
+            return;
+          }
+
+          resolve(phones);
+        } catch (err) {
+          reject(new Error(err?.message || "Failed to read Excel file"));
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read Excel file"));
+      reader.readAsArrayBuffer(file);
+    });
+
+  const runBulkCallsFromExcel = async (file, keyword) => {
+    const phones = await parsePhonesFromExcel(file);
+    let success = 0;
+    let failed = 0;
+
+    setBulkProgress({ current: 0, total: phones.length });
+
+    for (let i = 0; i < phones.length; i++) {
+      setBulkProgress({ current: i + 1, total: phones.length });
+      try {
+        await startPlivoAgentFlowCall({
+          keyword,
+          phone_number: phones[i],
+        });
+        success++;
+      } catch (err) {
+        failed++;
+        console.error(`Bulk call failed for ${phones[i]}:`, err);
+      }
+
+      if (i < phones.length - 1) {
+        await sleep(BULK_CALL_DELAY_MS);
+      }
+    }
+
+    return { total: phones.length, success, failed };
+  };
+
   const validate = () => {
     if (!selectedVoiceAgentKeyword) {
       setError("Please select an agent.");
       return false;
     }
 
-    if (!excelFile && !mobile.trim()) {
+    if (excelFile) {
+      setError("");
+      return true;
+    }
+
+    if (!mobile.trim()) {
       setError("Please enter a mobile number or upload an Excel file.");
       return false;
     }
 
-    if (!mobile.trim()) {
-      // ok if excel is present
-    } else {
-      const e164 = parseAndValidateToE164(mobile, countryCode);
-      if (!e164) {
-        const selected = countries.find((c) => c.code === countryCode);
-        const countryName = selected ? selected.name : countryCode;
-        setError(`Enter a valid ${countryName} phone number.`);
-        return false;
-      }
+    const e164 = parseAndValidateToE164(mobile, countryCode);
+    if (!e164) {
+      const selected = countries.find((c) => c.code === countryCode);
+      const countryName = selected ? selected.name : countryCode;
+      setError(`Enter a valid ${countryName} phone number.`);
+      return false;
     }
+
     setError("");
     return true;
   };
@@ -153,43 +292,43 @@ export default function Perplexity() {
     try {
       setSubmitting(true);
 
-      let toNumber = mobile;
+      if (excelFile) {
+        const result = await runBulkCallsFromExcel(excelFile, selectedVoiceAgentKeyword);
+        toast.success(
+          `Bulk calls finished: ${result.success} started, ${result.failed} failed (${result.total} total).`
+        );
+        setExcelFile(null);
+        setFileError("");
+        setMobile("");
+        setError("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      let toNumber = mobile.trim();
       if (!toNumber.startsWith("+")) {
         const e164 = parseAndValidateToE164(mobile, countryCode);
         if (!e164) {
           setError("Invalid phone number format.");
-          setSubmitting(false);
           return;
         }
         toNumber = e164;
       }
 
-      if (excelFile) {
-        const res = await startPerplexityCallExcel({
-          file: excelFile,
-          agent: selectedVoiceAgentKeyword,
-        });
-        console.log("start-call-excel response:", res);
-        toast.success(res?.message || "Excel calls started successfully!");
-        setExcelFile(null);
-        setFileError("");
-        setMobile("");
-        setError("");
-      } else {
-        const res = await startPlivoAgentFlowCall({
-          keyword: selectedVoiceAgentKeyword,
-          phone_number: toNumber,
-        });
-        console.log("plivo agentflow response:", res);
-        toast.success("Call started successfully!");
-        setMobile("");
-        setError("");
-      }
+      const res = await startPlivoAgentFlowCall({
+        keyword: selectedVoiceAgentKeyword,
+        phone_number: toNumber,
+      });
+      console.log("plivo agentflow response:", res);
+      toast.success("Call started successfully!");
+      setMobile("");
+      setError("");
     } catch (err) {
       console.error("perplexity start-call error:", err);
       toast.error(err?.message || "Failed to start call");
     } finally {
       setSubmitting(false);
+      setBulkProgress(null);
     }
   };
 
@@ -198,6 +337,14 @@ export default function Perplexity() {
       <div className="mx-auto max-w-sd bg-white rounded-xl shadow p-6">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Send two way call</h2>
+          {isSalesPerson && (
+            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+              <span className="text-sm font-medium text-gray-700">Remaining Minutes</span>
+              <span className="text-xl font-bold text-gray-900">
+                {loadingMinutes ? "..." : `${twoWayMinutes} minutes`}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -227,38 +374,46 @@ export default function Perplexity() {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
-            <div className="flex gap-2">
-              <div className="w-52">
-                <select
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                >
-                  {countries.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+          {!excelFile && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+              <div className="flex gap-2">
+                <div className="w-52">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  >
+                    {countries.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <input
+                  type="tel"
+                  placeholder="Enter phone number (national or +...)"
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value)}
+                  className={`flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                    error ? "border-red-400 focus:ring-red-300" : "focus:ring-indigo-200"
+                  }`}
+                />
               </div>
-              <input
-                type="tel"
-                placeholder="Enter phone number (national or +...)"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                className={`flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                  error ? "border-red-400 focus:ring-red-300" : "focus:ring-indigo-200"
-                }`}
-              />
+              {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
             </div>
-            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-          </div>
+          )}
+
+          {excelFile && error && (
+            <p className="text-xs text-red-500">{error}</p>
+          )}
 
           <div>
             <div className="text-xs text-gray-500">
-              Tip: If you upload Excel, the call will use the uploaded leads. Otherwise, it will call the mobile number above.
+              {excelFile
+                ? "Excel uploaded — each row will call Plivo Agent Flow with a 2 second gap between numbers."
+                : "Tip: Upload Excel to call multiple numbers, or enter one mobile number above."}
             </div>
           </div>
 
@@ -271,6 +426,8 @@ export default function Perplexity() {
                 const f = e.target.files?.[0] || null;
                 setExcelFile(f);
                 setFileError("");
+                setError("");
+                if (f) setMobile("");
               }}
               className="hidden"
               disabled={submitting}
@@ -302,7 +459,11 @@ export default function Perplexity() {
             </button>
 
             <button type="submit" disabled={submitting} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-60">
-              {submitting ? "Sending..." : "Send Call"}
+              {submitting && bulkProgress
+                ? `Calling ${bulkProgress.current}/${bulkProgress.total}...`
+                : submitting
+                  ? "Sending..."
+                  : "Send Call"}
             </button>
           </div>
 
