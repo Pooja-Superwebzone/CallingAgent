@@ -692,39 +692,43 @@ const Sidebar = () => {
             </button>
           </li> */}
 
-          <li>
-            <button
-              onClick={() => {
-                navigate("/agents-category");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/agents-category"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <FaLayerGroup size={18} />
-              Agents category
-            </button>
-          </li>
+          {!isSalesPerson && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/agents-category");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/agents-category"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FaLayerGroup size={18} />
+                Agents category
+              </button>
+            </li>
+          )}
 
-          <li>
-            <button
-              onClick={() => {
-                navigate("/create-agent-send");
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                location.pathname === "/create-agent-send"
-                  ? "bg-gray-700 text-gray-300"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-            >
-              <FaMagento size={18} />
-              Create Agent
-            </button>
-          </li>
+          {!isSalesPerson && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/create-agent-send");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/create-agent-send"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FaMagento size={18} />
+                Create Agent
+              </button>
+            </li>
+          )}
 
           {/* <li>
             <button
@@ -1003,7 +1007,7 @@ const Sidebar = () => {
              --------------------------- */}
 
           {/* Make one way Call (show if NOT the combined-admin-twilio block) */}
-          {!isRestrictedUser && (
+          {!isRestrictedUser && !isSalesPerson && (
             <li>
               <button
                 onClick={() => {
@@ -1301,6 +1305,7 @@ const Sidebar = () => {
                   <span className="whitespace-nowrap">WA Inbox</span>
                 </button>
               </li>
+              {!isSalesPerson && (
               <li>
                 <button
                   onClick={() => {
@@ -1317,6 +1322,7 @@ const Sidebar = () => {
                   <span className="whitespace-nowrap">WA Templates</span>
                 </button>
               </li>
+              )}
               <li>
                 <button
                   onClick={() => {

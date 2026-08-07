@@ -4,10 +4,8 @@ import { toast } from "react-hot-toast";
 import DOMPurify from "dompurify";
 import { useNavigate } from "react-router-dom";
 
-import {
-  getAgents,
-} from "../../hooks/useAuth";
-import { FiPlusCircle } from "react-icons/fi";
+import { getAgents } from "../../hooks/useAuth";
+import { FiEdit, FiPlusCircle } from "react-icons/fi";
 
 export default function AgentsPage() {
   const [rows, setRows] = useState([]);
@@ -27,6 +25,7 @@ export default function AgentsPage() {
       setRows(
         (Array.isArray(list) ? list : []).map((r, i) => ({
           id: r.id ?? i + 1,
+          agent_id: r.agent_id ?? r.agentId ?? r.id ?? i + 1,
           name: r.name ?? "",
           welcome_message: r.welcome_message ?? r.welcomeMessage ?? "",
           body: r.body ?? "",
@@ -44,7 +43,6 @@ export default function AgentsPage() {
     loadRows();
   }, []);
 
-
   return (
     <div className="p-4 sm:p-6">
       {/* Header */}
@@ -52,13 +50,13 @@ export default function AgentsPage() {
         <h2 className="text-2xl font-bold text-gray-700">Agents</h2>
         <button
           onClick={() => navigate("/agents/new")}
-            className="relative px-4 py-2 bg-gray-600 text-white cursor-pointer animate-bounce rounded-md hover:bg-gray-700 overflow-hidden"
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  <FiPlusCircle size={16} />
-                  Create Agent
-                </span>
-              </button>
+          className="relative px-4 py-2 bg-gray-600 text-white cursor-pointer animate-bounce rounded-md hover:bg-gray-700 overflow-hidden"
+        >
+          <span className="relative z-10 flex items-center gap-2">
+            <FiPlusCircle size={16} />
+            Create Agent
+          </span>
+        </button>
       </div>
 
       {/* Table */}
@@ -70,18 +68,19 @@ export default function AgentsPage() {
               <th className="px-4 py-2 w-48">Name</th>
               <th className="px-4 py-2 w-56">Welcome Message</th>
               <th className="px-4 py-2">Body</th>
+              <th className="px-4 py-2 w-16">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} className="text-center py-6">
+                <td colSpan={5} className="text-center py-6">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-6">
+                <td colSpan={5} className="text-center py-6">
                   No agents found
                 </td>
               </tr>
@@ -91,9 +90,7 @@ export default function AgentsPage() {
                   key={r.id}
                   className="border-b hover:bg-gray-50 text-gray-700 align-top"
                 >
-                  <td className="px-4 py-2">
-                    {(page - 1) * pageSize + i + 1}
-                  </td>
+                  <td className="px-4 py-2">{(page - 1) * pageSize + i + 1}</td>
                   <td className="px-4 py-2 font-medium">{r.name}</td>
                   <td className="px-4 py-2">{r.welcome_message}</td>
                   <td
@@ -102,6 +99,17 @@ export default function AgentsPage() {
                       __html: DOMPurify.sanitize(r.body || ""),
                     }}
                   />
+                  <td className="px-4 py-2">
+                    <button
+                      type="button"
+                      title="Edit agent"
+                      aria-label={`Edit ${r.name}`}
+                      onClick={() => navigate(`/agents/${r.agent_id}/edit`)}
+                      className="rounded border border-gray-300 bg-white p-2 text-gray-600 shadow-sm transition hover:bg-gray-100"
+                    >
+                      <FiEdit size={16} />
+                    </button>
+                  </td>
                 </tr>
               ))
             )}

@@ -1,32 +1,8 @@
 import React, { useState } from "react";
 import { toast } from "react-hot-toast";
+import { startPlivoCallAndLog } from "../../api/plivoCall";
 
-const PLIVO_AGENT_FLOW_URL =
-  "https://agentflow.plivo.com/v1/account/MAZDGWYZRMMZCTYJA2YS/flow/4d00448a-7504-450a-8fae-4f2351a9c203";
 const DEFAULT_KEYWORD = "richa";
-
-async function startPlivoAgentFlowCall({ keyword, phone_number }) {
-  const res = await fetch(PLIVO_AGENT_FLOW_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      keyword,
-      phone_number,
-    }),
-  });
-
-  const payload = await res.json().catch(() => null);
-  if (!res.ok) {
-    const msg =
-      payload?.message ||
-      payload?.error ||
-      `Failed to start call (HTTP ${res.status})`;
-    throw new Error(msg);
-  }
-  return payload;
-}
 
 function formatPhoneE164(mobile) {
   const digits = String(mobile || "").replace(/\D/g, "");
@@ -63,11 +39,15 @@ export default function ConversationCall() {
 
     try {
       setSubmitting(true);
-      await startPlivoAgentFlowCall({
+      const { logError } = await startPlivoCallAndLog({
         keyword: DEFAULT_KEYWORD,
         phone_number,
       });
-      toast.success("Conversation call triggered!");
+      if (logError) {
+        toast.error(logError?.message || "Call started but failed to save call log.");
+      } else {
+        toast.success("Conversation call triggered!");
+      }
       setMobile("");
     } catch (err) {
       toast.error(err.message || "Failed to trigger call");

@@ -193,6 +193,7 @@ function App() {
             <Route path="/" element={<Navigate to="/agents" replace />} />
             <Route path="/agents_page" element={<AgentsPage />} />
             <Route path="/agents/new" element={<AgentCreatePage />} />
+            <Route path="/agents/:id/edit" element={<AgentCreatePage />} />
             <Route path="/send-omni" element={<SendOmniCall />} />
             <Route path="/create-agent-send" element={<CreateAgentSendPage />} />
             <Route path="/agent-user" element={<AgentUsersPage />} />

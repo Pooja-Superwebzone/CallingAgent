@@ -478,10 +478,9 @@ const CallsDashboard = () => {
 
       {/* Totals row */}
       {totals && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {[
             { label: "Total Duration", value: `${totals.total_duration_minutes} min` },
-            { label: "Total Call Cost", value: `$${totals.total_call_cost}` },
             { label: "Signup Calls", value: totals.signup_calls },
             { label: "Regular Calls", value: totals.regular_calls?.toLocaleString() },
             {

@@ -829,6 +829,27 @@ export function createAgent(payload) {
     });
 }
 
+export function updateAgent(agentId, payload) {
+  if (!agentId) return Promise.reject(new Error("Agent id is required"));
+  const body = {
+    agent_id: String(agentId),
+    ...(payload?.welcome_message !== undefined && {
+      welcome_message: payload.welcome_message,
+    }),
+    ...(payload?.name !== undefined && { name: payload.name }),
+    ...(payload?.body !== undefined && { body: payload.body }),
+  };
+  return service
+    .post("agents-update", body)
+    .then((res) => res.data)
+    .catch((error) => {
+      console.error("❌ updateAgent failed:", error);
+      let msg = "Failed to update agent.";
+      if (error.response?.data?.message) msg = error.response.data.message;
+      throw new Error(msg);
+    });
+}
+
 export function startAgentTopic(payload) {
   return service
     .post("start", payload)

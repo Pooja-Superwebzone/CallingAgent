@@ -2,13 +2,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { getAgents, getAgentsCategory, runOmniFlow, runOmniFlowComplete, sendOmniCall } from "../../hooks/useAuth";
+import { getAgents, getAgentsCategory, runOmniFlow, runOmniFlowComplete } from "../../hooks/useAuth";
+import { resolvePlivoKeyword, startPlivoCallAndLog } from "../../api/plivoCall";
 import * as XLSX from "xlsx";
 import Cookies from "js-cookie";
 import service from "../../api/axios";
 import { PhoneNumberUtil, PhoneNumberFormat } from "google-libphonenumber";
 
 const FROM_NUMBER_ID = "3007";
+const BULK_CALL_DELAY_MS = 2000;
 // Static values for "Need Assistant & create agent" popup
 const QUICK_ASSIST_AGENT_ID = "155287";
 const QUICK_ASSIST_FROM_NUMBER_ID = "3007";
@@ -310,6 +312,19 @@ export default function CreateAgentSendPage() {
     XLSX.writeFile(wb, "omni_call_template.xlsx");
   };
 
+  const resolveSelectedKeyword = () => {
+    if (needAssistant) {
+      const agent = assistantAgents.find(
+        (a) => String(a.agent_id ?? a.agentId ?? a.id ?? "") === String(selectedAssistantAgentId)
+      );
+      return resolvePlivoKeyword(agent);
+    }
+    const agent = agents.find(
+      (a) => String(a.agent_id ?? a.agentId ?? a.id ?? "") === String(selectedAgentId)
+    );
+    return resolvePlivoKeyword(agent);
+  };
+
   // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -329,11 +344,12 @@ export default function CreateAgentSendPage() {
       setSubmitting(true);
       let successCount = 0;
       let errorCount = 0;
+      let logFailedCount = 0;
+      const keyword = resolveSelectedKeyword();
 
-      for (const raw of numbersToProcess) {
+      for (let i = 0; i < numbersToProcess.length; i++) {
+        const raw = numbersToProcess[i];
         try {
-          // If uploadedNumbers already contains E.164 (we normalized), use as is.
-          // If manual input, parse+format to E.164 now
           let toNumber = raw;
           if (!toNumber.startsWith("+")) {
             const e164 = parseAndValidateToE164(raw, countryCode);
@@ -342,22 +358,28 @@ export default function CreateAgentSendPage() {
             }
             toNumber = e164;
           }
-          const activeAgentId = needAssistant ? selectedAssistantAgentId : selectedAgentId;
-          const payload = {
-            agent_id: String(activeAgentId),
-            to: toNumber,
-            from_number_id: FROM_NUMBER_ID,
-          };
-          const res = await sendOmniCall(payload);
-          console.log("omni/call response:", res);
+
+          const { logError } = await startPlivoCallAndLog({
+            keyword,
+            phone_number: toNumber,
+          });
           successCount++;
+          if (logError) logFailedCount++;
         } catch (err) {
-          console.error("omni/call error for number", raw, ":", err);
+          console.error("Plivo call error for number", raw, ":", err);
           errorCount++;
+        }
+
+        if (i < numbersToProcess.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, BULK_CALL_DELAY_MS));
         }
       }
 
-      if (successCount > 0) toast.success(`Successfully dispatched ${successCount} calls!`);
+      if (successCount > 0) {
+        const logNote =
+          logFailedCount > 0 ? ` (${logFailedCount} call log(s) failed to save)` : "";
+        toast.success(`Successfully dispatched ${successCount} calls!${logNote}`);
+      }
       if (errorCount > 0) toast.error(`${errorCount} calls failed. Please check the logs.`);
 
       // Clear form

@@ -4,9 +4,8 @@ import Cookies from "js-cookie";
 import * as XLSX from "xlsx";
 import { PhoneNumberUtil, PhoneNumberFormat } from "google-libphonenumber";
 import service from "../../api/axios";
+import { startPlivoCallAndLog } from "../../api/plivoCall";
 
-const PLIVO_AGENT_FLOW_URL =
-  "https://agentflow.plivo.com/v1/account/MAZDGWYZRMMZCTYJA2YS/flow/4d00448a-7504-450a-8fae-4f2351a9c203";
 const BULK_CALL_DELAY_MS = 2000;
 const PHONE_HEADERS = ["phone", "number", "mobile", "contact", "whatsapp"];
 
@@ -37,28 +36,6 @@ export default function Perplexity() {
     const twilioUser = Number(Cookies.get("twilio_user") || "0");
     return twilioUser === 0 && role !== "admin" && role !== "channelpartner";
   }, []);
-
-  const startPlivoAgentFlowCall = async ({ keyword, phone_number }) => {
-    const res = await fetch(PLIVO_AGENT_FLOW_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        keyword,
-        phone_number,
-      }),
-    });
-
-    const payload = await res.json().catch(() => null);
-    if (!res.ok) {
-      const msg =
-        (payload && (payload.message || payload.error)) ||
-        `Failed to start call (HTTP ${res.status})`;
-      throw new Error(msg);
-    }
-    return payload;
-  };
 
   useEffect(() => {
     const loadVoiceAgents = async () => {
@@ -231,17 +208,19 @@ export default function Perplexity() {
     const phones = await parsePhonesFromExcel(file);
     let success = 0;
     let failed = 0;
+    let logFailed = 0;
 
     setBulkProgress({ current: 0, total: phones.length });
 
     for (let i = 0; i < phones.length; i++) {
       setBulkProgress({ current: i + 1, total: phones.length });
       try {
-        await startPlivoAgentFlowCall({
+        const { logError } = await startPlivoCallAndLog({
           keyword,
           phone_number: phones[i],
         });
         success++;
+        if (logError) logFailed++;
       } catch (err) {
         failed++;
         console.error(`Bulk call failed for ${phones[i]}:`, err);
@@ -252,7 +231,7 @@ export default function Perplexity() {
       }
     }
 
-    return { total: phones.length, success, failed };
+    return { total: phones.length, success, failed, logFailed };
   };
 
   const validate = () => {
@@ -294,8 +273,10 @@ export default function Perplexity() {
 
       if (excelFile) {
         const result = await runBulkCallsFromExcel(excelFile, selectedVoiceAgentKeyword);
+        const logNote =
+          result.logFailed > 0 ? ` (${result.logFailed} call log(s) failed to save)` : "";
         toast.success(
-          `Bulk calls finished: ${result.success} started, ${result.failed} failed (${result.total} total).`
+          `Bulk calls finished: ${result.success} started, ${result.failed} failed (${result.total} total).${logNote}`
         );
         setExcelFile(null);
         setFileError("");
@@ -315,12 +296,17 @@ export default function Perplexity() {
         toNumber = e164;
       }
 
-      const res = await startPlivoAgentFlowCall({
+      const { logError } = await startPlivoCallAndLog({
         keyword: selectedVoiceAgentKeyword,
         phone_number: toNumber,
       });
-      console.log("plivo agentflow response:", res);
-      toast.success("Call started successfully!");
+      if (logError) {
+        toast.error(
+          logError?.message || "Call started but failed to save call log."
+        );
+      } else {
+        toast.success("Call started successfully!");
+      }
       setMobile("");
       setError("");
     } catch (err) {
