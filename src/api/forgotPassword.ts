@@ -14,11 +14,11 @@ export async function requestPasswordResetOtp(email: string) {
 export async function resetPasswordWithOtp(params: {
   email: string;
   otp: string;
-  password: string;
-  password_confirmation: string;
+  new_password: string;
+  confirm_password: string;
 }) {
   const res = await service.post<ForgotPasswordResetResponse>(
-    "reset-password",
+    "update-password",
     params
   );
   return res.data;

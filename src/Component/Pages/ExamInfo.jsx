@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import service from "../../api/axios";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
-import { createPaymentOrder, PENDING_PAYMENT_KEY } from "../../api/payment";
+import { createPaymentOrder, PENDING_PAYMENT_KEY, appendCouponToPendingPayment } from "../../api/payment";
+import CouponCheckoutModal from "./CouponCheckoutModal";
 import {
   login,
   signupTwillioUser,
@@ -192,6 +193,9 @@ export default function ExamInfo() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
   const [isPayingWebinar, setIsPayingWebinar] = useState(false);
+  const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [couponOriginalTotal, setCouponOriginalTotal] = useState(0);
+  const pendingExamPaymentRef = useRef(null);
   const [showScheduleSuccess, setShowScheduleSuccess] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(null);
   const [activeVideoId, setActiveVideoId] = useState(null);
@@ -499,7 +503,7 @@ export default function ExamInfo() {
     }
   };
 
-  const handlePayAndBookWebinar = async () => {
+  const handlePayAndBookWebinar = () => {
     if (!requireAuthForPayment()) return;
     if (!email) return;
     if (!selectedDate) {
@@ -507,6 +511,24 @@ export default function ExamInfo() {
       return;
     }
 
+    const customerPhone = Cookies.get("contact_no") || "";
+    if (!customerPhone) {
+      toast.error("Phone number not found. Please sign up again before booking the webinar.");
+      return;
+    }
+
+    if (!window.cashfree) {
+      toast.error("Payment gateway is not ready yet. Please refresh and try again.");
+      return;
+    }
+
+    setCouponOriginalTotal(WEBINAR_FEE);
+    pendingExamPaymentRef.current = executeWebinarPayment;
+    setCouponModalOpen(true);
+  };
+
+  const executeWebinarPayment = async (finalTotal, coupon) => {
+    setCouponModalOpen(false);
     setIsPayingWebinar(true);
     try {
       const customerName =
@@ -515,33 +537,27 @@ export default function ExamInfo() {
         "Webinar Attendee";
       const customerPhone = Cookies.get("contact_no") || "";
 
-      if (!customerPhone) {
-        throw new Error(
-          "Phone number not found. Please sign up again before booking the webinar."
-        );
-      }
-
-      if (!window.cashfree) {
-        throw new Error(
-          "Payment gateway is not ready yet. Please refresh and try again."
-        );
-      }
-
       sessionStorage.setItem(
         PENDING_PAYMENT_KEY,
-        JSON.stringify({
-          type: "webinar",
-          email,
-          selectedDate,
-          time: FIXED_TIME,
-        })
+        JSON.stringify(
+          appendCouponToPendingPayment(
+            {
+              type: "webinar",
+              email,
+              selectedDate,
+              time: FIXED_TIME,
+              payableAmount: finalTotal,
+            },
+            coupon
+          )
+        )
       );
 
       const response = await createPaymentOrder({
         name: customerName,
         email,
         phoneNumber: customerPhone,
-        totalPayment: WEBINAR_FEE,
+        totalPayment: finalTotal,
         orderDesc: "Personal Webinar Booking Fee",
       });
       const paymentSessionId = response?.payment_id || "";
@@ -590,18 +606,14 @@ export default function ExamInfo() {
     }
   };
 
-  // Redirect to certificate page (email + amount are dynamic)
-  const handleStartExam = async (amount) => {
+  const handleStartExam = (amount) => {
     if (!requireAuthForPayment()) return;
     if (!email) {
       toast.error("Email is missing in URL.");
       return;
     }
 
-    const customerName =
-      localStorage.getItem("userName") || Cookies.get("name") || "Student";
     const customerPhone = Cookies.get("contact_no") || "";
-
     if (!customerPhone) {
       toast.error("Phone number not found. Please update profile and try again.");
       return;
@@ -612,22 +624,41 @@ export default function ExamInfo() {
       return;
     }
 
+    const originalTotal = Number(amount) || EXAM_FEE;
+    setCouponOriginalTotal(originalTotal);
+    pendingExamPaymentRef.current = (finalTotal, coupon) =>
+      executeExamPayment(finalTotal, coupon, originalTotal);
+    setCouponModalOpen(true);
+  };
+
+  const executeExamPayment = async (finalTotal, coupon, originalAmount) => {
+    setCouponModalOpen(false);
     setIsLoading(true);
     try {
+      const customerName =
+        localStorage.getItem("userName") || Cookies.get("name") || "Student";
+      const customerPhone = Cookies.get("contact_no") || "";
+
       sessionStorage.setItem(
         PENDING_PAYMENT_KEY,
-        JSON.stringify({
-          type: "exam",
-          email,
-          amount,
-        })
+        JSON.stringify(
+          appendCouponToPendingPayment(
+            {
+              type: "exam",
+              email,
+              amount: originalAmount,
+              payableAmount: finalTotal,
+            },
+            coupon
+          )
+        )
       );
 
       const response = await createPaymentOrder({
         name: customerName,
         email,
         phoneNumber: customerPhone,
-        totalPayment: Number(amount) || EXAM_FEE,
+        totalPayment: finalTotal,
         orderDesc: "AI Certification Exam Fee",
       });
 
@@ -2193,6 +2224,14 @@ export default function ExamInfo() {
           </div>
         </div>
       )}
+      <CouponCheckoutModal
+        open={couponModalOpen}
+        onClose={() => setCouponModalOpen(false)}
+        originalTotal={couponOriginalTotal}
+        onProceed={async (finalTotal, coupon) => {
+          await pendingExamPaymentRef.current?.(finalTotal, coupon);
+        }}
+      />
     </div>
   );
 }

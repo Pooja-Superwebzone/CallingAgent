@@ -4,7 +4,7 @@ import Cookies from "js-cookie";
 import * as XLSX from "xlsx";
 import { PhoneNumberUtil, PhoneNumberFormat } from "google-libphonenumber";
 import service from "../../api/axios";
-import { startPlivoCallAndLog } from "../../api/plivoCall";
+import { startPlivoCallAndLog, resolveCurrentUserAssignment } from "../../api/plivoCall";
 
 const BULK_CALL_DELAY_MS = 2000;
 const PHONE_HEADERS = ["phone", "number", "mobile", "contact", "whatsapp"];
@@ -30,6 +30,9 @@ export default function Perplexity() {
   const [twoWayMinutes, setTwoWayMinutes] = useState(0);
   const [loadingMinutes, setLoadingMinutes] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(null);
+  const [assignedNumber, setAssignedNumber] = useState("");
+  const [transferNumber, setTransferNumber] = useState("");
+  const [loadingAssignment, setLoadingAssignment] = useState(true);
 
   const isSalesPerson = useMemo(() => {
     const role = String(Cookies.get("role") || "").trim().toLowerCase();
@@ -59,6 +62,24 @@ export default function Perplexity() {
       }
     };
     loadVoiceAgents();
+  }, []);
+
+  useEffect(() => {
+    const loadAssignment = async () => {
+      setLoadingAssignment(true);
+      try {
+        const ctx = await resolveCurrentUserAssignment();
+        setAssignedNumber(ctx?.assigned_number?.phone_no || "");
+        setTransferNumber(ctx?.transfer_number || "");
+      } catch (err) {
+        console.warn("Could not load assigned number:", err);
+        setAssignedNumber("");
+        setTransferNumber("");
+      } finally {
+        setLoadingAssignment(false);
+      }
+    };
+    loadAssignment();
   }, []);
 
   useEffect(() => {
@@ -204,7 +225,7 @@ export default function Perplexity() {
       reader.readAsArrayBuffer(file);
     });
 
-  const runBulkCallsFromExcel = async (file, keyword) => {
+  const runBulkCallsFromExcel = async (file, keyword, assignmentContext) => {
     const phones = await parsePhonesFromExcel(file);
     let success = 0;
     let failed = 0;
@@ -218,6 +239,7 @@ export default function Perplexity() {
         const { logError } = await startPlivoCallAndLog({
           keyword,
           phone_number: phones[i],
+          assignmentContext,
         });
         success++;
         if (logError) logFailed++;
@@ -271,8 +293,14 @@ export default function Perplexity() {
     try {
       setSubmitting(true);
 
+      const assignmentContext = await resolveCurrentUserAssignment();
+
       if (excelFile) {
-        const result = await runBulkCallsFromExcel(excelFile, selectedVoiceAgentKeyword);
+        const result = await runBulkCallsFromExcel(
+          excelFile,
+          selectedVoiceAgentKeyword,
+          assignmentContext
+        );
         const logNote =
           result.logFailed > 0 ? ` (${result.logFailed} call log(s) failed to save)` : "";
         toast.success(
@@ -299,6 +327,7 @@ export default function Perplexity() {
       const { logError } = await startPlivoCallAndLog({
         keyword: selectedVoiceAgentKeyword,
         phone_number: toNumber,
+        assignmentContext,
       });
       if (logError) {
         toast.error(
@@ -321,16 +350,30 @@ export default function Perplexity() {
   return (
     <div className="p-4 sm:p-6">
       <div className="mx-auto max-w-sd bg-white rounded-xl shadow p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Send two way call</h2>
-          {isSalesPerson && (
-            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-              <span className="text-sm font-medium text-gray-700">Remaining Minutes</span>
-              <span className="text-xl font-bold text-gray-900">
-                {loadingMinutes ? "..." : `${twoWayMinutes} minutes`}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200">
+              <span className="text-sm font-medium text-gray-700">Assigned Number</span>
+              <span className="text-base font-bold text-gray-900">
+                {loadingAssignment ? "..." : assignedNumber || "Not assigned"}
               </span>
             </div>
-          )}
+            {transferNumber && !loadingAssignment && (
+              <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
+                <span className="text-sm font-medium text-gray-700">Transfer</span>
+                <span className="text-base font-semibold text-gray-900">{transferNumber}</span>
+              </div>
+            )}
+            {isSalesPerson && (
+              <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                <span className="text-sm font-medium text-gray-700">Remaining Minutes</span>
+                <span className="text-xl font-bold text-gray-900">
+                  {loadingMinutes ? "..." : `${twoWayMinutes} minutes`}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

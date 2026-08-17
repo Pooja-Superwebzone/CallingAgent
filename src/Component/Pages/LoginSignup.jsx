@@ -434,8 +434,8 @@ export default function LoginSignup() {
       await resetPasswordWithOtp({
         email: String(forgotEmail || "").trim(),
         otp: String(forgotOtp || "").trim(),
-        password: forgotPassword,
-        password_confirmation: forgotConfirmPassword,
+        new_password: forgotPassword,
+        confirm_password: forgotConfirmPassword,
       });
       toast.success("Password updated. Please login with your new password.");
       setShowForgotModal(false);

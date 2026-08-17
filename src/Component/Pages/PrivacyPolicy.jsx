@@ -205,13 +205,22 @@ export default function PrivacyPolicy() {
       <footer className="border-t border-slate-200 bg-white/80 backdrop-blur mt-auto">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-6 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} Richa AI. All rights reserved.</span>
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="text-left font-medium text-indigo-600 hover:text-indigo-800 sm:text-right"
-          >
-            Back to home
-          </button>
+          <div className="flex flex-col gap-2 sm:items-end sm:text-right">
+            <button
+              type="button"
+              onClick={() => navigate("/contact-us")}
+              className="text-left font-medium text-indigo-600 hover:text-indigo-800 sm:text-right"
+            >
+              Contact Us
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="text-left font-medium text-indigo-600 hover:text-indigo-800 sm:text-right"
+            >
+              Back to home
+            </button>
+          </div>
         </div>
       </footer>
     </div>

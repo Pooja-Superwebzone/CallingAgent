@@ -144,8 +144,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
       await resetPasswordWithOtp({
         email: forgotEmail.trim(),
         otp: forgotOtp.trim(),
-        password: forgotPassword,
-        password_confirmation: forgotConfirmPassword,
+        new_password: forgotPassword,
+        confirm_password: forgotConfirmPassword,
       });
       toast({
         title: "Password updated",

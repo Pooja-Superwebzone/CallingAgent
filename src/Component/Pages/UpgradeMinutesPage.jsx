@@ -4,12 +4,16 @@ import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { calculateDiscountPercentage, getCashbackPercentage, plans } from "./LandingPage";
 import { FiArrowRight, FiClock, FiCreditCard } from "react-icons/fi";
-import { createPaymentOrder, creditMinutesAfterPayment, PENDING_PAYMENT_KEY } from "../../api/payment";
+import { createPaymentOrder, creditMinutesAfterPayment, PENDING_PAYMENT_KEY, appendCouponToPendingPayment } from "../../api/payment";
+import CouponCheckoutModal from "./CouponCheckoutModal";
 
 export default function UpgradeMinutesPage() {
   const navigate = useNavigate();
   const [showMonthlyPlans, setShowMonthlyPlans] = useState(false);
   const plansRef = useRef(null);
+  const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [couponOriginalTotal, setCouponOriginalTotal] = useState(0);
+  const pendingPlanRef = useRef(null);
 
   const userEmail = useMemo(() => Cookies.get("email") || "", []);
 
@@ -20,7 +24,7 @@ export default function UpgradeMinutesPage() {
     return Number.isFinite(n) ? n : 0;
   };
 
-  const startCashfreePlanPayment = async (plan) => {
+  const startCashfreePlanPayment = (plan) => {
     if (!userEmail) {
       toast.error("Email not found. Please login again.");
       return;
@@ -45,31 +49,48 @@ export default function UpgradeMinutesPage() {
       return;
     }
 
-    const totalWithTax = Number((baseAmount * 1.18).toFixed(2));
-    const customerName =
-      Cookies.get("name") || localStorage.getItem("userName") || "Customer";
     const customerPhone = Cookies.get("contact_no") || "";
     if (!customerPhone) {
       toast.error("Phone number not found. Please update profile and try again.");
       return;
     }
 
+    pendingPlanRef.current = plan;
+    setCouponOriginalTotal(Number((baseAmount * 1.18).toFixed(2)));
+    setCouponModalOpen(true);
+  };
+
+  const proceedPlanPayment = async (finalTotal, coupon) => {
+    setCouponModalOpen(false);
+    const plan = pendingPlanRef.current;
+    if (!plan) return;
+
+    const customerName =
+      Cookies.get("name") || localStorage.getItem("userName") || "Customer";
+    const customerPhone = Cookies.get("contact_no") || "";
+
     try {
       sessionStorage.setItem(
         PENDING_PAYMENT_KEY,
-        JSON.stringify({
-          type: "plan",
-          email: userEmail,
-          planId: Cookies.get("role") === "channelpartner" ? 18 : 8,
-          planTitle: plan.title,
-        })
+        JSON.stringify(
+          appendCouponToPendingPayment(
+            {
+              type: "plan",
+              email: userEmail,
+              planId: Cookies.get("role") === "channelpartner" ? 18 : 8,
+              planTitle: plan.title,
+              payableAmount: finalTotal,
+            },
+            coupon
+          )
+        )
       );
 
       const response = await createPaymentOrder({
         name: customerName,
         email: userEmail,
         phoneNumber: customerPhone,
-        totalPayment: totalWithTax,
+        totalPayment: finalTotal,
         orderDesc: `Richa Plan Purchase - ${plan.title}`,
       });
 
@@ -301,6 +322,12 @@ export default function UpgradeMinutesPage() {
           </section>
         )}
       </div>
+      <CouponCheckoutModal
+        open={couponModalOpen}
+        onClose={() => setCouponModalOpen(false)}
+        originalTotal={couponOriginalTotal}
+        onProceed={proceedPlanPayment}
+      />
     </div>
   );
 }

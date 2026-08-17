@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { signupTwillioUser } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
@@ -9,7 +9,9 @@ import {
   createPaymentOrder,
   creditMinutesAfterPayment,
   PENDING_PAYMENT_KEY,
+  appendCouponToPendingPayment,
 } from "../../api/payment";
+import CouponCheckoutModal from "./CouponCheckoutModal";
 
 const plan = {
   id: "demo_call",
@@ -58,6 +60,83 @@ export default function DemoCallPackPage() {
   const [submitting, setSubmitting] = useState(false);
   const [signupError, setSignupError] = useState("");
   const [storedToken, setStoredToken] = useState("");
+  const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [couponOriginalTotal, setCouponOriginalTotal] = useState(0);
+  const pendingPackCheckoutRef = useRef(null);
+
+  const proceedDemoPackPayment = async (finalTotal, coupon) => {
+    setCouponModalOpen(false);
+    const ctx = pendingPackCheckoutRef.current;
+    if (!ctx) return;
+
+    const { tokenToUse, formValues: fv } = ctx;
+    setSubmitting(true);
+    try {
+      sessionStorage.setItem(
+        PENDING_PAYMENT_KEY,
+        JSON.stringify(
+          appendCouponToPendingPayment(
+            {
+              type: "plan",
+              email: fv.email,
+              planId: 8,
+              planTitle: plan.title,
+              payableAmount: finalTotal,
+            },
+            coupon
+          )
+        )
+      );
+
+      const orderRes = await createPaymentOrder({
+        name: fv.name,
+        email: fv.email,
+        phoneNumber: fv.contact_no,
+        totalPayment: finalTotal,
+        orderDesc: `Richa Plan Purchase - ${plan.title}`,
+      });
+
+      const paymentSessionId = orderRes?.payment_id || "";
+      if (!paymentSessionId) {
+        throw new Error("Payment session id was not returned from create order API.");
+      }
+
+      const result = await window.cashfree.checkout({
+        paymentSessionId,
+        redirectTarget: "_self",
+      });
+
+      if (result?.error) {
+        throw new Error(result.error?.message || "Payment failed.");
+      }
+
+      const ok =
+        result?.paymentDetails ||
+        result?.order?.order_status === "PAID" ||
+        result?.transaction?.txStatus === "SUCCESS";
+
+      if (!ok) {
+        if (result?.redirect) return;
+        throw new Error("Payment was not completed.");
+      }
+
+      await creditMinutesAfterPayment({
+        email: fv.email,
+        planId: 8,
+        authToken: tokenToUse,
+      });
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+      toast.success("Payment successful!");
+      navigate("/agents_page", { replace: true });
+    } catch (err) {
+      const message = err?.message || "Payment failed. Please try again.";
+      setSignupError(message);
+      toast.error(message);
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const getCookie = (name) => {
     if (typeof document === "undefined") return "";
@@ -614,56 +693,13 @@ export default function DemoCallPackPage() {
                     const baseAmount = extractNumber(plan.price);
                     const totalWithTax = Number((baseAmount * 1.18).toFixed(2));
 
-                    sessionStorage.setItem(
-                      PENDING_PAYMENT_KEY,
-                      JSON.stringify({
-                        type: "plan",
-                        email: formValues.email,
-                        planId: 8,
-                        planTitle: plan.title,
-                      })
-                    );
-
-                    const orderRes = await createPaymentOrder({
-                      name: formValues.name,
-                      email: formValues.email,
-                      phoneNumber: formValues.contact_no,
-                      totalPayment: totalWithTax,
-                      orderDesc: `Richa Plan Purchase - ${plan.title}`,
-                    });
-
-                    const paymentSessionId = orderRes?.payment_id || "";
-                    if (!paymentSessionId) {
-                      throw new Error("Payment session id was not returned from create order API.");
-                    }
-
-                    const result = await window.cashfree.checkout({
-                      paymentSessionId,
-                      redirectTarget: "_self",
-                    });
-
-                    if (result?.error) {
-                      throw new Error(result.error?.message || "Payment failed.");
-                    }
-
-                    const ok =
-                      result?.paymentDetails ||
-                      result?.order?.order_status === "PAID" ||
-                      result?.transaction?.txStatus === "SUCCESS";
-
-                    if (!ok) {
-                      if (result?.redirect) return;
-                      throw new Error("Payment was not completed.");
-                    }
-
-                    await creditMinutesAfterPayment({
-                      email: formValues.email,
-                      planId: 8,
-                      authToken: tokenToUse,
-                    });
-                    sessionStorage.removeItem(PENDING_PAYMENT_KEY);
-                    toast.success("Payment successful!");
-                    navigate("/agents_page", { replace: true });
+                    pendingPackCheckoutRef.current = {
+                      tokenToUse,
+                      formValues: { ...formValues },
+                    };
+                    setCouponOriginalTotal(totalWithTax);
+                    setCouponModalOpen(true);
+                    setSubmitting(false);
                   } catch (err) {
                     const message = err?.message || "Signup failed. Please try again.";
                     setSignupError(message);
@@ -681,6 +717,12 @@ export default function DemoCallPackPage() {
           </div>
         </div>
       )}
+      <CouponCheckoutModal
+        open={couponModalOpen}
+        onClose={() => setCouponModalOpen(false)}
+        originalTotal={couponOriginalTotal}
+        onProceed={proceedDemoPackPayment}
+      />
     </div>
   );
 }

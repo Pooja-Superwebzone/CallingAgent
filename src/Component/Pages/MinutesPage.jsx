@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import service from "../../api/axios";
-import { creditMinutesAfterPayment, createPaymentOrder, getShareValue, PENDING_MINUTE_PURCHASE_KEY, postShareValue } from "../../api/payment";
+import { creditMinutesAfterPayment, createPaymentOrder, getShareValue, PENDING_MINUTE_PURCHASE_KEY, postShareValue, appendCouponToPendingPayment } from "../../api/payment";
+import CouponCheckoutModal from "./CouponCheckoutModal";
 
 
 const DEFAULT_PLAN_ID = "8";
@@ -103,6 +104,8 @@ const DYNAMIC_MINUTE_RATE_CACHE = new Map();
 export default function MinutesPage() {
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [couponOriginalTotal, setCouponOriginalTotal] = useState(0);
   const [error, setError] = useState("");
   const [oneWayMinutes, setOneWayMinutes] = useState(0);
   const [twoWayMinutes, setTwoWayMinutes] = useState(0);
@@ -235,21 +238,14 @@ export default function MinutesPage() {
         };
       })();
 
-  const handleBuyNow = async () => {
+  const handleBuyNow = () => {
     if (purchaseValidation) return;
     if (!userEmail) {
       setError("Your email was not found. Please login again.");
       return;
     }
 
-    const customerEmail = profileDetails.email || userEmail;
     const customerPhone = profileDetails.phoneNumber || Cookies.get("contact_no") || "";
-    const customerName =
-      profileDetails.name ||
-      Cookies.get("name") ||
-      localStorage.getItem("userName") ||
-      "Customer";
-
     if (!customerPhone) {
       setError("Your phone number was not found. Please update your profile and try again.");
       return;
@@ -263,6 +259,22 @@ export default function MinutesPage() {
       return;
     }
 
+    setError("");
+    setCouponOriginalTotal(quote.totalWithTax);
+    setCouponModalOpen(true);
+  };
+
+  const proceedMinutesPayment = async (finalTotal, coupon) => {
+    setCouponModalOpen(false);
+
+    const customerEmail = profileDetails.email || userEmail;
+    const customerPhone = profileDetails.phoneNumber || Cookies.get("contact_no") || "";
+    const customerName =
+      profileDetails.name ||
+      Cookies.get("name") ||
+      localStorage.getItem("userName") ||
+      "Customer";
+
     setPaymentLoading(true);
     setError("");
 
@@ -273,20 +285,26 @@ export default function MinutesPage() {
     try {
       sessionStorage.setItem(
         PENDING_MINUTE_PURCHASE_KEY,
-        JSON.stringify({
-          minutes: purchaseMinutes,
-          userId: profileDetails.userId,
-          email: customerEmail,
-          planId: DEFAULT_PLAN_ID,
-          shareAmount: quote.total,
-        })
+        JSON.stringify(
+          appendCouponToPendingPayment(
+            {
+              minutes: purchaseMinutes,
+              userId: profileDetails.userId,
+              email: customerEmail,
+              planId: DEFAULT_PLAN_ID,
+              shareAmount: quote.total,
+              payableAmount: finalTotal,
+            },
+            coupon
+          )
+        )
       );
 
       const response = await createPaymentOrder({
         name: customerName,
         email: customerEmail,
         phoneNumber: customerPhone,
-        totalPayment: quote.totalWithTax,
+        totalPayment: finalTotal,
         orderDesc,
       });
 
@@ -734,6 +752,12 @@ export default function MinutesPage() {
           </div>
         </div>
       </div>
+      <CouponCheckoutModal
+        open={couponModalOpen}
+        onClose={() => setCouponModalOpen(false)}
+        originalTotal={couponOriginalTotal}
+        onProceed={proceedMinutesPayment}
+      />
     </div>
   );
 }

@@ -43,6 +43,56 @@ const UPDATE_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/update-subscripti
 export const PENDING_MINUTE_PURCHASE_KEY = "pendingMinutePurchase";
 export const PENDING_PAYMENT_KEY = "pendingPayment";
 
+export function getCouponDiscountAmount(couponResponse) {
+  const raw =
+    couponResponse?.data?.price ??
+    couponResponse?.price ??
+    0;
+  const discount = Number(raw);
+  return Number.isFinite(discount) && discount > 0 ? discount : 0;
+}
+
+export function calculateTotalAfterCoupon(originalTotal, couponResponse) {
+  const base = Number(originalTotal);
+  if (!Number.isFinite(base) || base <= 0) return 0;
+  const discount = getCouponDiscountAmount(couponResponse);
+  return Math.max(0, Number((base - discount).toFixed(2)));
+}
+
+export async function applyCoupon(code) {
+  const trimmed = String(code || "").trim();
+  if (!trimmed) {
+    throw new Error("Please enter a coupon code.");
+  }
+
+  try {
+    const res = await service.post("applycoupon", { code: trimmed });
+    const body = res?.data;
+
+    if (body?.status === false) {
+      throw new Error(body?.message || "Invalid coupon code.");
+    }
+
+    return body;
+  } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Failed to apply coupon.";
+    throw new Error(message);
+  }
+}
+
+export function appendCouponToPendingPayment(pending, couponResponse) {
+  if (!couponResponse) return pending;
+  const discount = getCouponDiscountAmount(couponResponse);
+  return {
+    ...pending,
+    couponCode: couponResponse?.data?.code || "",
+    couponDiscount: discount,
+  };
+}
+
 export function extractShareValueFromResponse(payload) {
   const raw = payload?.data !== undefined ? payload.data : payload;
   const d = raw?.data !== undefined ? raw.data : raw;

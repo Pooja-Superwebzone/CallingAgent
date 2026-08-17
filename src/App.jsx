@@ -46,6 +46,7 @@ import RichaTrialPackPage from './Component/Pages/RichaTrialPackPage';
 import DemoCallPackPage from './Component/Pages/DemoCallPackPage';
 import TutorialPage from './Component/Pages/TutorialPage';
 import PrivacyPolicy from './Component/Pages/PrivacyPolicy';
+import ContactUs from './Component/Pages/ContactUs';
 import MinutesPage from "./Component/Pages/MinutesPage";
 import UpgradeMinutesPage from "./Component/Pages/UpgradeMinutesPage";
 import ChannelPartnerMinuteTransactions from "./Component/Pages/ChannelPartnerMinuteTransactions";
@@ -55,6 +56,7 @@ import DynamicMinutePage from "./Component/Pages/DynamicMinutePage";
 import LanguageKeywordsPage from "./Component/Pages/LanguageKeywordsPage";
 import PaymentResultPage from "./Component/Pages/PaymentResultPage";
 import CallsDashboard from "./Component/Pages/CallsDashboard";
+import AssignedNumbersPage from "./Component/Pages/assignedNumbers/AssignedNumbersPage";
 
 function App() {
   const location = useLocation();
@@ -175,6 +177,9 @@ function App() {
         {/* Public: Privacy Policy */}
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
+        {/* Public: Contact Us */}
+        <Route path="/contact-us" element={<ContactUs />} />
+
         {/* Public: Cashfree payment return */}
         <Route path="/result" element={<PaymentResultPage />} />
 
@@ -259,6 +264,28 @@ function App() {
               element={
                 Cookies.get("email") === "paragshah.devac@gmail.com" ? (
                   <AdminUsersDocuments />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
+            <Route
+              path="/settings/assigned-numbers"
+              element={
+                Cookies.get("role") === "admin" &&
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <AssignedNumbersPage />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
+            <Route
+              path="/settings/user-assigned-numbers"
+              element={
+                Cookies.get("role") === "admin" &&
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <AssignedNumbersPage />
                 ) : (
                   <Navigate to="/agents_page" replace />
                 )

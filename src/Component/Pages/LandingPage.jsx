@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import CountUp from "./CountUp";
 import richaHero from "/Richa.png";
@@ -9,25 +9,11 @@ import {
   createPaymentOrder,
   creditMinutesAfterPayment,
   PENDING_PAYMENT_KEY,
+  appendCouponToPendingPayment,
 } from "../../api/payment";
+import CouponCheckoutModal from "./CouponCheckoutModal";
 
 export const plans = [
-  {
-    id: "trial",
-    title: "Richa Trial Pack",
-    subtitle: "1 Month Sales Executive Free",
-    price: "₹ 18,999/-",
-    original: "Rs. 38,000/-",
-    link: "richa-trial-pack",
-  },
-  {
-    id: "trial",
-    title: "Richa Monthly Pack",
-    subtitle: "1 Month Sales Executive Free",
-    price: "₹ 14,999/month",
-    original: "",
-    link: "richa-monthly-trial-pack",
-  },
   {
     id: "certified_ai_training",
     title: "Certified AI Training",
@@ -35,22 +21,6 @@ export const plans = [
     price: "Free",
     original: "Rs. 999/-",
     link: "become-ai-certified-by-richa",
-  },
-  {
-    id: "prince",
-    title: "Richa Prince Pack",
-    subtitle: "",
-    price: "₹ 1,99,000/- + GST",
-    original: "Rs. 3,98,000/-",
-    link: "richa-prince-pack"
-  },
-  {
-    id: "king",
-    title: "Richa Monthly King Pack",
-    subtitle: "",
-    price: "₹28,999+/Month",
-    original: "",
-    link: "richa-monthly-king-pack",
   },
   {
     id: "tithi_ai",
@@ -61,22 +31,6 @@ export const plans = [
     link: "tithi-ai"
   },
   {
-    id: "demo_call",
-    title: "Demo Call Pack",
-    subtitle: "Try Richa AI with a Demo Call",
-    price: "₹99/-",
-    original: "Rs. 299/-",
-    link: "paid_demo_trial_richa_ai",
-  },
-  {
-    id: "mini",
-    title: "Richa Mini Pack",
-    subtitle: "1 Month Sales Executive Free",
-    price: "₹ 49,000/- + GST",
-    original: "Rs. 98,000/-",
-    link: "richa-mini-pack"
-  },
-  {
     id: "become_channel_partner",
     title: "Start Your Own AI Sales Agency",
     subtitle: "Only Talktime to be Purchased",
@@ -84,31 +38,78 @@ export const plans = [
     // original: "Rs. 98,000/-",
     link: "become-channel-partner"
   },
-  {
-    id: "become_training_channel_partner",
-    title: "Become Training ASA",
-    subtitle: "",
-    price: "₹ 9,999 + GST",
-    // original: "Rs. 98,000/-",
-    link: "become-training-channel-partner"
-  },
-  {
-    id: "richa_executive_pack",
-    title: "Sales executive subscription Training ASA",
-    subtitle: "You need any one plans pack then after you can purchase subscription pack",
-    price: "₹ 9,999/Month + GST",
-    // original: "Rs. 98,000/-",
-    link: "richa-executive-pack"
-  },
-  {
-    id: "richa_executive_pack_advance",
-    title: "Sales executive subscription Training ASA",
-    subtitle: "You need any one plans pack then after you can purchase subscription pack (additional benefit local indian number support)",
-    price: "₹ 12,999/Month + GST",
-    // original: "Rs. 98,000/-",
-    link: "richa-executive-pack"
-  },
-
+  // {
+  //   id: "trial",
+  //   title: "Richa Trial Pack",
+  //   subtitle: "1 Month Sales Executive Free",
+  //   price: "₹ 18,999/-",
+  //   original: "Rs. 38,000/-",
+  //   link: "richa-trial-pack",
+  // },
+  // {
+  //   id: "trial",
+  //   title: "Richa Monthly Pack",
+  //   subtitle: "1 Month Sales Executive Free",
+  //   price: "₹ 14,999/month",
+  //   original: "",
+  //   link: "richa-monthly-trial-pack",
+  // },
+  // {
+  //   id: "prince",
+  //   title: "Richa Prince Pack",
+  //   subtitle: "",
+  //   price: "₹ 1,99,000/- + GST",
+  //   original: "Rs. 3,98,000/-",
+  //   link: "richa-prince-pack"
+  // },
+  // {
+  //   id: "king",
+  //   title: "Richa Monthly King Pack",
+  //   subtitle: "",
+  //   price: "₹28,999+/Month",
+  //   original: "",
+  //   link: "richa-monthly-king-pack",
+  // },
+  // {
+  //   id: "demo_call",
+  //   title: "Demo Call Pack",
+  //   subtitle: "Try Richa AI with a Demo Call",
+  //   price: "₹99/-",
+  //   original: "Rs. 299/-",
+  //   link: "paid_demo_trial_richa_ai",
+  // },
+  // {
+  //   id: "mini",
+  //   title: "Richa Mini Pack",
+  //   subtitle: "1 Month Sales Executive Free",
+  //   price: "₹ 49,000/- + GST",
+  //   original: "Rs. 98,000/-",
+  //   link: "richa-mini-pack"
+  // },
+  // {
+  //   id: "become_training_channel_partner",
+  //   title: "Become Training ASA",
+  //   subtitle: "",
+  //   price: "₹ 9,999 + GST",
+  //   // original: "Rs. 98,000/-",
+  //   link: "become-training-channel-partner"
+  // },
+  // {
+  //   id: "richa_executive_pack",
+  //   title: "Sales executive subscription Training ASA",
+  //   subtitle: "You need any one plans pack then after you can purchase subscription pack",
+  //   price: "₹ 9,999/Month + GST",
+  //   // original: "Rs. 98,000/-",
+  //   link: "richa-executive-pack"
+  // },
+  // {
+  //   id: "richa_executive_pack_advance",
+  //   title: "Sales executive subscription Training ASA",
+  //   subtitle: "You need any one plans pack then after you can purchase subscription pack (additional benefit local indian number support)",
+  //   price: "₹ 12,999/Month + GST",
+  //   // original: "Rs. 98,000/-",
+  //   link: "richa-executive-pack"
+  // },
 ];
 
 export const planFeatures = [
@@ -328,6 +329,9 @@ export default function LandingPage() {
   const [planLoginSubmitting, setPlanLoginSubmitting] = useState(false);
   const [channelPartnerFranchiseAccepted, setChannelPartnerFranchiseAccepted] =
     useState(false);
+  const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [couponOriginalTotal, setCouponOriginalTotal] = useState(0);
+  const pendingLandingCheckoutRef = useRef(null);
 
   const howRichaWorksSteps = [
     {
@@ -596,7 +600,7 @@ export default function LandingPage() {
       return;
     }
 
-    // Paid plan: use Cashfree (no external redirects).
+    // Paid plan: show coupon popup, then Cashfree checkout.
     try {
       const cashfree = await ensureCashfreeReady();
 
@@ -608,23 +612,65 @@ export default function LandingPage() {
       const totalWithTax = Number((baseAmount * 1.18).toFixed(2));
       const planId = resolvePlanIdForCheckout(selectedPlan, roleCookie);
 
+      pendingLandingCheckoutRef.current = {
+        cashfree,
+        tokenToUse,
+        email,
+        resolvedName,
+        resolvedContactNo,
+        planId: Number(planId),
+        planTitle: selectedPlan.title,
+      };
+      setCouponOriginalTotal(totalWithTax);
+      setCouponModalOpen(true);
+    } catch (err) {
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+      const message = err?.message || "Payment failed. Please try again.";
+      toast.error(message);
+      setSignupError(message);
+      setShowSignup(true);
+    }
+  };
+
+  const proceedLandingPaidPayment = async (finalTotal, coupon) => {
+    setCouponModalOpen(false);
+    const ctx = pendingLandingCheckoutRef.current;
+    if (!ctx) return;
+
+    const {
+      cashfree,
+      tokenToUse,
+      email,
+      resolvedName,
+      resolvedContactNo,
+      planId,
+      planTitle,
+    } = ctx;
+
+    try {
       sessionStorage.setItem(
         PENDING_PAYMENT_KEY,
-        JSON.stringify({
-          type: "plan",
-          email,
-          planId: Number(planId),
-          planTitle: selectedPlan.title,
-          authToken: tokenToUse,
-        })
+        JSON.stringify(
+          appendCouponToPendingPayment(
+            {
+              type: "plan",
+              email,
+              planId,
+              planTitle,
+              authToken: tokenToUse,
+              payableAmount: finalTotal,
+            },
+            coupon
+          )
+        )
       );
 
       const response = await createPaymentOrder({
         name: resolvedName || "Customer",
         email,
         phoneNumber: formatPhoneForPayment(resolvedContactNo),
-        totalPayment: totalWithTax,
-        orderDesc: `Richa Plan Purchase - ${selectedPlan.title}`,
+        totalPayment: finalTotal,
+        orderDesc: `Richa Plan Purchase - ${planTitle}`,
       });
 
       const paymentSessionId = response?.payment_id || "";
@@ -653,10 +699,9 @@ export default function LandingPage() {
         throw new Error("Payment was not completed.");
       }
 
-      // If payment completes without redirect, finalize immediately.
       await creditMinutesAfterPayment({
         email,
-        planId: Number(planId),
+        planId,
         authToken: tokenToUse,
       });
 
@@ -751,6 +796,13 @@ export default function LandingPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/contact-us")}
+                className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition animate-pop-in anim-delay-150 sm:px-4 sm:text-sm"
+              >
+                Contact
+              </button>
               <button
                 type="button"
                 onClick={() => navigate("/privacy-policy")}
@@ -1083,10 +1135,10 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="mt-8 grid gap-6 animate-fade-up anim-delay-150 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-8 grid gap-6 animate-fade-up anim-delay-150 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                 {plans.map((plan) => (
                   <button
-                    key={plan.id}
+                    key={`${plan.link}-${plan.title}-${plan.price}`}
                     type="button"
                     onClick={() => {
                       setSelectedPlan(plan);
@@ -1194,13 +1246,22 @@ export default function LandingPage() {
                 Redjinni Private Limited Pvt. Ltd.
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => navigate("/privacy-policy")}
-              className="text-left font-medium text-indigo-600 hover:text-indigo-800 sm:text-right"
-            >
-              Privacy Policy
-            </button>
+            <div className="flex flex-col gap-2 sm:items-end sm:text-right">
+              <button
+                type="button"
+                onClick={() => navigate("/contact-us")}
+                className="text-left font-medium text-indigo-600 hover:text-indigo-800 sm:text-right"
+              >
+                Contact Us
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/privacy-policy")}
+                className="text-left font-medium text-indigo-600 hover:text-indigo-800 sm:text-right"
+              >
+                Privacy Policy
+              </button>
+            </div>
           </div>
         </footer>
 
@@ -1510,6 +1571,12 @@ export default function LandingPage() {
             </div>
           </div>
         )}
+        <CouponCheckoutModal
+          open={couponModalOpen}
+          onClose={() => setCouponModalOpen(false)}
+          originalTotal={couponOriginalTotal}
+          onProceed={proceedLandingPaidPayment}
+        />
       </div>
     </div>
   );

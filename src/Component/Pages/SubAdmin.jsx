@@ -19,12 +19,12 @@ const SubAdmin = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // Initial page filter popup (API: twillio-create-readall?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&role=admin|channelpartner)
-  const [showFilterPopup, setShowFilterPopup] = useState(true);
-  const [filtersApplied, setFiltersApplied] = useState(false);
+  // Filters (API: twillio-create-readall?start_date=&end_date=&role=)
+  // Draft inputs only apply when user clicks Apply; page loads full data first
   const [filterRole, setFilterRole] = useState(""); // "admin" | "channelpartner"
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+  const [appliedFilters, setAppliedFilters] = useState(null); // { role, start, end } | null = full list
   
   // Two-way minutes edit modal state
   const [showTwoWayModal, setShowTwoWayModal] = useState(false);
@@ -60,10 +60,10 @@ const SubAdmin = () => {
   };
 
   useEffect(() => {
-    if (!filtersApplied) return;
-    fetchAdmins();
+    // First load: full data (no filter params)
+    fetchAdmins(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersApplied, filterRole, filterStartDate, filterEndDate]);
+  }, []);
 
   useEffect(() => {
     if (editMode) return; // 🚫 Don't run when editing
@@ -79,15 +79,20 @@ const SubAdmin = () => {
     }
   }, [selectedRole, setValue, editMode]);
   
-  const fetchAdmins = async () => {
+  const fetchAdmins = async (filters = appliedFilters) => {
     setLoading(true);
     try {
+      const role = filters?.role || "";
+      const start = filters?.start || "";
+      const end = filters?.end || "";
       const params = {
-        ...(filterRole ? { role: filterRole } : {}),
-        ...(filterStartDate ? { start_date: filterStartDate } : {}),
-        ...(filterEndDate ? { end_date: filterEndDate } : {}),
+        ...(role ? { role } : {}),
+        ...(start ? { start_date: start } : {}),
+        ...(end ? { end_date: end } : {}),
       };
-      const res = await getAllTwillioUsers(params);
+      const res = await getAllTwillioUsers(
+        Object.keys(params).length ? params : undefined
+      );
       const list = Array.isArray(res)
         ? res
         : res?.data || res?.data?.data || res?.users || [];
@@ -109,14 +114,30 @@ const SubAdmin = () => {
     const start = String(filterStartDate || "").trim();
     const end = String(filterEndDate || "").trim();
 
-    if (!role) return toast.error("Please select role");
-    if (!start) return toast.error("Please select start date");
-    if (!end) return toast.error("Please select end date");
-    if (start > end) return toast.error("Start date must be before end date");
+    // Empty filters → reload full data
+    if (!role && !start && !end) {
+      setCurrentPage(1);
+      setAppliedFilters(null);
+      fetchAdmins(null);
+      return;
+    }
 
+    // Role-only (or any combination) is allowed; dates are optional
+    if (start && end && start > end) {
+      return toast.error("Start date must be before end date");
+    }
+    if ((start && !end) || (!start && end)) {
+      return toast.error("Please select both start and end date, or leave both empty");
+    }
+
+    const next = {
+      ...(role ? { role } : {}),
+      ...(start ? { start } : {}),
+      ...(end ? { end } : {}),
+    };
     setCurrentPage(1);
-    setShowFilterPopup(false);
-    setFiltersApplied(true);
+    setAppliedFilters(next);
+    fetchAdmins(next);
   };
 
 const onSubmit = async (data) => {
@@ -240,98 +261,63 @@ const onSubmit = async (data) => {
 
   return (
     <div className="p-4 sm:p-6 md:p-7 w-full">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-gray-700">SubAdmin</h2>
-        <div className="flex items-center gap-2 flex-wrap">
-          {filtersApplied ? (
-            <div className="text-sm text-gray-600">
-              <span className="font-semibold">Role:</span> {filterRole}{" "}
-              <span className="mx-2 text-gray-300">|</span>
-              <span className="font-semibold">Date:</span> {filterStartDate} to {filterEndDate}
-            </div>
-          ) : null}
+      <div className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <h2 className="text-2xl font-bold text-gray-700 mr-2">SubAdmin</h2>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Role</label>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="min-w-[160px] rounded-md border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="">Select role</option>
+              <option value="admin">admin</option>
+              <option value="channelpartner">channelpartner</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Start date</label>
+            <input
+              type="date"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">End date</label>
+            <input
+              type="date"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
 
           <button
             type="button"
-            onClick={() => setShowFilterPopup(true)}
-            className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800"
+            onClick={applyFilters}
+            className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
           >
-            Change Filter
-          </button>
-
-          <button
-            onClick={handleCreateOpen}
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-          >
-            Create Admin
+            Apply
           </button>
         </div>
+
+        <button
+          onClick={handleCreateOpen}
+          className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 self-start lg:self-auto"
+        >
+          Create Admin
+        </button>
       </div>
-
-      {showFilterPopup ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
-            <div className="border-b px-5 py-4">
-              <div className="text-lg font-semibold text-gray-800">Select Filters</div>
-              <div className="mt-1 text-sm text-gray-600">
-                Choose role and date range to load users.
-              </div>
-            </div>
-            <div className="px-5 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  value={filterRole}
-                  onChange={(e) => setFilterRole(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="">Select role</option>
-                  <option value="admin">admin</option>
-                  <option value="channelpartner">channelpartner</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start date</label>
-                  <input
-                    type="date"
-                    value={filterStartDate}
-                    onChange={(e) => setFilterStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End date</label>
-                  <input
-                    type="date"
-                    value={filterEndDate}
-                    onChange={(e) => setFilterEndDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t px-5 py-4">
-              <button
-                type="button"
-                onClick={applyFilters}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {loading ? (
         <div className="flex flex-col justify-center items-center h-[50vh] gap-4 bg-white rounded-xl shadow">
           <div className="animate-spin h-10 w-10 rounded-full border-4 border-blue-500 border-t-transparent" />
-        </div>
-      ) : !filtersApplied ? (
-        <div className="flex flex-col justify-center items-center h-[50vh] gap-2 bg-white rounded-xl shadow">
-          <div className="text-sm text-gray-700 font-semibold">Select filters to continue</div>
-          <div className="text-xs text-gray-500">Role + Start date + End date</div>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl shadow">

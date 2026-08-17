@@ -554,23 +554,6 @@ const Sidebar = () => {
                 </button>
               </li>
 
-              <li>
-                <button
-                  onClick={() => {
-                    navigate("/create-agent-send");
-                    setMobileOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                    location.pathname === "/create-agent-send"
-                      ? "bg-gray-700 text-gray-300"
-                      : "hover:bg-gray-700 text-gray-300"
-                  }`}
-                >
-                  <FaMagento size={18} />
-                  <span className="whitespace-nowrap">Create Agents</span>
-                </button>
-              </li>
-
               {twilioUser === 1 && (
                 <li>
                   <button
@@ -711,7 +694,7 @@ const Sidebar = () => {
             </li>
           )}
 
-          {!isSalesPerson && (
+          {!isSalesPerson && normalizedRole !== "admin" && (
             <li>
               <button
                 onClick={() => {
@@ -819,6 +802,26 @@ const Sidebar = () => {
               >
                 <FaUsers size={18} />
                 Users Documents
+              </button>
+            </li>
+          )}
+
+          {role === "admin" && Cookies.get("email") === "paragshah.devac@gmail.com" && (
+            <li>
+              <button
+                onClick={() => {
+                  navigate("/settings/assigned-numbers");
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                  location.pathname === "/settings/assigned-numbers" ||
+                  location.pathname === "/settings/user-assigned-numbers"
+                    ? "bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <FiPhone size={18} className="flex-shrink-0" />
+                <span className="whitespace-nowrap">Assigned Numbers</span>
               </button>
             </li>
           )}

@@ -1,5 +1,6 @@
 import Cookies from "js-cookie";
 import service from "./axios";
+import { resolveCurrentUserAssignment } from "./assignedNumbersApi";
 
 export const PLIVO_AGENT_FLOW_URL =
   "https://agentflow.plivo.com/v1/account/MAZDGWYZRMMZCTYJA2YS/flow/4d00448a-7504-450a-8fae-4f2351a9c203";
@@ -16,17 +17,29 @@ export function resolvePlivoKeyword(agent) {
   return DEFAULT_PLIVO_KEYWORD;
 }
 
-export async function startPlivoAgentFlowCall({ keyword, phone_number }) {
+export async function startPlivoAgentFlowCall({
+  keyword,
+  phone_number,
+  transfer_number,
+  assigned_number,
+  to_number,
+}) {
+  const body = {
+    keyword,
+    phone_number,
+  };
+
+  if (transfer_number) body.transfer_number = transfer_number;
+  if (assigned_number) body.assigned_number = assigned_number;
+  if (to_number) body.to_number = to_number;
+
   const res = await fetch(PLIVO_AGENT_FLOW_URL, {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      keyword,
-      phone_number,
-    }),
+    body: JSON.stringify(body),
   });
 
   const payload = await res.json().catch(() => null);
@@ -41,23 +54,35 @@ export async function startPlivoAgentFlowCall({ keyword, phone_number }) {
   return payload;
 }
 
-function buildCallLogPayload(plivoResponse, phone_number, from_number) {
-  const to_number =
-    plivoResponse?.to_number ||
-    plivoResponse?.phone_number ||
-    plivoResponse?.to ||
-    phone_number;
-
-  const resolvedFrom =
-    plivoResponse?.from_number ||
-    plivoResponse?.from ||
+/**
+ * calls-logs payload:
+ * - from_number: assigned caller ID
+ * - to_number: number typed/dialed by user (never assigned number)
+ * - assigned_number / assigned_number_id / transfer_number: from assignment
+ */
+function buildCallLogPayload({ typedToNumber, from_number, assignmentContext, plivoResponse }) {
+  const resolvedFrom = String(
     from_number ||
-    DEFAULT_PLIVO_FROM_NUMBER;
+      assignmentContext?.from_number ||
+      assignmentContext?.assigned_number?.phone_no ||
+      DEFAULT_PLIVO_FROM_NUMBER
+  ).trim();
 
   const payload = {
     from_number: resolvedFrom,
-    to_number,
+    to_number: String(typedToNumber || "").trim(),
   };
+
+  if (assignmentContext?.assigned_number?.phone_no) {
+    payload.assigned_number = assignmentContext.assigned_number;
+    if (assignmentContext.assigned_number.id != null) {
+      payload.assigned_number_id = assignmentContext.assigned_number.id;
+    }
+  }
+
+  if (assignmentContext?.transfer_number) {
+    payload.transfer_number = assignmentContext.transfer_number;
+  }
 
   if (plivoResponse && typeof plivoResponse === "object") {
     if (plivoResponse.call_id) payload.call_id = plivoResponse.call_id;
@@ -69,8 +94,20 @@ function buildCallLogPayload(plivoResponse, phone_number, from_number) {
   return payload;
 }
 
-export async function createCallLog({ from_number, to_number, plivoResponse, phone_number }) {
-  const payload = buildCallLogPayload(plivoResponse, to_number || phone_number, from_number);
+export async function createCallLog({
+  from_number,
+  to_number,
+  plivoResponse,
+  phone_number,
+  assignmentContext,
+}) {
+  const typedToNumber = to_number || phone_number;
+  const payload = buildCallLogPayload({
+    typedToNumber,
+    from_number,
+    assignmentContext,
+    plivoResponse,
+  });
 
   const res = await service.post("calls-logs", payload, {
     headers: {
@@ -86,25 +123,48 @@ export async function startPlivoCallAndLog({
   keyword,
   phone_number,
   from_number = DEFAULT_PLIVO_FROM_NUMBER,
+  assignmentContext = null,
 }) {
-  const plivoResponse = await startPlivoAgentFlowCall({ keyword, phone_number });
+  const ctx = assignmentContext ?? (await resolveCurrentUserAssignment());
+  const typedToNumber = String(phone_number || "").trim();
+
+  const plivoFromNumber =
+    ctx?.from_number ||
+    ctx?.assigned_number?.phone_no ||
+    DEFAULT_PLIVO_FROM_NUMBER;
+
+  const plivoAssignedNumber = ctx?.assigned_number?.phone_no
+    ? ctx.assigned_number
+    : { phone_no: plivoFromNumber };
+
+  // Plivo agentflow
+  const plivoResponse = await startPlivoAgentFlowCall({
+    keyword,
+    phone_number: typedToNumber,
+    transfer_number: ctx?.transfer_number || undefined,
+    assigned_number: plivoAssignedNumber,
+    to_number: plivoFromNumber,
+  });
 
   let logResponse = null;
   let logError = null;
 
   try {
+    // calls-logs only: to_number must be the number the user typed
     logResponse = await createCallLog({
-      from_number,
-      to_number: phone_number,
-      phone_number,
+      from_number: plivoFromNumber || from_number,
+      to_number: typedToNumber,
+      phone_number: typedToNumber,
       plivoResponse,
+      assignmentContext: ctx,
     });
   } catch (err) {
-    logError = err;
     const msg = err?.response?.data?.message || err?.message || "Failed to save call log";
     logError = new Error(msg);
     console.warn("calls-logs API failed after Plivo call:", msg);
   }
 
-  return { plivoResponse, logResponse, logError };
+  return { plivoResponse, logResponse, logError, assignmentContext: ctx };
 }
+
+export { resolveCurrentUserAssignment };
