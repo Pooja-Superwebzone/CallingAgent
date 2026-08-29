@@ -134,7 +134,7 @@ function App() {
           path="/"
           element={
             authed ? (
-              <Navigate to="/agents_page" replace />
+              <Navigate to="/dashboard" replace />
             ) : (
               <LandingPage />
             )
@@ -150,7 +150,7 @@ function App() {
               <LoginSignup key={location.search} />
             ) : (
               <Navigate
-                to="/agents_page"
+                to="/dashboard"
                 replace
                 state={{ showWelcome: true, trialMinutes }}
               />
@@ -272,8 +272,7 @@ function App() {
             <Route
               path="/settings/assigned-numbers"
               element={
-                Cookies.get("role") === "admin" &&
-                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                Cookies.get("role") === "admin" ? (
                   <AssignedNumbersPage />
                 ) : (
                   <Navigate to="/agents_page" replace />
@@ -283,8 +282,27 @@ function App() {
             <Route
               path="/settings/user-assigned-numbers"
               element={
-                Cookies.get("role") === "admin" &&
-                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                Cookies.get("role") === "admin" ? (
+                  <AssignedNumbersPage />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
+            <Route
+              path="/settings/buy-number"
+              element={
+                Cookies.get("role") === "admin" ? (
+                  <AssignedNumbersPage />
+                ) : (
+                  <Navigate to="/agents_page" replace />
+                )
+              }
+            />
+            <Route
+              path="/settings/number-purchases"
+              element={
+                Cookies.get("role") === "admin" ? (
                   <AssignedNumbersPage />
                 ) : (
                   <Navigate to="/agents_page" replace />
@@ -302,7 +320,7 @@ function App() {
         {/* Catch-all */}
         <Route
           path="*"
-          element={authed ? <Navigate to="/agents_page" /> : <Navigate to="/" />}
+          element={authed ? <Navigate to="/dashboard" /> : <Navigate to="/" />}
         />
       </Routes>
     </>

@@ -38,6 +38,8 @@ export async function startPlivoAgentFlowCall({
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
+      Authorization:
+        "Basic TUFaREdXWVpSTU1aQ1RZSkEyWVM6TmpWaE1UUXpNR1F0TjJNMk5TMDBaak0zTFRka1lXVXRNekEzWXpWag==",
     },
     body: JSON.stringify(body),
   });
@@ -119,15 +121,68 @@ export async function createCallLog({
   return res.data;
 }
 
+export async function startBackendCall({ phone, agent }) {
+  const token =
+    Cookies.get("CallingAgent") || localStorage.getItem("ibcrmtoken") || "";
+  try {
+    const res = await service.post(
+      "start-call",
+      {
+        phone: String(phone || "").trim(),
+        agent: String(agent || "").trim(),
+      },
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return res.data;
+  } catch (error) {
+    const msg =
+      error?.response?.data?.message ||
+      Object.values(error?.response?.data?.errors || {})[0]?.[0] ||
+      error?.message ||
+      "Failed to start call";
+    throw new Error(msg);
+  }
+}
+
 export async function startPlivoCallAndLog({
   keyword,
   phone_number,
   from_number = DEFAULT_PLIVO_FROM_NUMBER,
   assignmentContext = null,
+  agentUserId = null,
 }) {
   const ctx = assignmentContext ?? (await resolveCurrentUserAssignment());
   const typedToNumber = String(phone_number || "").trim();
+  const agentKeyword = String(keyword || DEFAULT_PLIVO_KEYWORD).trim();
 
+  // Voice agent has user_id (not null) → backend start-call API
+  const hasAgentUserId =
+    agentUserId !== null &&
+    agentUserId !== undefined &&
+    String(agentUserId).trim() !== "" &&
+    String(agentUserId).trim().toLowerCase() !== "null";
+
+  if (hasAgentUserId) {
+    const startCallResponse = await startBackendCall({
+      phone: typedToNumber,
+      agent: agentKeyword,
+    });
+    return {
+      plivoResponse: startCallResponse,
+      logResponse: null,
+      logError: null,
+      assignmentContext: ctx,
+      usedStartCall: true,
+    };
+  }
+
+  // Agent user_id is null → Plivo agentflow (+ calls-logs)
   const plivoFromNumber =
     ctx?.from_number ||
     ctx?.assigned_number?.phone_no ||
@@ -137,9 +192,8 @@ export async function startPlivoCallAndLog({
     ? ctx.assigned_number
     : { phone_no: plivoFromNumber };
 
-  // Plivo agentflow
   const plivoResponse = await startPlivoAgentFlowCall({
-    keyword,
+    keyword: agentKeyword,
     phone_number: typedToNumber,
     transfer_number: ctx?.transfer_number || undefined,
     assigned_number: plivoAssignedNumber,
@@ -150,7 +204,6 @@ export async function startPlivoCallAndLog({
   let logError = null;
 
   try {
-    // calls-logs only: to_number must be the number the user typed
     logResponse = await createCallLog({
       from_number: plivoFromNumber || from_number,
       to_number: typedToNumber,
@@ -164,7 +217,13 @@ export async function startPlivoCallAndLog({
     console.warn("calls-logs API failed after Plivo call:", msg);
   }
 
-  return { plivoResponse, logResponse, logError, assignmentContext: ctx };
+  return {
+    plivoResponse,
+    logResponse,
+    logError,
+    assignmentContext: ctx,
+    usedStartCall: false,
+  };
 }
 
 export { resolveCurrentUserAssignment };

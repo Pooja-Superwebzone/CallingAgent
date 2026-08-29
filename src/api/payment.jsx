@@ -42,6 +42,7 @@ const UPDATE_SUBSCRIPTION_URL = "https://api-main.ibcrm.in/api/update-subscripti
 
 export const PENDING_MINUTE_PURCHASE_KEY = "pendingMinutePurchase";
 export const PENDING_PAYMENT_KEY = "pendingPayment";
+export const PENDING_BUY_NUMBER_KEY = "pendingBuyNumber";
 
 export function getCouponDiscountAmount(couponResponse) {
   const raw =

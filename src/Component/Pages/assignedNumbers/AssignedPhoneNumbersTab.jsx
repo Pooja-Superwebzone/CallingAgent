@@ -35,7 +35,7 @@ function TableSkeleton() {
   );
 }
 
-export default function AssignedPhoneNumbersTab() {
+export default function AssignedPhoneNumbersTab({ onAddNumber }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -147,7 +147,7 @@ export default function AssignedPhoneNumbersTab() {
         </div>
         <button
           type="button"
-          onClick={openCreate}
+          onClick={() => (onAddNumber ? onAddNumber() : openCreate())}
           className="self-start rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
         >
           Add Number

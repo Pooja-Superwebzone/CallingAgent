@@ -209,7 +209,7 @@ export default function LoginSignup() {
         ensureDefaultPlanForEmail(user?.email || loginData.email);
 
         toast.success("Login successful");
-        navigate("/agents_page");
+        navigate("/dashboard");
       } else {
         toast.error("Invalid login response");
       }
@@ -363,7 +363,7 @@ export default function LoginSignup() {
         }
 
         // ✅ Navigate with welcome popup
-        navigate("/agents_page", {
+        navigate("/dashboard", {
           state: {
             showWelcome: true,
             trialMinutes: "10",

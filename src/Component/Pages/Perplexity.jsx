@@ -225,7 +225,7 @@ export default function Perplexity() {
       reader.readAsArrayBuffer(file);
     });
 
-  const runBulkCallsFromExcel = async (file, keyword, assignmentContext) => {
+  const runBulkCallsFromExcel = async (file, keyword, assignmentContext, agentUserId) => {
     const phones = await parsePhonesFromExcel(file);
     let success = 0;
     let failed = 0;
@@ -240,6 +240,7 @@ export default function Perplexity() {
           keyword,
           phone_number: phones[i],
           assignmentContext,
+          agentUserId,
         });
         success++;
         if (logError) logFailed++;
@@ -294,12 +295,17 @@ export default function Perplexity() {
       setSubmitting(true);
 
       const assignmentContext = await resolveCurrentUserAssignment();
+      const selectedAgent = voiceAgents.find(
+        (a) => String(a?.id) === String(selectedVoiceAgentId)
+      );
+      const agentUserId = selectedAgent?.user_id ?? null;
 
       if (excelFile) {
         const result = await runBulkCallsFromExcel(
           excelFile,
           selectedVoiceAgentKeyword,
-          assignmentContext
+          assignmentContext,
+          agentUserId
         );
         const logNote =
           result.logFailed > 0 ? ` (${result.logFailed} call log(s) failed to save)` : "";
@@ -328,6 +334,7 @@ export default function Perplexity() {
         keyword: selectedVoiceAgentKeyword,
         phone_number: toNumber,
         assignmentContext,
+        agentUserId,
       });
       if (logError) {
         toast.error(

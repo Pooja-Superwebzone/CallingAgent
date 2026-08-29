@@ -596,7 +596,7 @@ export default function LandingPage() {
     if (isFreePlan(selectedPlan)) {
       toast.success("Signup successful!");
       closeSignupModal();
-      navigate("/agents_page", { replace: true });
+      navigate("/dashboard", { replace: true });
       return;
     }
 
@@ -707,7 +707,7 @@ export default function LandingPage() {
 
       sessionStorage.removeItem(PENDING_PAYMENT_KEY);
       toast.success("Payment successful!");
-      navigate("/agents_page", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       sessionStorage.removeItem(PENDING_PAYMENT_KEY);
       const message = err?.message || "Payment failed. Please try again.";

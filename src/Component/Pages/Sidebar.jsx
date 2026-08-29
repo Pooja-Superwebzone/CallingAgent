@@ -576,6 +576,23 @@ const Sidebar = () => {
               <li>
                 <button
                   onClick={() => {
+                    navigate("/settings/buy-number");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/settings/buy-number"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <FiPhone size={18} className="flex-shrink-0" />
+                  <span className="whitespace-nowrap">Buy Number</span>
+                </button>
+              </li>
+
+              <li>
+                <button
+                  onClick={() => {
                     navigate("/tutorial");
                     setMobileOpen(false);
                   }}
@@ -807,21 +824,58 @@ const Sidebar = () => {
           )}
 
           {role === "admin" && Cookies.get("email") === "paragshah.devac@gmail.com" && (
+            <>
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/settings/assigned-numbers");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/settings/assigned-numbers" ||
+                    location.pathname === "/settings/user-assigned-numbers"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <FiPhone size={18} className="flex-shrink-0" />
+                  <span className="whitespace-nowrap">Assigned Numbers</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => {
+                    navigate("/settings/buy-number");
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
+                    location.pathname === "/settings/buy-number"
+                      ? "bg-gray-700 text-gray-300"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <FiPhone size={18} className="flex-shrink-0" />
+                  <span className="whitespace-nowrap">Buy Number</span>
+                </button>
+              </li>
+            </>
+          )}
+
+          {role === "admin" && Cookies.get("email") !== "paragshah.devac@gmail.com" && (
             <li>
               <button
                 onClick={() => {
-                  navigate("/settings/assigned-numbers");
+                  navigate("/settings/buy-number");
                   setMobileOpen(false);
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-md transition ${
-                  location.pathname === "/settings/assigned-numbers" ||
-                  location.pathname === "/settings/user-assigned-numbers"
+                  location.pathname === "/settings/buy-number"
                     ? "bg-gray-700 text-gray-300"
                     : "hover:bg-gray-700 text-gray-300"
                 }`}
               >
                 <FiPhone size={18} className="flex-shrink-0" />
-                <span className="whitespace-nowrap">Assigned Numbers</span>
+                <span className="whitespace-nowrap">Buy Number</span>
               </button>
             </li>
           )}

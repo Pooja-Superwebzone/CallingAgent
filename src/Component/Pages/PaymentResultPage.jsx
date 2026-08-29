@@ -7,8 +7,13 @@ import {
   creditMinutesAfterPayment,
   PENDING_MINUTE_PURCHASE_KEY,
   PENDING_PAYMENT_KEY,
+  PENDING_BUY_NUMBER_KEY,
   postShareValue,
 } from "../../api/payment";
+import {
+  createPlivoNumberPurchase,
+  getPlivoPurchaseError,
+} from "../../api/plivoAvailableNumbersApi";
 
 export default function PaymentResultPage() {
   const [searchParams] = useSearchParams();
@@ -29,6 +34,7 @@ export default function PaymentResultPage() {
       try {
         const raw =
           sessionStorage.getItem(PENDING_PAYMENT_KEY) ||
+          sessionStorage.getItem(PENDING_BUY_NUMBER_KEY) ||
           sessionStorage.getItem(PENDING_MINUTE_PURCHASE_KEY);
         pending = raw ? JSON.parse(raw) : null;
       } catch {
@@ -44,9 +50,29 @@ export default function PaymentResultPage() {
 
         const pendingType =
           pending?.type ||
-          (pending?.minutes ? "minutes" : pending?.selectedDate ? "webinar" : "plan");
+          (pending?.phoneNumber
+            ? "buy_number"
+            : pending?.minutes
+              ? "minutes"
+              : pending?.selectedDate
+                ? "webinar"
+                : "plan");
 
-        if (pendingType === "minutes") {
+        if (pendingType === "buy_number") {
+          const phoneNumber = String(pending?.phoneNumber || "").trim();
+          const userId = pending?.userId;
+          if (phoneNumber && userId) {
+            await createPlivoNumberPurchase({
+              user_id: userId,
+              phone_no: phoneNumber,
+              amount: pending?.payableAmount ?? pending?.baseAmount ?? 0,
+              currency: "INR",
+              payment_status: "paid",
+              payment_reference: orderId || pending?.paymentReference || "",
+              notes: pending?.notes || "",
+            });
+          }
+        } else if (pendingType === "minutes") {
           await creditMinutesAfterPayment({
             email: pending?.email,
             planId: pending?.planId,
@@ -79,10 +105,25 @@ export default function PaymentResultPage() {
         }
       } catch (e) {
         console.warn("Post-payment handler failed:", e);
+        const pendingType =
+          pending?.type ||
+          (pending?.phoneNumber
+            ? "buy_number"
+            : pending?.minutes
+              ? "minutes"
+              : pending?.selectedDate
+                ? "webinar"
+                : "plan");
+        if (pendingType === "buy_number") {
+          toast.error(getPlivoPurchaseError(e, "Payment received but number purchase failed. Contact support."));
+          navigate("/settings/buy-number", { replace: true });
+          return;
+        }
       }
 
       sessionStorage.removeItem(PENDING_MINUTE_PURCHASE_KEY);
       sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+      sessionStorage.removeItem(PENDING_BUY_NUMBER_KEY);
 
       if (cancelled) return;
 
@@ -90,10 +131,18 @@ export default function PaymentResultPage() {
 
       const pendingType =
         pending?.type ||
-        (pending?.minutes ? "minutes" : pending?.selectedDate ? "webinar" : "plan");
+        (pending?.phoneNumber
+          ? "buy_number"
+          : pending?.minutes
+            ? "minutes"
+            : pending?.selectedDate
+              ? "webinar"
+              : "plan");
 
       if (pendingType === "minutes") {
         navigate("/minutes", { replace: true });
+      } else if (pendingType === "buy_number") {
+        navigate("/settings/buy-number", { replace: true });
       } else if (pendingType === "webinar") {
         const email = String(pending?.email || "").trim();
         const params = new URLSearchParams();
@@ -106,7 +155,7 @@ export default function PaymentResultPage() {
           replace: true,
         });
       } else {
-        navigate("/agents_page", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     };
 
