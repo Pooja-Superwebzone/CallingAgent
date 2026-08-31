@@ -3,9 +3,24 @@ import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import DOMPurify from "dompurify";
 import { useNavigate } from "react-router-dom";
-
-import { getAgents } from "../../hooks/useAuth";
 import { FiEdit, FiPlusCircle } from "react-icons/fi";
+import {
+  ensureHtmlBody,
+  fetchVoiceAgents,
+  getSalespersonAgentsError,
+  getVoiceAgentBody,
+} from "../../api/salespersonAgentsApi";
+
+function mapVoiceAgentRow(agent, index) {
+  const body = agent.body ?? getVoiceAgentBody(agent);
+  return {
+    id: agent.id ?? index + 1,
+    voice_agent_id: agent.id ?? null,
+    name: agent.name ?? "",
+    welcome_message: agent.welcome_message ?? agent.opening_message ?? "",
+    body: ensureHtmlBody(body),
+  };
+}
 
 export default function AgentsPage() {
   const [rows, setRows] = useState([]);
@@ -21,18 +36,11 @@ export default function AgentsPage() {
   const loadRows = async () => {
     setLoading(true);
     try {
-      const list = await getAgents();
-      setRows(
-        (Array.isArray(list) ? list : []).map((r, i) => ({
-          id: r.id ?? i + 1,
-          agent_id: r.agent_id ?? r.agentId ?? r.id ?? i + 1,
-          name: r.name ?? "",
-          welcome_message: r.welcome_message ?? r.welcomeMessage ?? "",
-          body: r.body ?? "",
-        }))
-      );
+      const res = await fetchVoiceAgents();
+      const list = Array.isArray(res.data) ? res.data : [];
+      setRows(list.map(mapVoiceAgentRow));
     } catch (e) {
-      toast.error(e?.message || "Failed to fetch agents");
+      toast.error(getSalespersonAgentsError(e, "Failed to fetch agents"));
       setRows([]);
     } finally {
       setLoading(false);
@@ -45,7 +53,6 @@ export default function AgentsPage() {
 
   return (
     <div className="p-4 sm:p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-gray-700">Agents</h2>
         <button
@@ -59,7 +66,6 @@ export default function AgentsPage() {
         </button>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto rounded-xl shadow">
         <table className="min-w-full bg-white text-sm table-fixed">
           <thead className="bg-gray-100 text-left text-gray-600">
@@ -104,8 +110,9 @@ export default function AgentsPage() {
                       type="button"
                       title="Edit agent"
                       aria-label={`Edit ${r.name}`}
-                      onClick={() => navigate(`/agents/${r.agent_id}/edit`)}
-                      className="rounded border border-gray-300 bg-white p-2 text-gray-600 shadow-sm transition hover:bg-gray-100"
+                      onClick={() => navigate(`/agents/${r.voice_agent_id}/edit`)}
+                      disabled={!r.voice_agent_id}
+                      className="rounded border border-gray-300 bg-white p-2 text-gray-600 shadow-sm transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <FiEdit size={16} />
                     </button>
@@ -117,7 +124,6 @@ export default function AgentsPage() {
         </table>
       </div>
 
-      {/* Pagination */}
       {rows.length > pageSize && (
         <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
           <div>

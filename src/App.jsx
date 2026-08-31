@@ -57,6 +57,8 @@ import LanguageKeywordsPage from "./Component/Pages/LanguageKeywordsPage";
 import PaymentResultPage from "./Component/Pages/PaymentResultPage";
 import CallsDashboard from "./Component/Pages/CallsDashboard";
 import AssignedNumbersPage from "./Component/Pages/assignedNumbers/AssignedNumbersPage";
+import BdeAgentsPage from "./Component/Pages/bde/BdeAgentsPage";
+import BdeAgentEditPage from "./Component/Pages/bde/BdeAgentEditPage";
 
 function App() {
   const location = useLocation();
@@ -312,6 +314,28 @@ function App() {
             <Route
               path="/channel-partner-minute-transactions"
               element={<ChannelPartnerMinuteTransactions />}
+            />
+            <Route
+              path="/bde/agents"
+              element={
+                Cookies.get("role") === "admin" &&
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <BdeAgentsPage />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
+            />
+            <Route
+              path="/bde/agents/:id/edit"
+              element={
+                Cookies.get("role") === "admin" &&
+                Cookies.get("email") === "paragshah.devac@gmail.com" ? (
+                  <BdeAgentEditPage />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
             />
             <Route path="/agents-category" element={<AgentsCategoryPage />} />
             <Route path="/dashboard" element={<CallsDashboard />} />

@@ -5,7 +5,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
 
-import { createAgent, getAgents, updateAgent } from "../../hooks/useAuth";
+import { createAgent } from "../../hooks/useAuth";
+import {
+  ensureHtmlBody,
+  fetchVoiceAgentById,
+  getSalespersonAgentsError,
+  getVoiceAgentBody,
+  updateVoiceAgent,
+} from "../../api/salespersonAgentsApi";
 
 export default function AgentCreatePage() {
   const { id } = useParams();
@@ -26,24 +33,20 @@ export default function AgentCreatePage() {
     (async () => {
       setLoading(true);
       try {
-        const list = await getAgents();
-        const agent = (Array.isArray(list) ? list : []).find(
-          (a) =>
-            String(a.agent_id ?? a.agentId ?? "") === String(id) ||
-            String(a.id ?? "") === String(id)
-        );
+        const res = await fetchVoiceAgentById(id);
+        const agent = res.data;
         if (cancelled) return;
         if (!agent) {
           toast.error("Agent not found");
           navigate("/agents_page");
           return;
         }
-        setName(agent?.name ?? "");
-        setWelcomeMessage(agent?.welcome_message ?? agent?.welcomeMessage ?? "");
-        setBodyHtml(agent?.body ?? "<p></p>");
+        setName(agent.name ?? "");
+        setWelcomeMessage(agent.welcome_message ?? agent.opening_message ?? "");
+        setBodyHtml(ensureHtmlBody(agent.body ?? getVoiceAgentBody(agent)));
       } catch (err) {
         if (!cancelled) {
-          toast.error(err?.message || "Failed to load agent");
+          toast.error(getSalespersonAgentsError(err, "Failed to load agent"));
           navigate("/agents_page");
         }
       } finally {
@@ -65,20 +68,25 @@ export default function AgentCreatePage() {
     setSaving(true);
     try {
       const payload = {
-        name,
+        name: name.trim(),
         welcome_message: welcomeMessage,
         body: bodyHtml,
       };
       if (isEdit) {
-        await updateAgent(id, payload);
-        toast.success("Agent updated successfully");
+        const res = await updateVoiceAgent(id, payload);
+        toast.success(res.message || "Agent updated successfully");
       } else {
         await createAgent(payload);
         toast.success("Agent created successfully");
       }
       navigate("/agents_page");
     } catch (err) {
-      toast.error(err?.message || `Failed to ${isEdit ? "update" : "save"} agent`);
+      toast.error(
+        getSalespersonAgentsError(
+          err,
+          `Failed to ${isEdit ? "update" : "save"} agent`
+        )
+      );
     } finally {
       setSaving(false);
     }
@@ -131,7 +139,7 @@ export default function AgentCreatePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium">FAQ</label>
+            <label className="block text-sm font-medium">Body</label>
             <CKEditor
               editor={ClassicEditor}
               data={bodyHtml}
